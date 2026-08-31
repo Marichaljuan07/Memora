@@ -325,37 +325,44 @@ function comprobarEstadoAccesoEInicial() {
     const vieneDeLandingTrial = urlParams.get('action') === 'start_trial';
     const ahora = new Date().getTime();
 
-    // 1. SI VIENE DESDE EL BOTÓN DE LA LANDING PAGE: Inicia las 24hs automáticamente
-    if (vieneDeLandingTrial && !localStorage.getItem('memora_trial_expires') && !localStorage.getItem('memora_activated')) {
-        const expira = ahora + (24 * 60 * 60 * 1000); // 24 Horas
-        localStorage.setItem('memora_activated', 'true');
-        localStorage.setItem('memora_trial_expires', expira);
-        localStorage.setItem('memora_user_role', 'trial_1day');
-        
-        // Limpia el parámetro ?action=start_trial de la barra de direcciones
+    // 1. SI VIENE DESDE LA LANDING PAGE: Activa las 24 horas por primera vez
+    if (vieneDeLandingTrial) {
+        if (!localStorage.getItem('memora_trial_expires')) {
+            const expira = ahora + (24 * 60 * 60 * 1000); // 24 Horas
+            localStorage.setItem('memora_activated', 'true');
+            localStorage.setItem('memora_trial_expires', expira);
+            localStorage.setItem('memora_user_role', 'trial_1day');
+        }
+        // Limpia el parametro ?action=start_trial de la URL
         window.history.replaceState({}, document.title, window.location.pathname);
     }
 
     const activado = localStorage.getItem('memora_activated') === 'true';
     const perfilCompleto = localStorage.getItem('memora_profile_completed') === 'true';
-    const trialExpires = localStorage.getItem('memora_trial_expires');
+    const trialExpiresRaw = localStorage.getItem('memora_trial_expires');
 
-    // Desenfoca la interfaz mientras el usuario no esté activado
+    // Desenfoca el fondo por defecto si hay bloqueo
     if (document.querySelector('.main-content')) document.querySelector('.main-content').style.filter = 'blur(8px)';
     if (document.querySelector('.bottom-nav')) document.querySelector('.bottom-nav').style.display = 'none';
 
-    // 2. CONTROL DE EXPIRACIÓN DEL TRIAL DE 24 HORAS
-    if (trialExpires) {
-        const expiracionMs = parseInt(trialExpires, 10);
+    // 2. CASO: NUNCA ACTIVÓ LA PRUEBA (Entró directo a localhost:8080)
+    if (!trialExpiresRaw && !activado) {
+        if ($('modalAccesoBloqueado')) $('modalAccesoBloqueado').style.display = 'flex';
+        return;
+    }
+
+    // 3. CASO: TIENE UNA PRUEBA REGISTRADA (Comprobar si expiró o sigue activa)
+    if (trialExpiresRaw) {
+        const expiracionMs = parseInt(trialExpiresRaw, 10);
+
+        // Si ya pasaron las 24 horas:
         if (ahora >= expiracionMs) {
             localStorage.removeItem('memora_activated');
-            localStorage.removeItem('memora_trial_expires');
-            localStorage.removeItem('memora_user_role');
             if ($('bannerTrialCounter')) $('bannerTrialCounter').style.display = 'none';
             if (intervalTrialTimer) clearInterval(intervalTrialTimer);
 
             mostrarAvisoMemora(
-                "Tu período de prueba gratuita de 24 horas ha finalizado. Adquiere tu licencia permanente para continuar.", 
+                "Tu período de prueba de 24 horas ha finalizado. Adquiere una licencia para continuar.", 
                 "Prueba Finalizada", 
                 "timer_off", 
                 () => {
@@ -364,25 +371,22 @@ function comprobarEstadoAccesoEInicial() {
             );
             return;
         } else {
+            // Sigue dentro del rango de 24 horas
             iniciarContadorTrialEnVivo(expiracionMs);
         }
     }
 
-    // 3. SI NO TIENE TRIAL ACTIVO NI CUENTA ACTIVADA: Muestra bloqueo directo sin pedir claves
-    if (!activado) {
-        if ($('modalAccesoBloqueado')) $('modalAccesoBloqueado').style.display = 'flex';
-        return;
-    }
-
-    // 4. SI TIENE TRIAL PERO LE FALTA PERFIL: Pide el registro inicial
+    // 4. CASO: SI ESTÁ EN PRUEBA O ACTIVADO PERO LE FALTA EL PERFIL
     if (!perfilCompleto) {
         if ($('modalAccesoBloqueado')) $('modalAccesoBloqueado').style.display = 'none';
         if ($('modalPerfilMemora')) $('modalPerfilMemora').style.display = 'flex';
         return;
     }
 
+    // 5. TODO EN REGLA: Desbloquea la app
     desbloquearInterfazCompleta();
 }
+
 
 function iniciarContadorTrialEnVivo(expiracionMs) {
     if ($('bannerTrialCounter')) $('bannerTrialCounter').style.display = 'flex';
