@@ -1,9 +1,0 @@
-{
-  "name": "MEMORA - CRM Local",
-  "short_name": "MEMORA",
-  "start_url": "./index.html",
-  "display": "standalone",
-  "background_color": "#F7F9FB",
-  "theme_color": "#004F87",
-  "description": "Sistema de seguimiento comercial local e inteligente"
-}
