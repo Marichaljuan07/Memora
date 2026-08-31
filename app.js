@@ -321,23 +321,23 @@ function exportarCSVFiltrado() {
    SISTEMA DE ACTIVACIÓN + FREE TRIAL DE 1 DÍA CON CONTADOR EN VIVO
    ========================================================================== */
 function comprobarEstadoAccesoEInicial() {
-    // 1. CAPTURA EL PARÁMETRO PROVENIENTE DE LA LANDING PAGE
+    // 1. CAPTURA EL PARÁMETRO QUE VIENE DESDE EL BOTÓN DE LA LANDING PAGE
     const urlParams = new URLSearchParams(window.location.search);
     const vieneDeLandingTrial = urlParams.get('action') === 'start_trial';
     const ahora = new Date().getTime();
 
-    // Si viene de la Landing Y no tiene ya una prueba activa o registrada
+    // Si entra desde el botón de la Landing Y no tiene una prueba activa o cuenta activada
     if (vieneDeLandingTrial && !localStorage.getItem('memora_trial_expires') && !localStorage.getItem('memora_activated')) {
-        const expira = ahora + (24 * 60 * 60 * 1000); // 24 horas exactas
+        const expira = ahora + (24 * 60 * 60 * 1000); // Concede 24 horas de prueba
         localStorage.setItem('memora_activated', 'true');
         localStorage.setItem('memora_trial_expires', expira);
         localStorage.setItem('memora_user_role', 'trial_1day');
         
-        // Limpia el parametro "?action=start_trial" de la barra de direcciones
+        // Limpia el parámetro "?action=start_trial" de la barra de direcciones
         window.history.replaceState({}, document.title, window.location.pathname);
     }
 
-    // 2. LÓGICA DE VALIDACIÓN NORMAL DE ACCESO Y EXPIRACIÓN
+    // 2. VALIDACIÓN DE ESTADOS Y EXPIRACIÓN
     const activado = localStorage.getItem('memora_activated') === 'true';
     const perfilCompleto = localStorage.getItem('memora_profile_completed') === 'true';
     const trialExpires = localStorage.getItem('memora_trial_expires');
@@ -345,9 +345,9 @@ function comprobarEstadoAccesoEInicial() {
     if (document.querySelector('.main-content')) document.querySelector('.main-content').style.filter = 'blur(8px)';
     if (document.querySelector('.bottom-nav')) document.querySelector('.bottom-nav').style.display = 'none';
 
-    // Verificar si era una versión de prueba y si ya expiró
+    // Verificar si la prueba ya expiró
     if (trialExpires) {
-        const expiracionMs = parseInt(trialExpires);
+        const expiracionMs = parseInt(trialExpires, 10);
         if (ahora >= expiracionMs) {
             localStorage.removeItem('memora_activated');
             localStorage.removeItem('memora_trial_expires');
@@ -369,6 +369,7 @@ function comprobarEstadoAccesoEInicial() {
         }
     }
 
+    // Si no presionó el botón de la landing ni ingresó clave, BLOQUEA Y PIDE CLAVE
     if (!activado) {
         if ($('modalClaveMemora')) $('modalClaveMemora').style.display = 'flex';
         return;
@@ -382,8 +383,9 @@ function comprobarEstadoAccesoEInicial() {
 
     desbloquearInterfazCompleta();
 }
+
 function iniciarContadorTrialEnVivo(expiracionMs) {
-    if ($('bannerTrialCounter')) $('bannerTrialCounter').style.display = 'flex';
+    if ($('bannerTrialCounter')) $('bannerTrialCounte:r').style.display = 'flex';
 
     function actualizarTimer() {
         const ahora = new Date().getTime();
