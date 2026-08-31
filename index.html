@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MEMORA - CRM Local</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-left">
+            <button class="icon-btn" id="btnHeaderBack" style="display:none;" onclick="navegarA('registros')">
+                <span class="material-symbols-outlined">arrow_back</span>
+            </button>
+            <div style="display:flex; flex-direction:column;">
+                <span class="brand-title">MEMORA</span>
+                <span id="relojHeader" style="font-size: 0.65rem; opacity: 0.85; font-weight: 400;">--:--:--</span>
+            </div>
+        </div>
+        <div class="header-center">
+            <span id="screenTitle">Inicio</span>
+        </div>
+        <div class="header-right">
+            <div class="status-pill" id="netStatus">
+                <span class="status-dot"></span>
+                <span class="status-text">Online</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- BANNER DE PRUEBA GRATUITA CON CONTADOR EN TIEMPO REAL -->
+    <div id="bannerTrialCounter" class="trial-banner" style="display: none;">
+        <span class="material-symbols-outlined" style="font-size:18px;">timer</span>
+        <span>Versión de prueba activa — Tiempo restante: <strong id="timerTrialText">24:00:00</strong></span>
+    </div>
+
+    <main class="main-content">
+        <!-- SECCIÓN 1: INICIO -->
+        <section id="sec-inicio" class="app-section">
+            <div class="welcome-section">
+                <div class="welcome-text">
+                    <h2 id="saludo">¡Hola!</h2>
+                    <p>Resumen y métricas de tu gestión.</p>
+                </div>
+            </div>
+            <div class="kpi-carousel-wrapper">
+                <div class="kpi-carousel">
+                    <div class="kpi-card" onclick="filtrarPorEstadoKPI('Consulta nueva')">
+                        <span class="material-symbols-outlined kpi-icon">chat_bubble_outline</span>
+                        <span class="kpi-label">Consulta nueva</span>
+                        <span class="kpi-value" id="kpi-consulta">0</span>
+                        <div class="kpi-indicator blue"></div>
+                    </div>
+                    <div class="kpi-card" onclick="filtrarPorEstadoKPI('Información enviada')">
+                        <span class="material-symbols-outlined kpi-icon">send</span>
+                        <span class="kpi-label">Info enviada</span>
+                        <span class="kpi-value" id="kpi-info">0</span>
+                        <div class="kpi-indicator blue-light"></div>
+                    </div>
+                    <div class="kpi-card" onclick="filtrarPorEstadoKPI('Esperando cliente')">
+                        <span class="material-symbols-outlined kpi-icon">person_outline</span>
+                        <span class="kpi-label">Esperando cliente</span>
+                        <span class="kpi-value" id="kpi-esperando">0</span>
+                        <div class="kpi-indicator orange"></div>
+                    </div>
+                    <div class="kpi-card" onclick="filtrarPorEstadoKPI('Esperando respuesta interna')">
+                        <span class="material-symbols-outlined kpi-icon">help_outline</span>
+                        <span class="kpi-label">Resp. interna</span>
+                        <span class="kpi-value" id="kpi-resp-interna">0</span>
+                        <div class="kpi-indicator purple"></div>
+                    </div>
+                    <div class="kpi-card" onclick="filtrarPorEstadoKPI('Cerrado')">
+                        <span class="material-symbols-outlined kpi-icon">check_circle_outline</span>
+                        <span class="kpi-label">Cerrado</span>
+                        <span class="kpi-value" id="kpi-cerrado">0</span>
+                        <div class="kpi-indicator green"></div>
+                    </div>
+                    <div class="kpi-card" onclick="filtrarPorEstadoKPI('Perdido')">
+                        <span class="material-symbols-outlined kpi-icon">cancel</span>
+                        <span class="kpi-label">Perdido</span>
+                        <span class="kpi-value" id="kpi-perdido">0</span>
+                        <div class="kpi-indicator red"></div>
+                    </div>
+                    <div class="kpi-card" onclick="filtrarPorEstadoKPI('Archivado')">
+                        <span class="material-symbols-outlined kpi-icon">archive</span>
+                        <span class="kpi-label">Archivado</span>
+                        <span class="kpi-value" id="kpi-archivado">0</span>
+                        <div class="kpi-indicator gray"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="card banner-info-card" style="background: linear-gradient(135deg, #E3F2FD 0%, #FFFFFF 100%); border-left: 4px solid var(--primary-blue); margin-bottom: 16px;">
+                <div style="display:flex; gap:10px; align-items:flex-start;">
+                    <span class="material-symbols-outlined" style="color:var(--primary-blue);">auto_awesome</span>
+                    <div>
+                        <h4 style="font-size: 0.85rem; color: var(--primary-blue); font-weight:700;">Seguimiento Inteligente</h4>
+                        <p style="font-size: 0.75rem; color: var(--text-primary); margin-top: 2px; line-height: 1.3;" id="textoBannerSeguimiento">
+                            MEMORA administra automáticamente a los clientes inactivos según tus reglas.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="card" style="margin-bottom:20px;">
+                <h3 style="font-size:0.9rem; margin-bottom:10px; color:var(--text-primary);">Rendimiento General</h3>
+                <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px; text-align:center;">
+                    <div style="background:#F9FAFB; padding:8px; border-radius:10px;">
+                        <span style="font-size:0.7rem; color:var(--text-secondary);">Activos</span>
+                        <h4 style="font-size:1.1rem; font-weight:700;" id="dash-activos">0</h4>
+                    </div>
+                    <div style="background:#F9FAFB; padding:8px; border-radius:10px;">
+                        <span style="font-size:0.7rem; color:var(--text-secondary);">Este Mes</span>
+                        <h4 style="font-size:1.1rem; font-weight:700;" id="dash-mes">0</h4>
+                    </div>
+                    <div style="background:#F9FAFB; padding:8px; border-radius:10px;">
+                        <span style="font-size:0.7rem; color:var(--text-secondary);">Top Canal</span>
+                        <h4 style="font-size:0.85rem; font-weight:700; margin-top:2px;" id="dash-canal">-</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="section-container">
+                <div class="section-header">
+                    <h3>Seguimiento Requerido (<span id="contadorSeguimiento">0</span>)</h3>
+                    <a href="#" class="link-more" onclick="navegarA('registros')">Ver todos &gt;</a>
+                </div>
+                <div id="contenedorSeguimiento"></div>
+            </div>
+        </section>
+
+        <!-- SECCIÓN 2: REGISTROS -->
+        <section id="sec-registros" class="app-section" style="display: none;">
+            <div class="welcome-section" style="flex-direction: column; align-items: flex-start; gap: 4px;">
+                <h2>Registros</h2>
+                <p>Consulta y busca todos tus clientes.</p>
+            </div>
+            <div class="search-bar">
+                <span class="material-symbols-outlined">search</span>
+                <input type="text" id="busquedaRapida" placeholder="Buscar por nombre, teléfono, identificador..." oninput="render()">
+                <span class="material-symbols-outlined filter-icon" onclick="toggleFiltroAvanzado()" style="cursor:pointer;">tune</span>
+            </div>
+            <div id="filtroAvanzado" class="card" style="display: none; margin-bottom: 16px;">
+                <h4 style="margin-bottom:8px; font-size:0.85rem;">Filtros detallados:</h4>
+                <input type="text" id="filtroNombre" placeholder="Filtrar por nombre" oninput="render()" style="width:100%; margin-bottom:6px; padding:6px;">
+                <select id="filtroCanal" onchange="render()" style="width:100%; margin-bottom:6px; padding:6px;">
+                    <option value="">Todos los canales</option>
+                    <option value="WhatsApp">WhatsApp</option>
+                    <option value="Instagram">Instagram</option>
+                    <option value="Email">Email</option>
+                    <option value="Facebook">Facebook</option>
+                    <option value="Telegram">Telegram</option>
+                    <option value="Otro">Otro</option>
+                </select>
+                <input type="text" id="filtroDato" placeholder="Filtrar por contacto" oninput="render()" style="width:100%; margin-bottom:6px; padding:6px;">
+                <input type="text" id="filtroId" placeholder="Filtrar por ID" oninput="render()" style="width:100%; margin-bottom:6px; padding:6px;">
+                <select id="filtroEstado" onchange="render()" style="width:100%; margin-bottom:6px; padding:6px;"></select>
+                <input type="text" id="filtroComentario" placeholder="Filtrar en comentarios" oninput="render()" style="width:100%; padding:6px;">
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px;">
+                <p id="totalRegistrosTexto" style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 500;">0 registros</p>
+                <div style="display:flex; gap:8px;">
+                    <button id="btnVerArchivados" onclick="alternarVistaArchivados()" style="background:#F3F4F6; border:none; color:var(--text-primary); font-size:0.75rem; font-weight:600; padding:6px 12px; border-radius:8px; cursor:pointer;">
+                        Ver Archivados
+                    </button>
+                    <button onclick="exportarCSVFiltrado()" style="background:none; border:none; color:var(--primary-blue); font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:2px;">
+                        <span class="material-symbols-outlined" style="font-size:1rem;">download</span> Exportar (.xlsx)
+                    </button>
+                </div>
+            </div>
+            <div id="listaRegistros"></div>
+        </section>
+
+        <!-- SECCIÓN 3: FICHA DETALLE DE CLIENTE -->
+        <section id="sec-ficha" class="app-section" style="display: none;">
+            <div id="contenidoFicha"></div>
+        </section>
+
+        <!-- SECCIÓN 4: FORMULARIO DE CLIENTE -->
+        <section id="sec-formulario" class="app-section" style="display: none;">
+            <div class="card" style="padding: 16px;">
+                <h3 id="formTitulo" style="margin-bottom: 12px;">Nuevo Registro</h3>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <div>
+                        <label style="font-size: 0.8rem; color: var(--text-secondary);">Nombre Completo (Opcional)</label>
+                        <input type="text" id="nombre" placeholder="Si no especificas, se usará su dato principal" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc;">
+                    </div>
+                    <div>
+                        <label style="font-size: 0.8rem; color: var(--text-secondary);">Canal</label>
+                        <select id="canal" onchange="mostrarCanal()" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc;">
+                            <option value="WhatsApp">WhatsApp</option>
+                            <option value="Instagram">Instagram</option>
+                            <option value="Email">Email</option>
+                            <option value="Facebook">Facebook</option>
+                            <option value="Telegram">Telegram</option>
+                            <option value="Otro">Otro</option>
+                        </select>
+                    </div>
+                    <div id="campoCanal"></div>
+                    <div>
+                        <label style="font-size: 0.8rem; color: var(--text-secondary);">Tipo de Documento / ID Interno</label>
+                        <select id="tipoId" onchange="mostrarId()" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc;">
+                            <option value="Ninguno">Ninguno</option>
+                            <option value="ID Interno">ID Interno</option>
+                            <option value="C.I. / Documento">C.I. / Documento</option>
+                            <option value="RUT">RUT</option>
+                        </select>
+                    </div>
+                    <div id="campoId"></div>
+                    <div>
+                        <label style="font-size: 0.8rem; color: var(--text-secondary);">Estado</label>
+                        <select id="estado" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc;"></select>
+                    </div>
+                    <hr style="border:0; border-top:1px solid #E5E7EB; margin:10px 0;">
+                    <div>
+                        <label style="font-size: 0.85rem; font-weight:600; color: var(--text-primary);">Gestión de Comentarios</label>
+                        <div style="display:flex; gap:6px; margin-top:6px;">
+                            <textarea id="comentario" rows="2" placeholder="Escribe un nuevo comentario..." style="flex:1; padding:8px; border-radius:8px; border:1px solid #ccc; font-size:0.85rem;"></textarea>
+                            <button type="button" onclick="agregarComentarioFormulario()" style="background:var(--primary-blue); color:white; border:none; padding:0 14px; border-radius:8px; font-weight:600; cursor:pointer;">+ Añadir</button>
+                        </div>
+                    </div>
+                    <div id="listaComentariosEdicion" style="margin-top: 10px;"></div>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button onclick="guardar()" style="flex:1; background-color: var(--primary-blue); color: white; border: none; padding: 12px; border-radius: 10px; font-weight: 600; cursor:pointer;">Guardar Registro</button>
+                    <button onclick="limpiar(); navegarA('registros');" style="flex:1; background-color: white; color: var(--text-secondary); border: 1.5px solid #ccc; padding: 12px; border-radius: 10px; font-weight: 600; cursor:pointer;">Cancelar</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECCIÓN 5: PERFIL Y CONFIGURACIÓN -->
+        <section id="sec-perfil" class="app-section" style="display: none;">
+            <div class="welcome-section" style="flex-direction: column; align-items: flex-start; gap: 4px;">
+                <h2>Perfil y Configuración</h2>
+                <p>Ajustes de usuario, empresa y seguimiento.</p>
+            </div>
+            <div class="card" style="margin-bottom: 16px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <div class="avatar avatar-blue" style="border-radius:12px;"><span class="material-symbols-outlined">admin_panel_settings</span></div>
+                        <div>
+                            <h3 style="font-size:1.05rem;" id="perfilRolAdmin">Usuario Administrador</h3>
+                            <span style="font-size:0.7rem; color:var(--text-secondary);">Permiso de Sistema</span>
+                        </div>
+                    </div>
+                    <button onclick="toggleModalConfigUser()" style="background:var(--primary-blue); color:white; border:none; padding:8px 12px; border-radius:10px; font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:4px;">
+                        <span class="material-symbols-outlined" style="font-size:1rem;">settings</span> Configurar
+                    </button>
+                </div>
+                <div id="perfilDatosLista" style="background:#F9FAFB; padding:12px; border-radius:12px; font-size:0.85rem; line-height:1.6;"></div>
+            </div>
+            <div id="modalConfigAdmin" class="card" style="display:none; margin-bottom:16px; border:2px solid var(--primary-blue); background:#F0F9FF;">
+                <h3 style="font-size:0.95rem; margin-bottom:12px; color:var(--primary-blue);">Configurar Perfil de Usuario y Empresa</h3>
+                <div style="display:flex; flex-direction:column; gap:10px;">
+                    <div>
+                        <label style="font-size:0.75rem; color:var(--text-secondary);">Rol / Tipo de Permiso</label>
+                        <input type="text" id="cfgAdminRol" placeholder="Ej: Usuario Administrador" style="width:100%; padding:8px; border-radius:8px; border:1px solid #ccc;">
+                    </div>
+                    <div>
+                        <label style="font-size:0.75rem; color:var(--text-secondary);">Nombre Completo</label>
+                        <input type="text" id="cfgAdminNombre" placeholder="Ej: Juan" style="width:100%; padding:8px; border-radius:8px; border:1px solid #ccc;">
+                    </div>
+                    <div>
+                        <label style="font-size:0.75rem; color:var(--text-secondary);">Cédula / Documento / RUT</label>
+                        <input type="text" id="cfgAdminCedula" placeholder="Ej: 48907555" style="width:100%; padding:8px; border-radius:8px; border:1px solid #ccc;">
+                    </div>
+                    <div>
+                        <label style="font-size:0.75rem; color:var(--text-secondary);">Nombre de la Empresa</label>
+                        <input type="text" id="cfgAdminEmpresa" placeholder="Ej: Los tres locos" style="width:100%; padding:8px; border-radius:8px; border:1px solid #ccc;">
+                    </div>
+                    <div>
+                        <label style="font-size:0.75rem; color:var(--text-secondary);">Teléfono / WhatsApp</label>
+                        <input type="text" id="cfgAdminWhatsapp" placeholder="Ej: 099 777 777" style="width:100%; padding:8px; border-radius:8px; border:1px solid #ccc;">
+                    </div>
+                    <div style="display:flex; gap:8px; margin-top:6px;">
+                        <button onclick="guardarDatosUsuarioAdmin()" style="flex:1; background:var(--primary-blue); color:white; border:none; padding:10px; border-radius:8px; font-weight:600; cursor:pointer;">Guardar Datos</button>
+                        <button onclick="toggleModalConfigUser()" style="background:#E5E7EB; color:#374151; border:none; padding:10px; border-radius:8px; font-weight:600; cursor:pointer;">Cancelar</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Seguimiento Personalizado -->
+            <h3 style="font-size: 0.95rem; margin: 16px 0 10px 0;">Seguimiento Personalizado</h3>
+            <div class="card" style="margin-bottom:16px; padding:16px;">
+                <p style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:10px;">Configura el tiempo máximo de inactividad antes de requerir seguimiento:</p>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <input type="number" id="cfgSegValor" min="1" max="365" value="3" style="width:80px; padding:8px; border-radius:8px; border:1px solid #ccc; font-weight:600; text-align:center;">
+                    <select id="cfgSegUnidad" style="flex:1; padding:8px; border-radius:8px; border:1px solid #ccc; font-weight:500;">
+                        <option value="dias">Día(s)</option>
+                        <option value="horas">Hora(s)</option>
+                    </select>
+                    <button onclick="guardarConfigSeguimiento()" style="background:var(--primary-blue); color:white; border:none; padding:8px 14px; border-radius:8px; font-weight:600; font-size:0.8rem; cursor:pointer;">Aplicar</button>
+                </div>
+            </div>
+
+            <!-- Respaldo en Google Drive -->
+            <h3 style="font-size: 0.95rem; margin: 16px 0 10px 0;">Respaldo en la Nube (Google Drive)</h3>
+            <div class="card" style="margin-bottom:16px; padding:16px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <span class="material-symbols-outlined" style="color:#0EA5E9;">cloud_sync</span>
+                        <div>
+                            <h4 style="font-size:0.85rem;">Google Drive API</h4>
+                            <p style="font-size:0.75rem; color:var(--text-secondary);" id="cloudStatusText">Sin vincular</p>
+                        </div>
+                    </div>
+                    <button onclick="conectarServicioNube()" style="background:#E0F2FE; color:#0284C7; border:none; padding:6px 12px; border-radius:8px; font-weight:600; font-size:0.75rem; cursor:pointer;">Conectar</button>
+                </div>
+                <div style="display:flex; gap:8px; margin-bottom:12px;">
+                    <button onclick="subirRespaldoADrive()" style="flex:1; background:var(--primary-blue); color:white; border:none; padding:8px; border-radius:8px; font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:4px;">
+                        <span class="material-symbols-outlined" style="font-size:1rem;">cloud_upload</span> Guardar en Nube
+                    </button>
+                    <button onclick="restaurarDesdeDrive()" style="flex:1; background:#F3F4F6; color:var(--text-primary); border:1px solid #D1D5DB; padding:8px; border-radius:8px; font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:4px;">
+                        <span class="material-symbols-outlined" style="font-size:1rem;">cloud_download</span> Restaurar desde Nube
+                    </button>
+                </div>
+                <div style="display:flex; align-items:center; justify-content:space-between; border-top:1px solid #F3F4F6; padding-top:10px;">
+                    <span style="font-size:0.75rem; color:var(--text-secondary);">Auto-guardar al modificar</span>
+                    <input type="checkbox" id="chkAutoNube" onchange="toggleAutoNube()" style="width:18px; height:18px; accent-color:var(--primary-blue);">
+                </div>
+            </div>
+
+            <!-- Diagnóstico del Sistema -->
+            <div class="card" style="margin-bottom: 16px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <h4 style="font-size:0.85rem;">Diagnóstico del Sistema</h4>
+                    <button onclick="forzarLimpiezaCachePWA()" style="background:none; border:none; color:#DC2626; font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:2px;">
+                        <span class="material-symbols-outlined" style="font-size:0.9rem;">refresh</span> Limpiar Caché PWA
+                    </button>
+                </div>
+                <div class="tech-info-grid">
+                    <div class="tech-info-item">
+                        <span class="tech-label">Versión de App</span>
+                        <span class="tech-value" id="sys-version">v0.0.47</span>
+                    </div>
+                    <div class="tech-info-item">
+                        <span class="tech-label">Dispositivo</span>
+                        <span class="tech-value" id="sys-device">Cargando...</span>
+                    </div>
+                    <div class="tech-info-item">
+                        <span class="tech-label">Navegador</span>
+                        <span class="tech-value" id="sys-browser">Cargando...</span>
+                    </div>
+                    <div class="tech-info-item">
+                        <span class="tech-label">Almacenamiento Local</span>
+                        <span class="tech-value" id="sys-storage">0 KB</span>
+                    </div>
+                </div>
+            </div>
+
+            <h3 style="font-size: 0.95rem; margin: 16px 0 10px 0;">Reglas Automáticas</h3>
+            <div class="card" style="display: flex; align-items: center; justify-content: space-between; padding: 16px; margin-bottom:16px;">
+                <div>
+                    <h4 style="font-size: 0.85rem;">Auto-archivar clientes inactivos</h4>
+                    <p style="font-size: 0.75rem; color: var(--text-secondary);">Archivar clientes en 'Cerrado' o 'Perdido' tras 30 días.</p>
+                </div>
+                <input type="checkbox" id="chkAutoArchivar" onchange="guardarConfigAutoArchivar()" style="width: 20px; height: 20px; accent-color: var(--primary-blue);">
+            </div>
+
+            <h3 style="font-size: 0.95rem; margin: 16px 0 10px 0;">Exportación Inteligente</h3>
+            <div class="card" style="padding: 0;">
+                <div onclick="exportarCSVFiltrado()" style="display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid #F3F4F6; cursor:pointer;">
+                    <div style="display: flex; align-items: center; gap: 12px; font-size: 0.9rem;">
+                        <span class="material-symbols-outlined" style="color: #10B981;">table_chart</span>
+                        <span>Exportar Excel (.xlsx nativo)</span>
+                    </div>
+                    <span class="material-symbols-outlined" style="color: var(--text-secondary);">chevron_right</span>
+                </div>
+                <div onclick="exportarPDFFiltrado()" style="display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid #F3F4F6; cursor:pointer;">
+                    <div style="display: flex; align-items: center; gap: 12px; font-size: 0.9rem;">
+                        <span class="material-symbols-outlined" style="color: #EF4444;">picture_as_pdf</span>
+                        <span>Exportar PDF (Vista activa)</span>
+                    </div>
+                    <span class="material-symbols-outlined" style="color: var(--text-secondary);">chevron_right</span>
+                </div>
+                <div onclick="exportarJSON()" style="display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; cursor:pointer;">
+                    <div style="display: flex; align-items: center; gap: 12px; font-size: 0.9rem;">
+                        <span class="material-symbols-outlined" style="color: #8B5CF6;">code</span>
+                        <span>Exportar JSON Completo</span>
+                    </div>
+                    <span class="material-symbols-outlined" style="color: var(--text-secondary);">chevron_right</span>
+                </div>
+            </div>
+        </section>
+
+        <button class="fab-button" onclick="prepararNuevoRegistro()">
+            <span class="material-symbols-outlined">add</span>
+            <span>Nuevo registro</span>
+        </button>
+    </main>
+
+    <nav class="bottom-nav">
+        <a href="#" id="nav-inicio" onclick="navegarA('inicio')" class="nav-item active"><span class="material-symbols-outlined">home</span><span>Inicio</span></a>
+        <a href="#" id="nav-registros" onclick="navegarA('registros')" class="nav-item"><span class="material-symbols-outlined">assignment</span><span>Registros</span></a>
+        <a href="#" id="nav-perfil" onclick="navegarA('perfil')" class="nav-item"><span class="material-symbols-outlined">person</span><span>Perfil</span></a>
+    </nav>
+
+    <!-- MODAL DE ACCESO RESTRINGIDO (REEMPLAZA A LAS CLAVES) -->
+    <div id="modalAccesoBloqueado" class="memora-modal-overlay" style="display: none;">
+        <div class="memora-modal-card" style="text-align: center;">
+            <div style="margin-bottom:12px;">
+                <span class="material-symbols-outlined" style="font-size:48px; color:#004F87;">lock</span>
+            </div>
+            <h3>Acceso Restringido</h3>
+            <p style="color:#6b7280; font-size:0.88rem; margin-bottom:20px;">
+                Para utilizar MEMORA debes activar la versión de prueba de 24 horas desde la Landing Page oficial o adquirir tu licencia de acceso permanente.
+            </p>
+            <a href="https://memora-oficial.netlify.app/" class="memora-btn-primary" style="text-decoration:none; display:inline-block; box-sizing:border-box;">
+                Ir a la Landing Page
+            </a>
+        </div>
+    </div>
+
+    <!-- MODAL 2: CONFIGURACIÓN INICIAL DE PERFIL -->
+    <div id="modalPerfilMemora" class="memora-modal-overlay" style="display: none;">
+        <div class="memora-modal-card">
+            <h3>Completa tu Perfil</h3>
+            <p>Ingresa tus datos por única vez para personalizar tu cuenta y el saludo del sistema.</p>
+            <div class="memora-input-group">
+                <label>Tu Nombre Completo</label>
+                <input type="text" id="initNombre" placeholder="Ej: Juan">
+            </div>
+            <div class="memora-input-group">
+                <label>Documento / C.I. / RUT</label>
+                <input type="text" id="initCedula" placeholder="Ej: 48907555">
+            </div>
+            <div class="memora-input-group">
+                <label>Nombre de la Empresa</label>
+                <input type="text" id="initEmpresa" placeholder="Ej: Los tres locos">
+            </div>
+            <div class="memora-input-group">
+                <label>Teléfono / WhatsApp</label>
+                <input type="text" id="initWhatsapp" placeholder="Ej: 099 777 777">
+            </div>
+            <button class="memora-btn-primary" onclick="procesarPerfilInicial()">Guardar y Continuar</button>
+        </div>
+    </div>
+
+    <!-- MODAL 3: ONBOARDING TIPO STORIES -->
+    <div id="modalStoriesMemora" class="memora-modal-overlay" style="display: none;">
+        <div class="memora-modal-card stories-container">
+            <div class="stories-progress-bar">
+                <div class="story-segment"><div id="story-fill-0" class="story-segment-fill"></div></div>
+                <div class="story-segment"><div id="story-fill-1" class="story-segment-fill"></div></div>
+                <div class="story-segment"><div id="story-fill-2" class="story-segment-fill"></div></div>
+            </div>
+            <div class="story-content" id="storyContent"></div>
+            <button class="memora-btn-primary" id="btnNextStory" onclick="siguienteStory()">Siguiente</button>
+        </div>
+    </div>
+
+    <!-- MODAL 4: AVISOS Y ALERTAS (REEMPLAZA A alert()) -->
+    <div id="modalAvisoMemora" class="memora-modal-overlay" style="display: none;">
+        <div class="memora-modal-card" style="text-align: center;">
+            <div style="margin-bottom: 12px;">
+                <span id="avisoMemoraIcono" class="material-symbols-outlined" style="font-size: 44px; color: #004F87;">check_circle</span>
+            </div>
+            <h3 id="avisoMemoraTitulo" style="margin-bottom: 8px;">MEMORA</h3>
+            <p id="avisoMemoraTexto" style="margin-bottom: 20px; color: #6b7280; font-size: 0.9rem;"></p>
+            <button class="memora-btn-primary" onclick="cerrarAvisoMemora()">Aceptar</button>
+        </div>
+    </div>
+
+    <!-- MODAL 5: CONFIRMACIONES (REEMPLAZA A confirm()) -->
+    <div id="modalConfirmMemora" class="memora-modal-overlay" style="display: none;">
+        <div class="memora-modal-card" style="text-align: center;">
+            <div style="margin-bottom: 12px;">
+                <span id="confirmMemoraIcono" class="material-symbols-outlined" style="font-size: 44px; color: #DC2626;">help_outline</span>
+            </div>
+            <h3 id="confirmMemoraTitulo" style="margin-bottom: 8px;">¿Estás seguro?</h3>
+            <p id="confirmMemoraTexto" style="margin-bottom: 20px; color: #6b7280; font-size: 0.9rem;"></p>
+            <div style="display: flex; gap: 10px;">
+                <button class="memora-btn-primary" style="background: #E5E7EB; color: #374151; box-shadow: none;" onclick="responderConfirmMemora(false)">Cancelar</button>
+                <button class="memora-btn-primary" id="confirmMemoraBtnAceptar" style="background: #DC2626;" onclick="responderConfirmMemora(true)">Aceptar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 6: ENTRADAS DE TEXTO / EDICIÓN (REEMPLAZA A prompt()) -->
+    <div id="modalPromptMemora" class="memora-modal-overlay" style="display: none;">
+        <div class="memora-modal-card">
+            <h3 id="promptMemoraTitulo" style="margin-bottom: 8px; color: #004F87;">Editar dato</h3>
+            <p id="promptMemoraTexto" style="color: #6b7280; font-size: 0.88rem; margin-bottom: 12px;"></p>
+            <div class="memora-input-group">
+                <input type="text" id="promptMemoraInput" autocomplete="off" style="width:100%; padding:11px 14px; border-radius:10px; border:1.5px solid #d1d5db; outline:none;">
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <button class="memora-btn-primary" style="background: #E5E7EB; color: #374151; box-shadow: none;" onclick="responderPromptMemora(null)">Cancelar</button>
+                <button class="memora-btn-primary" onclick="responderPromptMemora($('promptMemoraInput').value)">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
