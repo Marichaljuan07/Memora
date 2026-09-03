@@ -114,6 +114,29 @@ body { background-color: var(--bg-light); color: var(--text-primary); padding-bo
 .perfil-label { color: var(--text-secondary); font-weight: 500; }
 .perfil-valor { font-weight: 700; color: var(--text-primary); }
 
+/* LISTA DESPLEGABLE PREDICTIVA DE TELÉFONO */
+.coincidencias-drop {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    background: #ffffff;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 50;
+    max-height: 160px;
+    overflow-y: auto;
+}
+.drop-item {
+    padding: 8px 12px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    border-bottom: 1px solid #f3f4f6;
+}
+.drop-item:hover { background: #e0f2fe; }
+.drop-item.disabled { color: #9ca3af; cursor: default; }
+
 .tech-info-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -141,7 +164,6 @@ body { background-color: var(--bg-light); color: var(--text-primary); padding-bo
 .nav-item { display: flex; flex-direction: column; align-items: center; color: var(--text-secondary); text-decoration: none; font-size: 0.75rem; }
 .nav-item.active { color: var(--primary-blue); }
 
-/* MODALES NATIVOS MEMORA */
 .memora-modal-overlay {
     position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
     background: rgba(0, 54, 93, 0.6); backdrop-filter: blur(6px);
@@ -168,7 +190,6 @@ body { background-color: var(--bg-light); color: var(--text-primary); padding-bo
 .memora-btn-primary { width: 100%; background: #004F87; color: #ffffff; border: none; padding: 14px; border-radius: 12px; font-weight: 700; font-size: 0.95rem; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 79, 135, 0.25); transition: background 0.2s; }
 .memora-btn-primary:hover { background: #00365d; }
 
-/* STORIES ONBOARDING */
 .stories-container { text-align: center; position: relative; }
 .stories-progress-bar { display: flex; gap: 6px; margin-bottom: 20px; }
 .story-segment { height: 4px; flex: 1; background: #e5e7eb; border-radius: 2px; overflow: hidden; }
