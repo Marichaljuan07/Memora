@@ -34,6 +34,7 @@
             </div>
         </div>
     </header>
+
     <main class="main-content">
         <!-- SECCIÓN 1: INICIO -->
         <section id="sec-inicio" class="app-section">
@@ -125,6 +126,7 @@
                 <div id="contenedorSeguimiento"></div>
             </div>
         </section>
+
         <!-- SECCIÓN 2: REGISTROS -->
         <section id="sec-registros" class="app-section" style="display: none;">
             <div class="welcome-section" style="flex-direction: column; align-items: flex-start; gap: 4px;">
@@ -133,7 +135,7 @@
             </div>
             <div class="search-bar">
                 <span class="material-symbols-outlined">search</span>
-                <input type="text" id="busquedaRapida" placeholder="Buscar por nombre, teléfono, identificador..." oninput="render()">
+                <input type="text" id="busquedaRapida" placeholder="Buscar por nombre, teléfono, asunto, RUT..." oninput="render()">
                 <span class="material-symbols-outlined filter-icon" onclick="toggleFiltroAvanzado()" style="cursor:pointer;">tune</span>
             </div>
             <div id="filtroAvanzado" class="card" style="display: none; margin-bottom: 16px;">
@@ -149,7 +151,8 @@
                     <option value="Otro">Otro</option>
                 </select>
                 <input type="text" id="filtroDato" placeholder="Filtrar por contacto" oninput="render()" style="width:100%; margin-bottom:6px; padding:6px;">
-                <input type="text" id="filtroId" placeholder="Filtrar por ID" oninput="render()" style="width:100%; margin-bottom:6px; padding:6px;">
+                <input type="text" id="filtroAsunto" placeholder="Filtrar por asunto" oninput="render()" style="width:100%; margin-bottom:6px; padding:6px;">
+                <input type="text" id="filtroId" placeholder="Filtrar por RUT / N° Cliente" oninput="render()" style="width:100%; margin-bottom:6px; padding:6px;">
                 <select id="filtroEstado" onchange="render()" style="width:100%; margin-bottom:6px; padding:6px;"></select>
                 <input type="text" id="filtroComentario" placeholder="Filtrar en comentarios" oninput="render()" style="width:100%; padding:6px;">
             </div>
@@ -166,10 +169,12 @@
             </div>
             <div id="listaRegistros"></div>
         </section>
+
         <!-- SECCIÓN 3: FICHA DETALLE DE CLIENTE -->
         <section id="sec-ficha" class="app-section" style="display: none;">
             <div id="contenidoFicha"></div>
         </section>
+
         <!-- SECCIÓN 4: FORMULARIO DE CLIENTE -->
         <section id="sec-formulario" class="app-section" style="display: none;">
             <div class="card" style="padding: 16px;">
@@ -190,14 +195,21 @@
                             <option value="Otro">Otro</option>
                         </select>
                     </div>
-                    <div id="campoCanal"></div>
+                    <div id="campoCanal" style="position:relative;"></div>
+                    
+                    <!-- CAMPO ASUNTO / MOTIVO -->
                     <div>
-                        <label style="font-size: 0.8rem; color: var(--text-secondary);">Tipo de Documento / ID Interno</label>
+                        <label style="font-size: 0.8rem; color: var(--text-secondary);">Asunto / Motivo de la Consulta</label>
+                        <input type="text" id="asunto" placeholder="Ej: Venta sillas gamer, Información de viaje, etc." style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc;">
+                    </div>
+
+                    <!-- SELECTOR SIN ID INTERNO -->
+                    <div>
+                        <label style="font-size: 0.8rem; color: var(--text-secondary);">Tipo de Documento / Identificador</label>
                         <select id="tipoId" onchange="mostrarId()" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc;">
                             <option value="Ninguno">Ninguno</option>
-                            <option value="ID Interno">ID Interno</option>
-                            <option value="C.I. / Documento">C.I. / Documento</option>
-                            <option value="RUT">RUT</option>
+                            <option value="RUT">RUT (Empresa)</option>
+                            <option value="N° de Cliente">N° de Cliente / Socio</option>
                         </select>
                     </div>
                     <div id="campoId"></div>
@@ -207,9 +219,10 @@
                     </div>
                     <hr style="border:0; border-top:1px solid #E5E7EB; margin:10px 0;">
                     <div>
-                        <label style="font-size: 0.85rem; font-weight:600; color: var(--text-primary);">Gestión de Comentarios</label>
+                        <!-- ETIQUETA SIMPLIFICADA "COMENTARIOS" -->
+                        <label style="font-size: 0.85rem; font-weight:600; color: var(--text-primary);">Comentarios</label>
                         <div style="display:flex; gap:6px; margin-top:6px;">
-                            <textarea id="comentario" rows="2" placeholder="Escribe un nuevo comentario..." style="flex:1; padding:8px; border-radius:8px; border:1px solid #ccc; font-size:0.85rem;"></textarea>
+                            <textarea id="comentario" rows="2" placeholder="Escribe un comentario..." style="flex:1; padding:8px; border-radius:8px; border:1px solid #ccc; font-size:0.85rem;"></textarea>
                             <button type="button" onclick="agregarComentarioFormulario()" style="background:var(--primary-blue); color:white; border:none; padding:0 14px; border-radius:8px; font-weight:600; cursor:pointer;">+ Añadir</button>
                         </div>
                     </div>
@@ -221,6 +234,7 @@
                 </div>
             </div>
         </section>
+
         <!-- SECCIÓN 5: PERFIL Y CONFIGURACIÓN -->
         <section id="sec-perfil" class="app-section" style="display: none;">
             <div class="welcome-section" style="flex-direction: column; align-items: flex-start; gap: 4px;">
@@ -321,7 +335,7 @@
                 <div class="tech-info-grid">
                     <div class="tech-info-item">
                         <span class="tech-label">Versión de App</span>
-                        <span class="tech-value" id="sys-version">v1.0.0-libre</span>
+                        <span class="tech-value" id="sys-version">v1.1.0-libre</span>
                     </div>
                     <div class="tech-info-item">
                         <span class="tech-label">Dispositivo</span>
@@ -375,12 +389,14 @@
             <span>Nuevo registro</span>
         </button>
     </main>
+
     <nav class="bottom-nav">
         <a href="#" id="nav-inicio" onclick="navegarA('inicio')" class="nav-item active"><span class="material-symbols-outlined">home</span><span>Inicio</span></a>
         <a href="#" id="nav-registros" onclick="navegarA('registros')" class="nav-item"><span class="material-symbols-outlined">assignment</span><span>Registros</span></a>
         <a href="#" id="nav-perfil" onclick="navegarA('perfil')" class="nav-item"><span class="material-symbols-outlined">person</span><span>Perfil</span></a>
     </nav>
-    <!-- MODAL DE CONFIGURACIÓN INICIAL DE PERFIL -->
+
+    <!-- MODALES NATIVOS MEMORA -->
     <div id="modalPerfilMemora" class="memora-modal-overlay" style="display: none;">
         <div class="memora-modal-card">
             <h3>Completa tu Perfil</h3>
@@ -404,7 +420,7 @@
             <button class="memora-btn-primary" onclick="procesarPerfilInicial()">Guardar y Continuar</button>
         </div>
     </div>
-    <!-- MODAL DE ONBOARDING TIPO STORIES -->
+
     <div id="modalStoriesMemora" class="memora-modal-overlay" style="display: none;">
         <div class="memora-modal-card stories-container">
             <div class="stories-progress-bar">
@@ -416,7 +432,7 @@
             <button class="memora-btn-primary" id="btnNextStory" onclick="siguienteStory()">Siguiente</button>
         </div>
     </div>
-    <!-- MODAL DE AVISOS Y ALERTAS -->
+
     <div id="modalAvisoMemora" class="memora-modal-overlay" style="display: none;">
         <div class="memora-modal-card" style="text-align: center;">
             <div style="margin-bottom: 12px;">
@@ -427,7 +443,7 @@
             <button class="memora-btn-primary" onclick="cerrarAvisoMemora()">Aceptar</button>
         </div>
     </div>
-    <!-- MODAL DE CONFIRMACIONES -->
+
     <div id="modalConfirmMemora" class="memora-modal-overlay" style="display: none;">
         <div class="memora-modal-card" style="text-align: center;">
             <div style="margin-bottom: 12px;">
@@ -441,7 +457,7 @@
             </div>
         </div>
     </div>
-    <!-- MODAL DE ENTRADAS DE TEXTO / EDICIÓN -->
+
     <div id="modalPromptMemora" class="memora-modal-overlay" style="display: none;">
         <div class="memora-modal-card">
             <h3 id="promptMemoraTitulo" style="margin-bottom: 8px; color: #004F87;">Editar dato</h3>
@@ -455,11 +471,12 @@
             </div>
         </div>
     </div>
+
     <script src="app.js"></script>
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('./sw.js?v=1.0.0-libre');
+          navigator.serviceWorker.register('./sw.js?v=1.1.0-libre');
         });
       }
     </script>
