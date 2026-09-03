@@ -1,6 +1,11 @@
 const estados = [
-    "Consulta nueva", "Información enviada", "Esperando cliente",
-    "Esperando respuesta interna", "Cerrado", "Perdido", "Archivado"
+    "Consulta nueva",
+    "Información enviada",
+    "Esperando cliente",
+    "Esperando respuesta interna",
+    "Cerrado",
+    "Perdido",
+    "Archivado"
 ];
 
 let registros = JSON.parse(localStorage.getItem('memora_registros') || '[]');
@@ -8,6 +13,7 @@ let editando = null;
 let comentariosEdicionActual = [];
 let registrosUltimoFiltro = [];
 let mostrandoArchivados = false;
+let contactoOriginalBackup = "";
 
 /* ==========================================================================
    SISTEMA UNIFICADO DE ALERTAS Y MODALES VISUALES MEMORA
@@ -78,7 +84,7 @@ function responderPromptMemora(valor) {
 }
 
 /* ==========================================================================
-   GOOGLE DRIVE API
+   GOOGLE DRIVE API v3 - GUARDA Y RESTAURA (BIDIRECCIONAL)
    ========================================================================== */
 const GOOGLE_CLIENT_ID = '766888773519-676shp6ma451vga2oe5rq3hu1ck7bhpo.apps.googleusercontent.com';
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
@@ -229,7 +235,7 @@ function sincronizarAutoNube(r) {
 }
 
 /* ==========================================================================
-   EXPORTACIÓN A EXCEL
+   EXPORTACIÓN A EXCEL NATIVO REAL (.XLSX)
    ========================================================================== */
 function exportarCSVFiltrado() {
     let datosAExportar = registrosUltimoFiltro.length > 0 ? registrosUltimoFiltro : registros;
@@ -255,7 +261,7 @@ function exportarCSVFiltrado() {
     }
 
     let filas = [[
-        'Doc / ID Interno', 'Nombre del Cliente', 'Canal', 'Teléfono / WhatsApp',
+        'Doc / RUT / N° Cliente', 'Nombre del Cliente', 'Asunto / Motivo', 'Canal', 'Teléfono / WhatsApp',
         'Usuario (@)', 'Correo Electrónico', 'Estado Actual', 'Último Comentario',
         'Total Comentarios', 'Fecha de Registro'
     ]];
@@ -269,7 +275,7 @@ function exportarCSVFiltrado() {
         let fechaCreacionTexto = isNaN(d.getTime()) ? r.fecha : `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
         let clasif = clasificarContacto(r.canal, r.contacto);
         filas.push([
-            r.identificador || 'N/A', r.nombre || 'Sin registrar', r.canal || 'Otro',
+            r.identificador || 'N/A', r.nombre || 'Sin registrar', r.asunto || 'Sin asunto', r.canal || 'Otro',
             clasif.telefono, clasif.usuario, clasif.email, r.estado || 'Consulta nueva',
             ultimoCom, (r.comentarios || []).length, fechaCreacionTexto
         ]);
@@ -303,10 +309,8 @@ function exportarCSVFiltrado() {
 function comprobarEstadoAccesoEInicial() {
     const perfilCompleto = localStorage.getItem('memora_profile_completed') === 'true';
 
-    // Deshabilita cualquier elemento residual de bloqueo o temporizador
     if ($('bannerTrialCounter')) $('bannerTrialCounter').style.display = 'none';
 
-    // Pide perfil inicial únicamente la primera vez que ingresa
     if (!perfilCompleto) {
         if (document.querySelector('.main-content')) document.querySelector('.main-content').style.filter = 'blur(8px)';
         if (document.querySelector('.bottom-nav')) document.querySelector('.bottom-nav').style.display = 'none';
@@ -478,12 +482,10 @@ function navegarA(pantalla, customTitle = null) {
     render();
 }
 
+/* PERSISTENCIA DEL AVATAR FIJO POR CANAL (WP) AUNQUE TENGA NOMBRE */
 function obtenerAvatarEIdentidad(r) {
     const tieneNombre = r.nombre && r.nombre.trim().length > 0;
-    if (tieneNombre) {
-        const iniciales = r.nombre.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-        return { avatarHTML: iniciales, tituloHTML: r.nombre };
-    }
+    
     let badgeText = 'CN';
     let iconName = null;
     if (r.canal === 'WhatsApp') badgeText = 'WP';
@@ -491,11 +493,13 @@ function obtenerAvatarEIdentidad(r) {
     else if (r.canal === 'Email') iconName = 'alternate_email';
     else if (r.identificador) iconName = 'badge';
     else iconName = 'person';
+
     let avatarInner = iconName ? `<span class="material-symbols-outlined">${iconName}</span>` : badgeText;
-    let contactoDestacado = r.contacto || r.identificador || 'Contacto Sin Nombre';
+    let tituloTexto = tieneNombre ? r.nombre : (r.contacto || r.identificador || 'Contacto Sin Nombre');
+
     return {
         avatarHTML: avatarInner,
-        tituloHTML: `<span style="color:var(--text-primary); font-weight:600;">${contactoDestacado}</span>`
+        tituloHTML: `<span style="color:var(--text-primary); font-weight:600;">${tituloTexto}</span>`
     };
 }
 
@@ -513,7 +517,8 @@ function abrirFicha(id) {
                 <div>
                     <h3 style="font-size: 1.1rem;">${tituloHTML}</h3>
                     <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px;">${r.canal} • ${r.contacto}</p>
-                    ${r.identificador ? `<p style="font-size: 0.75rem; color: var(--text-secondary);">ID / Doc: ${r.identificador}</p>` : ''}
+                    ${r.asunto ? `<p style="font-size: 0.8rem; font-weight:600; color:var(--primary-blue); margin-top:2px;">📌 Asunto: ${r.asunto}</p>` : ''}
+                    ${r.identificador ? `<p style="font-size: 0.75rem; color: var(--text-secondary);">RUT / N° Cliente: ${r.identificador}</p>` : ''}
                     <div style="margin-top: 6px;"><span class="tag tag-blue">${r.estado}</span></div>
                 </div>
             </div>
@@ -575,6 +580,58 @@ function alternarVistaArchivados() {
     render();
 }
 
+/* BÚSQUEDA PREDICTIVA NUMÉRICA LIMPIA (SIN TEXTO "SIN COINCIDENCIAS") */
+/* BÚSQUEDA PREDICTIVA STRICTA: NÚMERO CON NÚMERO (SIN AÑADIDOS) */
+function buscarCoincidenciasTelefono(val) {
+    const texto = val.trim().replace(/\s+/g, '').toLowerCase();
+    const dropdown = $('coincidenciasTelefonoDrop');
+    
+    // Si hay menos de 3 dígitos, elimina la lista si existe
+    if (!texto || texto.length < 3) {
+        if (dropdown) dropdown.remove();
+        return;
+    }
+
+    // Filtra en la base de datos comparando ÚNICAMENTE el número tipeado contra el número guardado
+    const encontrados = registros.filter(r => (r.contacto || '').replace(/\s+/g, '').toLowerCase().includes(texto));
+
+    // Si NO hay coincidencias (es un número nuevo), remueve el desplegable por completo
+    if (encontrados.length === 0) {
+        if (dropdown) dropdown.remove();
+        return;
+    }
+
+    // Si no existía el contenedor, lo crea
+    if (!dropdown) {
+        const div = document.createElement('div');
+        div.id = 'coincidenciasTelefonoDrop';
+        div.className = 'coincidencias-drop';
+        $('campoCanal').appendChild(div);
+    }
+
+    // Muestra ÚNICAMENTE el número de teléfono limpio, sin nombres ni canales al costado
+    const drop = $('coincidenciasTelefonoDrop');
+    drop.innerHTML = encontrados.map(r => `
+        <div class="drop-item" onclick="seleccionarCoincidencia(${r.id})">
+            <span><strong>${r.contacto}</strong></span>
+        </div>
+    `).join('');
+}
+
+function seleccionarCoincidencia(id) {
+    // Al tocar el número sugerido, carga todos los datos del cliente en el formulario
+    const drop = $('coincidenciasTelefonoDrop');
+    if (drop) drop.remove();
+    editar(id);
+}
+
+function seleccionarCoincidencia(id) {
+    const drop = $('coincidenciasTelefonoDrop');
+    if (drop) drop.remove();
+    editar(id);
+}
+
+/* MOSTRAR CANAL CON CAMPO BLOQUEADO Y BOTONES DE ACCIÓN LIMPION */
 function mostrarCanal() {
     let c = $('canal').value;
     let nombres = { 
@@ -582,7 +639,72 @@ function mostrarCanal() {
         Email: 'Correo electrónico', Facebook: 'Usuario Facebook', 
         Telegram: 'Teléfono / Usuario Telegram', Otro: 'Dato de contacto' 
     };
-    $('campoCanal').innerHTML = `<label style="font-size: 0.8rem; color: var(--text-secondary);">${nombres[c] || 'Contacto'}</label><input id="contacto" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc;">`;
+    
+    const estaBloqueado = editando !== null;
+
+    $('campoCanal').style.position = 'relative';
+    $('campoCanal').innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <label style="font-size: 0.8rem; color: var(--text-secondary);">${nombres[c] || 'Contacto'}</label>
+            <div id="btnAccionContactoContainer">
+                ${estaBloqueado ? `<a href="#" onclick="activarEdicionContacto(); return false;" style="font-size:0.75rem; color:var(--primary-blue); font-weight:600; text-decoration:none;">[ Cambiar dato ]</a>` : ''}
+            </div>
+        </div>
+        <input id="contacto" 
+            oninput="buscarCoincidenciasTelefono(this.value)" 
+            autocomplete="off" 
+            ${estaBloqueado ? 'readonly style="width:100%; padding:10px; border-radius:8px; border:1px solid #d1d5db; background-color:#f3f4f6; color:#6b7280; font-weight:600;"' : 'style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc;"'}
+        >
+    `;
+}
+
+function activarEdicionContacto() {
+    const input = $('contacto');
+    if (!input) return;
+
+    contactoOriginalBackup = input.value;
+    
+    input.removeAttribute('readonly');
+    input.style.backgroundColor = '#ffffff';
+    input.style.color = 'var(--text-primary)';
+    input.style.border = '1.5px solid var(--primary-blue)';
+    input.focus();
+
+    $('btnAccionContactoContainer').innerHTML = `
+        <a href="#" onclick="confirmarNuevoContacto(); return false;" style="font-size:0.75rem; color:#10B981; font-weight:700; margin-right:8px; text-decoration:none;">[ Confirmar ]</a>
+        <a href="#" onclick="cancelarEdicionContacto(); return false;" style="font-size:0.75rem; color:#DC2626; font-weight:600; text-decoration:none;">[ Conservar original ]</a>
+    `;
+}
+
+function confirmarNuevoContacto() {
+    const input = $('contacto');
+    if (!input) return;
+
+    if (!input.value.trim()) {
+        mostrarAvisoMemora("El campo de contacto no puede quedar vacío.", "Dato Requerido", "warning");
+        return;
+    }
+
+    bloquearInputContacto(input);
+}
+
+function cancelarEdicionContacto() {
+    const input = $('contacto');
+    if (!input) return;
+
+    input.value = contactoOriginalBackup;
+    bloquearInputContacto(input);
+}
+
+function bloquearInputContacto(input) {
+    input.setAttribute('readonly', 'true');
+    input.style.backgroundColor = '#f3f4f6';
+    input.style.color = '#6b7280';
+    input.style.border = '1px solid #d1d5db';
+
+    $('btnAccionContactoContainer').innerHTML = `
+        <a href="#" onclick="activarEdicionContacto(); return false;" style="font-size:0.75rem; color:var(--primary-blue); font-weight:600; text-decoration:none;">[ Cambiar dato ]</a>
+    `;
 }
 
 function mostrarId() {
@@ -661,6 +783,7 @@ function guardar() {
         nombre: $('nombre').value ? $('nombre').value.trim() : '',
         canal: $('canal').value,
         contacto,
+        asunto: $('asunto')?.value.trim() || '',
         identificador: $('valorId')?.value || '',
         estado: $('estado').value,
         comentarios: [...comentariosEdicionActual],
@@ -677,7 +800,7 @@ function guardar() {
 }
 
 function limpiar() {
-    ['nombre', 'comentario'].forEach(x => { if ($(x)) $(x).value = ''; });
+    ['nombre', 'contacto', 'asunto', 'valorId', 'comentario'].forEach(x => { if ($(x)) $(x).value = ''; });
     if ($('tipoId')) $('tipoId').value = 'Ninguno';
     mostrarId();
     if ($('estado')) $('estado').value = estados[0];
@@ -685,6 +808,8 @@ function limpiar() {
     comentariosEdicionActual = [];
     renderListaComentariosEdicion();
     mostrarCanal();
+    const drop = $('coincidenciasTelefonoDrop');
+    if (drop) drop.remove();
 }
 
 function editar(id) {
@@ -693,10 +818,13 @@ function editar(id) {
     editando = id;
     $('nombre').value = r.nombre || '';
     $('canal').value = r.canal;
+    
     mostrarCanal();
-    $('contacto').value = r.contacto;
+    if ($('contacto')) $('contacto').value = r.contacto || '';
+    
+    if ($('asunto')) $('asunto').value = r.asunto || '';
     $('estado').value = r.estado;
-    if ($('tipoId')) $('tipoId').value = r.identificador ? 'ID Interno' : 'Ninguno';
+    if ($('tipoId')) $('tipoId').value = r.identificador ? (r.identificador.startsWith('RUT') ? 'RUT' : 'N° de Cliente') : 'Ninguno';
     mostrarId();
     if ($('valorId')) $('valorId').value = r.identificador || '';
         
@@ -730,13 +858,16 @@ function tarjetaEstetica(r) {
     }
     const { avatarHTML, tituloHTML } = obtenerAvatarEIdentidad(r);
     const ultimoComentario = (r.comentarios && r.comentarios.length > 0) ? r.comentarios[r.comentarios.length - 1] : null;
+    const asuntoHTML = r.asunto ? `<div style="font-size: 0.78rem; font-weight:600; color:var(--primary-blue); margin-top:2px;">📌 ${r.asunto}</div>` : '';
+
     return `
     <div class="card client-card" style="margin-bottom: 12px; cursor:pointer;" onclick="abrirFicha(${r.id})">
         <div class="client-info">
             <div class="avatar avatar-blue">${avatarHTML}</div>
             <div class="client-details">
                 <h4>${tituloHTML}</h4>
-                <div class="client-sub">${r.canal} • ${r.contacto} ${r.identificador ? ' | ID: ' + r.identificador : ''}</div>
+                <div class="client-sub">${r.canal} • ${r.contacto} ${r.identificador ? ' | ' + r.identificador : ''}</div>
+                ${asuntoHTML}
             </div>
             <div class="time-ago" style="display:flex; flex-direction:column; align-items:flex-end;">
                 <span style="font-weight:600; color:var(--text-primary);">${fechaFmt}</span>
@@ -764,9 +895,11 @@ function render() {
     let nombre = $('filtroNombre')?.value.toLowerCase() || '';
     let canal = $('filtroCanal')?.value || '';
     let dato = $('filtroDato')?.value.toLowerCase() || '';
+    let asunto = $('filtroAsunto')?.value.toLowerCase() || '';
     let ident = $('filtroId')?.value.toLowerCase() || '';
     let estado = $('filtroEstado')?.value || '';
     let com = $('filtroComentario')?.value.toLowerCase() || '';
+
     registrosUltimoFiltro = registros.filter(r => {
         let esArchiv = r.estado === 'Archivado';
         if (mostrandoArchivados) { if (!esArchiv) return false; } else { if (esArchiv) return false; }
@@ -774,11 +907,13 @@ function render() {
         let matchNombre = !nombre || (r.nombre || '').toLowerCase().includes(nombre);
         let matchCanal = !canal || r.canal === canal;
         let matchDato = !dato || (r.contacto || '').toLowerCase().includes(dato);
+        let matchAsunto = !asunto || (r.asunto || '').toLowerCase().includes(asunto);
         let matchIdent = !ident || (r.identificador || '').toLowerCase().includes(ident);
         let matchEstado = !estado || r.estado === estado;
         let matchCom = !com || JSON.stringify(r.comentarios || []).toLowerCase().includes(com);
-        return matchBusqueda && matchNombre && matchCanal && matchDato && matchIdent && matchEstado && matchCom;
+        return matchBusqueda && matchNombre && matchCanal && matchDato && matchAsunto && matchIdent && matchEstado && matchCom;
     });
+
     if ($('listaRegistros')) {
         $('listaRegistros').innerHTML = registrosUltimoFiltro.map(tarjetaEstetica).join('') || '<p style="text-align:center; padding:20px; color:var(--text-secondary);">No se encontraron registros.</p>';
     }
@@ -866,6 +1001,7 @@ function actualizarSeguimiento() {
                     <div class="client-details">
                         <h4>${tituloHTML}</h4>
                         <div class="client-sub">${r.canal} • ${r.contacto}</div>
+                        ${r.asunto ? `<div style="font-size:0.75rem; color:var(--primary-blue); font-weight:600;">📌 ${r.asunto}</div>` : ''}
                     </div>
                 </div>
                 <div class="alert-box alert-orange" style="margin-top:10px;">
@@ -931,7 +1067,7 @@ function exportarPDFFiltrado() {
     let ventana = window.open('', '_blank');
     let contenido = `<html><head><title>Reporte MEMORA</title></head><body><h1>MEMORA - Reporte (${datosAExportar.length} Registros)</h1><p>Fecha: ${ahoraMemora().toLocaleString()}</p>`;
     datosAExportar.forEach(r => {
-        contenido += `<hr><b>${r.nombre || r.contacto}</b><br>Contacto: ${r.canal} - ${r.contacto}<br>Estado: ${r.estado}<br>`;
+        contenido += `<hr><b>${r.nombre || r.contacto}</b><br>Asunto: ${r.asunto || 'N/A'}<br>Contacto: ${r.canal} - ${r.contacto}<br>Estado: ${r.estado}<br>`;
         contenido += `Comentarios:<br>${(r.comentarios || []).map(c => `- ${c.texto}`).join('<br>')}<br>`;
     });
     contenido += '</body></html>';
