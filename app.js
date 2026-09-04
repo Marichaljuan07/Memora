@@ -1,7 +1,6 @@
 /* ==========================================================================
-   MEMORA CRM - CORE LOGIC (v1.2.0-libre DEFINITIVO)
+   MEMORA CRM - CORE LOGIC (v1.2.0-PC DEFINITIVO - BOTÓN EDITAR FIX)
    ========================================================================== */
-
 const estados = [
     "Consulta nueva",
     "Información enviada",
@@ -14,6 +13,7 @@ const estados = [
 
 let registros = JSON.parse(localStorage.getItem('memora_registros') || '[]');
 let editando = null;
+let comentariosEdicionActual = [];
 let comentariosTemporalesInicio = [];
 let registrosUltimoFiltro = [];
 let mostrandoArchivados = false;
@@ -44,7 +44,7 @@ function mostrarAvisoMemora(mensaje, titulo = "MEMORA", icono = "check_circle", 
     if ($('avisoMemoraTexto')) $('avisoMemoraTexto').innerText = mensaje;
     if ($('avisoMemoraTitulo')) $('avisoMemoraTitulo').innerText = titulo;
     if ($('avisoMemoraIcono')) $('avisoMemoraIcono').innerText = icono;
-    
+         
     if (icono === 'error' || icono === 'cancel') {
         if ($('avisoMemoraIcono')) $('avisoMemoraIcono').style.color = '#EF4444';
     } else if (icono === 'warning' || icono === 'schedule') {
@@ -74,7 +74,7 @@ function mostrarConfirmMemora(mensaje, titulo = "¿Es seguro?", icono = "help_ou
     if ($('confirmMemoraTitulo')) $('confirmMemoraTitulo').innerText = titulo;
     if ($('confirmMemoraIcono')) $('confirmMemoraIcono').innerText = icono;
     if ($('confirmMemoraBtnAceptar')) $('confirmMemoraBtnAceptar').style.background = colorBoton;
-    
+         
     callbackConfirmGlobal = callback;
     if ($('modalConfirmMemora')) $('modalConfirmMemora').style.display = 'flex';
 }
@@ -91,7 +91,7 @@ function mostrarPromptMemora(mensaje, valorInicial = "", titulo = "Editar inform
     if ($('promptMemoraTexto')) $('promptMemoraTexto').innerText = mensaje;
     if ($('promptMemoraTitulo')) $('promptMemoraTitulo').innerText = titulo;
     if ($('promptMemoraInput')) $('promptMemoraInput').value = valorInicial;
-    
+         
     callbackPromptGlobal = callback;
     if ($('modalPromptMemora')) $('modalPromptMemora').style.display = 'flex';
     setTimeout(() => $('promptMemoraInput')?.focus(), 150);
@@ -126,7 +126,7 @@ function inicializarGoogleDriveAPI() {
                 googleAccessToken = response.access_token;
                 localStorage.setItem('memora_gdrive_token', googleAccessToken);
                 localStorage.setItem('memora_nube_conectado', 'true');
-                
+                                 
                 if ($('cloudStatusText')) $('cloudStatusText').innerText = 'Conectado a Google Drive';
                 mostrarAvisoMemora("¡Google Drive vinculado con éxito!", "Google Drive", "cloud_done");
             },
@@ -164,18 +164,18 @@ async function subirRespaldoADrive() {
     try {
         const datosBackup = JSON.stringify(registros, null, 2);
         const searchUrl = "https://www.googleapis.com/drive/v3/files?q=name%3D%27memora_backup.json%27%20and%20trashed%3Dfalse";
-        
+                 
         const searchResp = await fetch(searchUrl, {
             headers: { 'Authorization': `Bearer ${googleAccessToken}` }
         });
-        
+                 
         if (searchResp.status === 401) {
             if (tokenClient) tokenClient.requestAccessToken({ prompt: '' });
             return;
         }
         const searchData = await searchResp.json();
         let fileId = (searchData.files && searchData.files.length > 0) ? searchData.files[0].id : null;
-        
+                 
         if (fileId) {
             await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
                 method: 'PATCH',
@@ -279,41 +279,36 @@ function actualizarSeguimiento() {
     let ahora = ahoraMemora();
     let config = obtenerConfigSeguimiento();
     let horasLimite = config.unidad === 'horas' ? config.valor : config.valor * 24;
-    
+         
     if ($('textoBannerSeguimiento')) {
         let tiempoTexto = config.unidad === 'horas' ? `${config.valor} hora(s)` : `${config.valor} día(s)`;
         $('textoBannerSeguimiento').innerHTML = `MEMORA administra automáticamente a los clientes que llevan <strong>${tiempoTexto} o más sin gestión</strong>. Si un registro no se ha actualizado y no está en <em>Cerrado, Perdido o Archivado</em>, aparecerá abajo para tu revisión.`;
     }
-    
+         
     let lista = registros.filter(r => {
         let horasTranscurridas = (ahora - new Date(r.ultimaModificacion || r.fecha)) / (1000 * 60 * 60);
         return horasTranscurridas >= horasLimite && r.estado !== "Cerrado" && r.estado !== "Perdido" && r.estado !== "Archivado";
     });
-
     if ($('contadorSeguimiento')) $('contadorSeguimiento').innerText = lista.length;
-
     if ($('contenedorSeguimiento')) {
         const esPC = window.innerWidth >= 800;
-
         $('contenedorSeguimiento').innerHTML = lista.map(r => {
             let horasTranscurridas = (ahora - new Date(r.ultimaModificacion || r.fecha)) / (1000 * 60 * 60);
             let diasAtraso = Math.floor(horasTranscurridas / 24);
             let textoAtraso = config.unidad === 'horas' ? `${Math.floor(horasTranscurridas)} hs de atraso` : `${diasAtraso} día(s) de atraso`;
-            
+                         
             let dCreacion = new Date(r.fecha);
             let dModif = new Date(r.ultimaModificacion || r.fecha);
-            
+                         
             let fechaCreacionTexto = !isNaN(dCreacion.getTime()) 
-                ? `${String(dCreacion.getDate()).padStart(2, '0')}/${String(dCreacion.getMonth() + 1).padStart(2, '0')}/${dCreacion.getFullYear()}` 
-                : r.fecha;
+                 ? `${String(dCreacion.getDate()).padStart(2, '0')}/${String(dCreacion.getMonth() + 1).padStart(2, '0')}/${dCreacion.getFullYear()}` 
+                 : r.fecha;
             let fechaRevisionTexto = !isNaN(dModif.getTime()) 
-                ? `${String(dModif.getDate()).padStart(2, '0')}/${String(dModif.getMonth() + 1).padStart(2, '0')}/${dModif.getFullYear()}` 
-                : '-';
+                 ? `${String(dModif.getDate()).padStart(2, '0')}/${String(dModif.getMonth() + 1).padStart(2, '0')}/${dModif.getFullYear()}` 
+                 : '-';
             let { avatarHTML, tituloHTML } = obtenerAvatarEIdentidad(r);
             let btnCanal = obtenerBotonAccionCanal(r);
-
             let accionClick = esPC ? `editar(${r.id})` : `abrirFicha(${r.id})`;
-
             return `
             <div class="card client-card" onclick="${accionClick}" style="cursor:pointer;">
                 <div class="client-info">
@@ -346,24 +341,20 @@ function buscarCoincidenciasPredictivas(valor, campo, contenedorDropId) {
     const texto = valor.trim().toLowerCase().replace(/\s+/g, '');
     const drop = $(contenedorDropId);
     if (!drop) return;
-
     if (!texto || texto.length < 2) {
         drop.style.display = 'none';
         drop.innerHTML = '';
         return;
     }
-
     const encontrados = registros.filter(r => {
         let valTarget = (campo === 'nombre' ? (r.nombre || '') : (r.contacto || '')).toLowerCase().replace(/\s+/g, '');
         return valTarget.includes(texto);
     });
-
     if (encontrados.length === 0) {
         drop.style.display = 'none';
         drop.innerHTML = '';
         return;
     }
-
     drop.innerHTML = encontrados.map(r => {
         let datoCoincidente = campo === 'nombre' ? (r.nombre || 'Sin nombre') : (r.contacto || 'Sin contacto');
         let asuntoTexto = r.asunto ? `Último registro: ${r.asunto}` : 'Sin asunto registrado';
@@ -372,12 +363,11 @@ function buscarCoincidenciasPredictivas(valor, campo, contenedorDropId) {
                 <div class="drop-item-header">
                     <strong>${campo === 'nombre' ? 'Cliente' : r.canal} ${datoCoincidente}</strong>
                 </div>
-                <div class="drop-item-sub">Ya existe · ${asuntoTexto}</div>
+                <div class="drop-item-sub">Ya existe • ${asuntoTexto}</div>
                 <div class="drop-item-badge ${obtenerClaseEstado(r.estado)}">${r.estado}</div>
             </div>
         `;
     }).join('');
-
     drop.style.display = 'block';
 }
 
@@ -399,7 +389,7 @@ document.addEventListener('click', (e) => {
 });
 
 /* ==========================================================================
-   5. NAVEGACIÓN Y RUTEO SEGURO
+   5. NAVEGACIÓN Y ONBOARDING
    ========================================================================== */
 function iniciarRelojHeader() {
     function actualizar() {
@@ -414,14 +404,14 @@ function iniciarRelojHeader() {
 function navegarA(pantalla, customTitle = null) {
     document.querySelectorAll('.app-section').forEach(sec => sec.style.display = 'none');
     document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
-    
+         
     const esPC = window.innerWidth >= 800;
     if (esPC) document.body.classList.add('pc-view');
     else document.body.classList.remove('pc-view');
-    
+         
     document.body.classList.remove('tab-inicio', 'tab-registros', 'tab-perfil', 'tab-formulario', 'tab-ficha');
     document.body.classList.add(`tab-${pantalla}`);
-    
+         
     const titleMap = { 
         'inicio': 'Inicio', 
         'registros': 'Registros', 
@@ -429,27 +419,31 @@ function navegarA(pantalla, customTitle = null) {
         'perfil': 'Perfil', 
         'ficha': 'Ficha Cliente' 
     };
-    
+         
     if ($('screenTitle')) $('screenTitle').innerText = customTitle || titleMap[pantalla] || 'MEMORA';
-    
-    const secTarget = $(`sec-${pantalla}`);
-    if (secTarget) secTarget.style.display = 'block';
-
-    if ($('btnHeaderBack')) {
-        $('btnHeaderBack').style.display = (pantalla === 'formulario' || pantalla === 'ficha') ? 'block' : 'none';
+         
+    if (pantalla === 'inicio') { 
+        if ($('sec-inicio')) $('sec-inicio').style.display = 'block'; 
+        if ($('nav-inicio')) $('nav-inicio').classList.add('active'); 
+        if ($('btnHeaderBack')) $('btnHeaderBack').style.display = 'none'; 
+    } else if (pantalla === 'registros') { 
+        if ($('sec-registros')) $('sec-registros').style.display = 'block'; 
+        if ($('nav-registros')) $('nav-registros').classList.add('active'); 
+        if ($('btnHeaderBack')) $('btnHeaderBack').style.display = 'none'; 
+    } else if (pantalla === 'formulario') { 
+        if ($('sec-formulario')) $('sec-formulario').style.display = 'block'; 
+        if ($('btnHeaderBack')) $('btnHeaderBack').style.display = 'block'; 
+    } else if (pantalla === 'perfil') { 
+        if ($('sec-perfil')) $('sec-perfil').style.display = 'block'; 
+        if ($('nav-perfil')) $('nav-perfil').classList.add('active'); 
+        if ($('btnHeaderBack')) $('btnHeaderBack').style.display = 'none'; 
+        cargarDiagnosticoSistema(); 
+        cargarDatosUsuarioPerfil(); 
+    } else if (pantalla === 'ficha') { 
+        if ($('sec-ficha')) $('sec-ficha').style.display = 'block'; 
+        if ($('btnHeaderBack')) $('btnHeaderBack').style.display = 'block'; 
     }
-
-    if ($(`nav-${pantalla}`)) $(`nav-${pantalla}`).classList.add('active');
-
-    try {
-        if (pantalla === 'perfil') { 
-            cargarDiagnosticoSistema(); 
-            cargarDatosUsuarioPerfil(); 
-        }
-        render();
-    } catch (err) {
-        console.error("Error al renderizar pestaña:", err);
-    }
+    render();
 }
 
 function comprobarEstadoAccesoEInicial() {
@@ -468,17 +462,17 @@ function procesarPerfilInicial() {
     const cedula = $('initCedula')?.value.trim() || '';
     const empresa = $('initEmpresa')?.value.trim() || '';
     const whatsapp = $('initWhatsapp')?.value.trim() || '';
-    
+         
     if (!nombre) {
         mostrarAvisoMemora("Debes ingresar un nombre para guardar tus datos y continuar.", "Dato Requerido", "warning");
         return;
     }
-    
+         
     const datos = {
         rolAdmin: 'Usuario Administrador', nombreAdmin: nombre,
         cedulaAdmin: cedula, empresaAdmin: empresa, whatsappAdmin: whatsapp
     };
-    
+         
     localStorage.setItem('memora_admin_user_data', JSON.stringify(datos));
     localStorage.setItem('memora_profile_completed', 'true');
     if ($('modalPerfilMemora')) $('modalPerfilMemora').style.display = 'none';
@@ -510,7 +504,7 @@ function renderStoryStep(nombre) {
             text: "Tus datos son tuyos. Todo se respalda directamente en tu Google Drive personal con la máxima seguridad."
         }
     ];
-    
+         
     const current = stories[currentStoryStep];
     if ($('storyContent')) {
         $('storyContent').innerHTML = `
@@ -519,19 +513,19 @@ function renderStoryStep(nombre) {
             <p style="font-size:0.9rem; color:#6b7280;">${current.text}</p>
         `;
     }
-    
+         
     for (let i = 0; i < 3; i++) {
         const fill = $(`story-fill-${i}`);
         if (fill) fill.style.width = i <= currentStoryStep ? '100%' : '0%';
     }
-    
+         
     if ($('btnNextStory')) $('btnNextStory').innerText = currentStoryStep === stories.length - 1 ? "Ingresar a Memora" : "Siguiente";
 }
 
 function siguienteStory() {
     const datosRaw = localStorage.getItem('memora_admin_user_data');
     const datos = datosRaw ? JSON.parse(datosRaw) : { nombreAdmin: 'Usuario' };
-    
+         
     if (currentStoryStep < 2) {
         currentStoryStep++;
         renderStoryStep(datos.nombreAdmin);
@@ -542,23 +536,10 @@ function siguienteStory() {
 }
 
 function desbloquearInterfazCompleta() {
-    const main = document.querySelector('.main-content');
-    const nav = document.querySelector('.bottom-nav');
-    
-    if (main) {
-        main.style.filter = 'none';
-        main.style.display = 'block';
-    }
-    if (nav) {
-        nav.style.display = 'flex';
-    }
-    
+    if (document.querySelector('.main-content')) document.querySelector('.main-content').style.filter = 'none';
+    if (document.querySelector('.bottom-nav')) document.querySelector('.bottom-nav').style.display = 'flex';
     cargarDatosUsuarioPerfil();
-    if ($('sec-inicio')?.style.display !== 'none' || $('sec-registros')?.style.display !== 'none' || $('sec-perfil')?.style.display !== 'none') {
-        // Mantiene la vista activa
-    } else {
-        navegarA('inicio');
-    }
+    navegarA('inicio');
 }
 
 /* ==========================================================================
@@ -572,10 +553,10 @@ function obtenerAvatarEIdentidad(r) {
     else if (r.canal === 'Email') iconName = 'alternate_email';
     else if (r.identificador) iconName = 'badge';
     else iconName = 'person';
-    
+         
     let avatarInner = iconName ? `<span class="material-symbols-outlined">${iconName}</span>` : badgeText;
     let tituloTexto = (r.nombre && r.nombre.trim().length > 0) ? r.nombre : (r.contacto || r.identificador || 'Contacto Sin Nombre');
-    
+         
     return { avatarHTML: avatarInner, tituloHTML: `<span style="color:var(--text-primary); font-weight:600;">${tituloTexto}</span>` };
 }
 
@@ -603,7 +584,7 @@ function obtenerTextoIdentificador(r) {
 
 function obtenerBotonAccionCanal(r) {
     const contactoLimpio = (r.contacto || '').replace(/\s+/g, '');
-    
+         
     if (r.canal === 'WhatsApp') {
         const numWA = contactoLimpio.startsWith('+') ? contactoLimpio.replace('+', '') : `598${contactoLimpio.replace(/^0/, '')}`;
         return `<a href="https://wa.me/${numWA}" target="_blank" onclick="event.stopPropagation();" class="btn-action-channel btn-channel-wa"><span class="material-symbols-outlined" style="font-size:1rem;">chat</span> WhatsApp</a>`;
@@ -623,33 +604,29 @@ function obtenerBotonAccionCanal(r) {
     else if (r.canal === 'Email') {
         return `<a href="mailto:${r.contacto}" onclick="event.stopPropagation();" class="btn-action-channel btn-channel-mail"><span class="material-symbols-outlined" style="font-size:1rem;">mail</span> Email</a>`;
     }
-    
+         
     return `<button onclick="event.stopPropagation(); abrirFicha(${r.id});" class="btn-action-channel btn-channel-generic"><span class="material-symbols-outlined" style="font-size:1rem;">visibility</span> Ver</button>`;
 }
 
 function tarjetaEstetica(r) {
     const dCreacion = new Date(r.fecha);
     const dModif = new Date(r.ultimaModificacion || r.fecha);
-    
+         
     let fechaCreacionTexto = !isNaN(dCreacion.getTime()) 
-        ? `${String(dCreacion.getDate()).padStart(2, '0')}/${String(dCreacion.getMonth() + 1).padStart(2, '0')}/${dCreacion.getFullYear()} ${String(dCreacion.getHours()).padStart(2, '0')}:${String(dCreacion.getMinutes()).padStart(2, '0')}` 
-        : r.fecha;
-        
+         ? `${String(dCreacion.getDate()).padStart(2, '0')}/${String(dCreacion.getMonth() + 1).padStart(2, '0')}/${dCreacion.getFullYear()} ${String(dCreacion.getHours()).padStart(2, '0')}:${String(dCreacion.getMinutes()).padStart(2, '0')}` 
+         : r.fecha;
+             
     let fechaRevisionTexto = !isNaN(dModif.getTime()) 
-        ? `${String(dModif.getDate()).padStart(2, '0')}/${String(dModif.getMonth() + 1).padStart(2, '0')}/${dModif.getFullYear()}` 
-        : '-';
-    
+         ? `${String(dModif.getDate()).padStart(2, '0')}/${String(dModif.getMonth() + 1).padStart(2, '0')}/${dModif.getFullYear()}` 
+         : '-';
+         
     const { avatarHTML, tituloHTML } = obtenerAvatarEIdentidad(r);
     const btnCanal = obtenerBotonAccionCanal(r);
     const textoId = obtenerTextoIdentificador(r);
     let comentariosActivos = (r.comentarios || []).filter(c => !c.eliminado);
     let ultimoComentario = comentariosActivos.length > 0 ? comentariosActivos[comentariosActivos.length - 1].texto : null;
-
-    const esPC = window.innerWidth >= 800;
-    let accionClick = esPC ? `editar(${r.id})` : `abrirFicha(${r.id})`;
-
     return `
-    <div class="card client-card" style="cursor:pointer;" onclick="${accionClick}">
+    <div class="card client-card" style="cursor:pointer;" onclick="abrirFicha(${r.id})">
         <div class="client-info">
             <div class="avatar avatar-blue">${avatarHTML}</div>
             <div class="client-details">
@@ -657,19 +634,19 @@ function tarjetaEstetica(r) {
                 <div class="client-sub">${r.canal} • ${r.contacto}${textoId}</div>
             </div>
         </div>
-        
+                 
         <div>
             ${r.asunto ? `<div style="font-size: 0.8rem; font-weight:600; color:var(--primary-blue);">Asunto: ${r.asunto}</div>` : '<span style="color:gray; font-size:0.75rem;">Sin asunto</span>'}
             ${ultimoComentario ? `<div style="font-size: 0.73rem; color:#4B5563; margin-top:3px; background:#F3F4F6; padding:4px 8px; border-radius:6px; display:inline-block; max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Último comentario: ${ultimoComentario}</div>` : ''}
         </div>
-        
+                 
         <div class="tag-row"><span class="tag ${obtenerClaseEstado(r.estado)}">${r.estado}</span></div>
-        
+                 
         <div class="time-ago">
             <span style="font-size:0.72rem; color:var(--text-secondary);">Creado: <strong>${fechaCreacionTexto}</strong></span><br>
             <span style="font-size:0.68rem; color:gray;">Última rev: ${fechaRevisionTexto}</span>
         </div>
-        
+                 
         <div style="display:flex; gap:6px; align-items:center; margin-top:8px;">
             ${btnCanal}
             <button class="btn-action-edit" onclick="event.stopPropagation(); editar(${r.id});">Editar</button>
@@ -678,56 +655,44 @@ function tarjetaEstetica(r) {
 }
 
 function render() {
-    try {
-        procesarAutoArchivado();
-        actualizarKPIs();
-        actualizarSeguimiento();
-        actualizarMetricsInicio();
-        
-        let busqueda = $('busquedaRapida')?.value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') || '';
-        let nombre = $('filtroNombre')?.value.toLowerCase() || '';
-        let canal = $('filtroCanal')?.value || '';
-        let dato = $('filtroDato')?.value.toLowerCase() || '';
-        let asunto = $('filtroAsunto')?.value.toLowerCase() || '';
-        let ident = $('filtroId')?.value.toLowerCase() || '';
-        let estado = $('filtroEstado')?.value || '';
-        let com = $('filtroComentario')?.value.toLowerCase() || '';
-
-        registrosUltimoFiltro = registros.filter(r => {
-            let esArchiv = r.estado === 'Archivado';
-            if (mostrandoArchivados) { if (!esArchiv) return false; } else { if (esArchiv) return false; }
-            
-            let matchBusqueda = !busqueda || JSON.stringify(r).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(busqueda);
-            let matchNombre = !nombre || (r.nombre || '').toLowerCase().includes(nombre);
-            let matchCanal = !canal || r.canal === canal;
-            let matchDato = !dato || (r.contacto || '').toLowerCase().includes(dato);
-            let matchAsunto = !asunto || (r.asunto || '').toLowerCase().includes(asunto);
-            let matchIdent = !ident || (r.identificador || '').toLowerCase().includes(ident);
-            let matchEstado = !estado || r.estado === estado;
-            let matchCom = !com || JSON.stringify(r.comentarios || []).toLowerCase().includes(com);
-
-            return matchBusqueda && matchNombre && matchCanal && matchDato && matchAsunto && matchIdent && matchEstado && matchCom;
-        });
-
-        if ($('listaRegistros')) {
-            $('listaRegistros').innerHTML = registrosUltimoFiltro.map(tarjetaEstetica).join('') || '<p style="text-align:center; padding:20px; color:var(--text-secondary);">No se encontraron registros.</p>';
-        }
-        
-        if ($('totalRegistrosTexto')) {
-            $('totalRegistrosTexto').innerText = `${registrosUltimoFiltro.length} registros ${mostrandoArchivados ? '(Archivados)' : ''}`;
-        }
-        
-        if ($('btnVerArchivados')) {
-            $('btnVerArchivados').innerText = mostrandoArchivados ? 'Ver Activos' : 'Ver Archivados';
-            $('btnVerArchivados').style.background = mostrandoArchivados ? '#E5E7EB' : '#F3F4F6';
-        }
-    } catch (err) {
-        console.error("Error dentro de render():", err);
+    procesarAutoArchivado();
+    actualizarKPIs();
+    actualizarSeguimiento();
+    actualizarMetricsInicio();
+         
+    let busqueda = $('busquedaRapida')?.value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') || '';
+    let nombre = $('filtroNombre')?.value.toLowerCase() || '';
+    let canal = $('filtroCanal')?.value || '';
+    let dato = $('filtroDato')?.value.toLowerCase() || '';
+    let asunto = $('filtroAsunto')?.value.toLowerCase() || '';
+    let ident = $('filtroId')?.value.toLowerCase() || '';
+    let estado = $('filtroEstado')?.value || '';
+    let com = $('filtroComentario')?.value.toLowerCase() || '';
+    registrosUltimoFiltro = registros.filter(r => {
+        let esArchiv = r.estado === 'Archivado';
+        if (mostrandoArchivados) { if (!esArchiv) return false; } else { if (esArchiv) return false; }
+                 
+        let matchBusqueda = !busqueda || JSON.stringify(r).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(busqueda);
+        let matchNombre = !nombre || (r.nombre || '').toLowerCase().includes(nombre);
+        let matchCanal = !canal || r.canal === canal;
+        let matchDato = !dato || (r.contacto || '').toLowerCase().includes(dato);
+        let matchAsunto = !asunto || (r.asunto || '').toLowerCase().includes(asunto);
+        let matchIdent = !ident || (r.identificador || '').toLowerCase().includes(ident);
+        let matchEstado = !estado || r.estado === estado;
+        let matchCom = !com || JSON.stringify(r.comentarios || []).toLowerCase().includes(com);
+        return matchBusqueda && matchNombre && matchCanal && matchDato && matchAsunto && matchIdent && matchEstado && matchCom;
+    });
+    if ($('listaRegistros')) $('listaRegistros').innerHTML = registrosUltimoFiltro.map(tarjetaEstetica).join('') || '<p style="text-align:center; padding:20px; color:var(--text-secondary);">No se encontraron registros.</p>';
+    if ($('totalRegistrosTexto')) $('totalRegistrosTexto').innerText = `${registrosUltimoFiltro.length} registros ${mostrandoArchivados ? '(Archivados)' : ''}`;
+         
+    if ($('btnVerArchivados')) {
+        $('btnVerArchivados').innerText = mostrandoArchivados ? 'Ver Activos' : 'Ver Archivados';
+        $('btnVerArchivados').style.background = mostrandoArchivados ? '#E5E7EB' : '#F3F4F6';
     }
 }
 
 /* ==========================================================================
-   7. FORMULARIO, CONTROL DE CAMBIO DE DATO Y EDICIÓN (PC Y MÓVIL)
+   7. FORMULARIO Y CONTROL DE CAMBIO DE DATO Y EDICIÓN
    ========================================================================== */
 function mostrarCanal() {
     let c = $('canal').value;
@@ -861,18 +826,15 @@ function mostrarIdInicio() {
     }
 }
 
-// --- COMENTARIOS TEMPORALES EN PC CON EDITAR Y ELIMINAR ---
 function agregarComentarioTemporalInicio() {
     let txt = $('comentarioInicio')?.value.trim();
     if (!txt) return;
-
     comentariosTemporalesInicio.push({
         texto: txt,
         fecha: fechaHoraTextoFormateada(),
         editado: null,
         eliminado: false
     });
-
     if ($('comentarioInicio')) $('comentarioInicio').value = '';
     renderComentariosTemporalesInicio();
 }
@@ -880,12 +842,10 @@ function agregarComentarioTemporalInicio() {
 function renderComentariosTemporalesInicio() {
     let cont = $('listaComentariosTemporalesInicio');
     if (!cont) return;
-
     if (comentariosTemporalesInicio.length === 0) {
         cont.innerHTML = '<p style="font-size:0.75rem; color:var(--text-secondary);">No hay comentarios adjuntos.</p>';
         return;
     }
-
     cont.innerHTML = comentariosTemporalesInicio.map((c, i) => `
         <div class="card" style="padding:10px; margin-top:6px; font-size:0.8rem; background:#F9FAFB; border:1px solid #E5E7EB; border-radius:8px;">
             <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:0.7rem; color:var(--text-secondary);">
@@ -906,7 +866,6 @@ function renderComentariosTemporalesInicio() {
 function editarComentarioTemporalInicio(index) {
     let c = comentariosTemporalesInicio[index];
     if (!c) return;
-
     mostrarPromptMemora("Modifica el contenido del comentario:", c.texto, "Editar Comentario", (nuevoTexto) => {
         if (nuevoTexto !== null && nuevoTexto.trim() !== "") {
             comentariosTemporalesInicio[index].texto = nuevoTexto.trim();
@@ -931,7 +890,6 @@ function guardarDesdeInicio() {
         mostrarAvisoMemora('Debes ingresar el dato de contacto antes de guardar.', 'Error al cargar datos', 'error');
         return;
     }
-
     let textoUltimo = $('comentarioInicio')?.value.trim();
     if (textoUltimo) {
         comentariosTemporalesInicio.push({
@@ -941,7 +899,6 @@ function guardarDesdeInicio() {
             eliminado: false
         });
     }
-
     let r = {
         id: editando || Date.now(),
         nombre: $('nombreInicio')?.value.trim() || '',
@@ -954,13 +911,11 @@ function guardarDesdeInicio() {
         fecha: editando ? (registros.find(x => x.id === editando)?.fecha || ahoraMemora().toISOString()) : ahoraMemora().toISOString(),
         ultimaModificacion: ahoraMemora().toISOString()
     };
-
     if (editando) {
         registros = registros.map(x => x.id === editando ? r : x);
     } else {
         registros.push(r);
     }
-
     guardarLocal();
     sincronizarAutoNube(r);
     limpiarInicio();
@@ -974,13 +929,12 @@ function limpiarInicio() {
     });
     if ($('tipoIdInicio')) $('tipoIdInicio').value = 'Ninguno';
     if ($('canalInicio')) $('canalInicio').value = 'WhatsApp';
-    
+         
     editando = null;
     comentariosTemporalesInicio = [];
     renderComentariosTemporalesInicio();
     mostrarIdInicio();
     mostrarCanalInicio();
-
     if ($('contactoInicio')) {
         $('contactoInicio').removeAttribute('readonly');
         $('contactoInicio').style.backgroundColor = '#ffffff';
@@ -988,11 +942,9 @@ function limpiarInicio() {
         $('contactoInicio').style.border = '1px solid #ccc';
     }
     if ($('btnAccionContactoContainerInicio')) $('btnAccionContactoContainerInicio').innerHTML = '';
-
     if ($('tituloFormularioInicio')) {
         $('tituloFormularioInicio').innerText = 'Nuevo Registro / Carga Directa';
     }
-
     if ($('contenedorBotonesInicio')) {
         $('contenedorBotonesInicio').innerHTML = `
             <button id="btnGuardarInicio" onclick="guardarDesdeInicio()" style="flex:2; background:var(--primary-blue); color:white; border:none; padding:14px; border-radius:10px; font-weight:700; cursor:pointer; font-size:0.95rem;">
@@ -1008,14 +960,14 @@ function limpiarInicio() {
 function agregarComentarioFormulario() {
     let txt = $('comentario')?.value.trim();
     if (!txt) return;
-    
+         
     comentariosEdicionActual.push({
         texto: txt,
         fecha: fechaHoraTextoFormateada(),
         editado: null,
         eliminado: false
     });
-    
+         
     if ($('comentario')) $('comentario').value = '';
     renderListaComentariosEdicion();
 }
@@ -1042,6 +994,28 @@ function renderListaComentariosEdicion() {
     `).join('');
 }
 
+// RESTAURACIÓN DE HANDLERS FALTANTES PARA MÓVIL
+function editarComentarioTexto(index) {
+    let c = comentariosEdicionActual[index];
+    if (!c) return;
+    mostrarPromptMemora("Modifica el contenido del comentario:", c.texto, "Editar Comentario", (nuevoTexto) => {
+        if (nuevoTexto !== null && nuevoTexto.trim() !== "") {
+            comentariosEdicionActual[index].texto = nuevoTexto.trim();
+            comentariosEdicionActual[index].editado = fechaHoraTextoFormateada();
+            renderListaComentariosEdicion();
+        }
+    });
+}
+
+function borrarComentarioTexto(index) {
+    mostrarConfirmMemora("¿Deseas quitar este comentario?", "Eliminar Nota", "delete", "#DC2626", (confirmado) => {
+        if (confirmado) {
+            comentariosEdicionActual.splice(index, 1);
+            renderListaComentariosEdicion();
+        }
+    });
+}
+
 function prepararNuevoRegistro() {
     if (window.innerWidth >= 800) {
         navegarA('inicio');
@@ -1062,7 +1036,7 @@ function guardar() {
         mostrarAvisoMemora('Debes ingresar el dato de contacto antes de guardar.', 'Error al cargar datos', 'error');
         return;
     }
-    
+         
     let viejo = registros.find(r => r.id === editando);
     let comentariosConsolidados = viejo ? [...(viejo.comentarios || [])] : [];
     comentariosEdicionActual.forEach(nuevoC => {
@@ -1070,7 +1044,6 @@ function guardar() {
             comentariosConsolidados.push(nuevoC);
         }
     });
-
     let r = {
         id: editando || Date.now(),
         nombre: $('nombre')?.value ? $('nombre').value.trim() : '',
@@ -1083,28 +1056,29 @@ function guardar() {
         fecha: viejo?.fecha || ahoraMemora().toISOString(),
         ultimaModificacion: ahoraMemora().toISOString()
     };
-
     if (viejo) registros = registros.map(x => x.id === r.id ? r : x);
     else registros.push(r);
-
     guardarLocal();
     sincronizarAutoNube(r);
     limpiar();
     navegarA('registros');
 }
 
+/* ==========================================================================
+   FUNCIÓN EDITAR CORREGIDA Y PROTOCALIZADA
+   ========================================================================== */
 function editar(id) {
     let r = registros.find(x => x.id === id);
     if (!r) return;
     editando = id;
-
     const esPC = window.innerWidth >= 800;
 
     if (esPC) {
+        // --- VISTA PC ---
         if ($('nombreInicio')) $('nombreInicio').value = r.nombre || '';
         if ($('canalInicio')) $('canalInicio').value = r.canal || 'WhatsApp';
         mostrarCanalInicio();
-        
+                 
         if ($('contactoInicio')) {
             $('contactoInicio').value = r.contacto || '';
             $('contactoInicio').setAttribute('readonly', 'true');
@@ -1117,23 +1091,20 @@ function editar(id) {
                 <a href="#" onclick="activarEdicionContactoInicio(); return false;" style="font-size:0.75rem; color:var(--primary-blue); font-weight:600; text-decoration:none;">[ Cambiar dato ]</a>
             `;
         }
-
         if ($('asuntoInicio')) $('asuntoInicio').value = r.asunto || '';
         if ($('estadoInicio')) $('estadoInicio').value = r.estado || 'Consulta nueva';
-        
+                 
         if ($('tipoIdInicio')) $('tipoIdInicio').value = r.identificador ? (r.identificador.startsWith('RUT') ? 'RUT' : 'N° de Cliente') : 'Ninguno';
         mostrarIdInicio();
         if ($('valorIdInicio')) $('valorIdInicio').value = r.identificador || '';
-
         comentariosTemporalesInicio = JSON.parse(JSON.stringify(r.comentarios || []));
         renderComentariosTemporalesInicio();
-
+        
         navegarA('inicio');
 
         if ($('tituloFormularioInicio')) {
             $('tituloFormularioInicio').innerText = `✏️ Editando Registro: ${r.nombre || r.contacto}`;
         }
-
         let esArchivado = r.estado === 'Archivado';
         if ($('contenedorBotonesInicio')) {
             $('contenedorBotonesInicio').innerHTML = `
@@ -1151,26 +1122,27 @@ function editar(id) {
                 </button>
             `;
         }
-
         setTimeout(() => {
             $('focoFormularioInicio')?.scrollIntoView({ behavior: 'smooth' });
             mostrarAvisoMemora(`Datos de "${r.nombre || r.contacto}" cargados en el formulario de Inicio para su edición.`, "MEMORA PC", "edit");
         }, 150);
-
     } else {
+        // --- VISTA MÓVIL ---
         if ($('nombre')) $('nombre').value = r.nombre || '';
-        if ($('canal')) $('canal').value = r.canal;
+        if ($('canal')) $('canal').value = r.canal || 'WhatsApp';
         mostrarCanal();
         if ($('contacto')) $('contacto').value = r.contacto || '';
         if ($('asunto')) $('asunto').value = r.asunto || '';
-        if ($('estado')) $('estado').value = r.estado;
+        if ($('estado')) $('estado').value = r.estado || 'Consulta nueva';
         if ($('tipoId')) $('tipoId').value = r.identificador ? (r.identificador.startsWith('RUT') ? 'RUT' : 'N° de Cliente') : 'Ninguno';
         mostrarId();
         if ($('valorId')) $('valorId').value = r.identificador || '';
-        
+                 
         comentariosEdicionActual = JSON.parse(JSON.stringify(r.comentarios || []));
         renderListaComentariosEdicion();
-        navegarA('formulario');
+        
+        // Cambio de sección forzado a la pestaña 'formulario'
+        navegarA('formulario', 'Editar Cliente');
     }
 }
 
@@ -1180,14 +1152,12 @@ function abrirFicha(id) {
         editar(id);
         return;
     }
-
     let r = registros.find(x => x.id === id);
     if (!r) return;
     let { avatarHTML, tituloHTML } = obtenerAvatarEIdentidad(r);
     let comentarios = r.comentarios || [];
     let ultimoComentario = comentarios.length > 0 ? comentarios[comentarios.length - 1] : null;
     let historialComentarios = comentarios.length > 1 ? comentarios.slice(0, comentarios.length - 1) : [];
-
     let html = `
         <div class="card" style="padding: 20px 16px;">
             <div style="display: flex; align-items: center; gap: 16px;">
@@ -1223,12 +1193,11 @@ function exportarCSVFiltrado() {
     let filtroLimpio = estadoFiltro.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_');
     if (!filtroLimpio || filtroLimpio === 'Inicio' || filtroLimpio === 'Perfil') filtroLimpio = 'Todos';
     let nombreArchivo = `MEMORA_Reporte_Clientes_${filtroLimpio}.xlsx`;
-
     function clasificarContacto(canal, contacto) {
         let val = (contacto || '').trim();
         if (!val) return { telefono: '-', usuario: '-', email: '-', otro: '-' };
         let cLower = (canal || '').toLowerCase();
-        
+                 
         if (cLower === 'whatsapp' || (/^[0-9+\s\-()]{7,}$/.test(val) && !val.includes('@'))) {
             return { telefono: val, usuario: '-', email: '-', otro: '-' };
         } else if (cLower === 'email' || (val.includes('@') && val.includes('.'))) {
@@ -1239,29 +1208,26 @@ function exportarCSVFiltrado() {
             return { telefono: '-', usuario: '-', email: '-', otro: val };
         }
     }
-
     let filas = [[
         'Doc / RUT / N° Cliente', 'Nombre del Cliente', 'Asunto / Motivo', 'Canal', 'Teléfono / WhatsApp',
         'Usuario (@)', 'Correo Electrónico', 'Estado Actual', 'Último Comentario',
         'Total Comentarios', 'Fecha de Registro'
     ]];
-
     datosAExportar.forEach(r => {
         let comentariosActivos = (r.comentarios || []).filter(c => !c.eliminado);
         let ultimoCom = comentariosActivos.length > 0 
-            ? comentariosActivos[comentariosActivos.length - 1].texto.replace(/[\r\n]+/g, ' ') 
-            : 'Sin comentarios';
+             ? comentariosActivos[comentariosActivos.length - 1].texto.replace(/[\r\n]+/g, ' ') 
+             : 'Sin comentarios';
         let d = new Date(r.fecha);
         let fechaCreacionTexto = isNaN(d.getTime()) ? r.fecha : `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
         let clasif = clasificarContacto(r.canal, r.contacto);
-        
+                 
         filas.push([
             r.identificador || 'N/A', r.nombre || 'Sin registrar', r.asunto || 'Sin asunto', r.canal || 'Otro',
             clasif.telefono, clasif.usuario, clasif.email, r.estado || 'Consulta nueva',
             ultimoCom, (r.comentarios || []).length, fechaCreacionTexto
         ]);
     });
-
     if (typeof XLSX !== 'undefined') {
         let ws = XLSX.utils.aoa_to_sheet(filas);
         let colWidths = filas[0].map((col, colIdx) => {
@@ -1315,10 +1281,10 @@ async function cargarDiagnosticoSistema() {
     if (ua.includes("Brave") || (navigator.brave && await navigator.brave.isBrave())) nav = "Brave Browser";
     else if (ua.includes("Chrome")) nav = "Google Chrome";
     else if (ua.includes("Firefox")) nav = "Mozilla Firefox";
-    
+         
     const storageBytes = new Blob([localStorage.getItem('memora_registros') || '']).size;
-    
-    if ($('sys-version')) $('sys-version').innerText = "v1.2.0-libre";
+         
+    if ($('sys-version')) $('sys-version').innerText = "v1.2.0-PC";
     if ($('sys-device')) $('sys-device').innerText = dev;
     if ($('sys-browser')) $('sys-browser').innerText = nav;
     if ($('sys-storage')) $('sys-storage').innerText = `${(storageBytes / 1024).toFixed(2)} KB`;
@@ -1330,16 +1296,16 @@ async function cargarDiagnosticoSistema() {
 function cargarDatosUsuarioPerfil() {
     const datosRaw = localStorage.getItem('memora_admin_user_data');
     const datos = datosRaw ? JSON.parse(datosRaw) : { rolAdmin: 'Usuario Administrador', nombreAdmin: '', cedulaAdmin: '', empresaAdmin: '', whatsappAdmin: '' };
-    if ($('saludo')) $('saludo').innerText = `¡Hola, ${datos.nombreAdmin ? datos.nombreAdmin.split(' ')[0] : 'Usuario'}!`;
+    if ($('saludo')) $('saludo').innerText = `👋 ¡Hola, ${datos.nombreAdmin ? datos.nombreAdmin.split(' ')[0] : 'Usuario'}!`;
     if ($('perfilRolAdmin')) $('perfilRolAdmin').innerText = datos.rolAdmin || 'Usuario Administrador';
-    
+         
     let htmlLista = '';
     if (datos.nombreAdmin) htmlLista += `<div class="perfil-campo-linea"><span class="perfil-label">Nombre:</span> <span class="perfil-valor">${datos.nombreAdmin}</span></div>`;
     if (datos.cedulaAdmin) htmlLista += `<div class="perfil-campo-linea"><span class="perfil-label">Documento / C.I.:</span> <span class="perfil-valor">${datos.cedulaAdmin}</span></div>`;
     if (datos.empresaAdmin) htmlLista += `<div class="perfil-campo-linea"><span class="perfil-label">Empresa:</span> <span class="perfil-valor">${datos.empresaAdmin}</span></div>`;
     if (datos.whatsappAdmin) htmlLista += `<div class="perfil-campo-linea"><span class="perfil-label">Contacto / WA:</span> <span class="perfil-valor">${datos.whatsappAdmin}</span></div>`;
     if ($('perfilDatosLista')) $('perfilDatosLista').innerHTML = htmlLista || '<p style="font-size:0.8rem; color:var(--text-secondary);">Sin datos adicionales cargados.</p>';
-    
+         
     const cfgSeg = obtenerConfigSeguimiento();
     if ($('cfgSegValor')) $('cfgSegValor').value = cfgSeg.valor;
     if ($('cfgSegUnidad')) $('cfgSegUnidad').value = cfgSeg.unidad;
@@ -1404,7 +1370,6 @@ function actualizarMetricsInicio() {
         const d = new Date(r.fecha);
         return d.getMonth() === ahora.getMonth() && d.getFullYear() === ahora.getFullYear();
     }).length;
-
     let conteoCanales = {};
     registros.forEach(r => {
         if (r.canal) conteoCanales[r.canal] = (conteoCanales[r.canal] || 0) + 1;
@@ -1417,7 +1382,6 @@ function actualizarMetricsInicio() {
             topCanal = c;
         }
     }
-
     if ($('dash-activos')) $('dash-activos').innerText = activos;
     if ($('dash-mes')) $('dash-mes').innerText = creadosMes;
     if ($('dash-canal')) $('dash-canal').innerText = topCanal;
@@ -1511,6 +1475,7 @@ function cargarModoDemoSiAplica() {
         mostrarBannerDemoSuperior();
     }
 }
+
 function mostrarBannerDemoSuperior() {
     if (document.getElementById('bannerModoDemo')) return;
     const banner = document.createElement('div');
@@ -1525,7 +1490,6 @@ function mostrarBannerDemoSuperior() {
     `;
     document.body.prepend(banner);
 
-    // Redirección forzada sin depender del tag <a> de HTML
     document.getElementById('btnIrALandingDemo').addEventListener('click', function(e) {
         e.preventDefault();
         window.top.location.href = "https://memora-landing-two.vercel.app/";
