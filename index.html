@@ -338,7 +338,6 @@
                 </div>
                 <div id="perfilDatosLista" style="background:#F9FAFB; padding:12px; border-radius:12px; font-size:0.85rem; line-height:1.6;"></div>
             </div>
-
             <div id="modalConfigAdmin" class="card" style="display:none; margin-bottom:16px; border:2px solid var(--primary-blue); background:#F0F9FF;">
                 <h3 style="font-size:0.95rem; margin-bottom:12px; color:var(--primary-blue);">Configurar Perfil de Usuario y Empresa</h3>
                 <div style="display:flex; flex-direction:column; gap:10px;">
@@ -368,7 +367,6 @@
                     </div>
                 </div>
             </div>
-
             <!-- Seguimiento Personalizado -->
             <h3 style="font-size: 0.95rem; margin: 16px 0 10px 0;">Seguimiento Personalizado</h3>
             <div class="card" style="margin-bottom:16px; padding:16px;">
@@ -382,7 +380,6 @@
                     <button onclick="guardarConfigSeguimiento()" style="background:var(--primary-blue); color:white; border:none; padding:8px 14px; border-radius:8px; font-weight:600; font-size:0.8rem; cursor:pointer;">Aplicar</button>
                 </div>
             </div>
-
             <!-- Respaldo en Google Drive -->
             <h3 style="font-size: 0.95rem; margin: 16px 0 10px 0;">Respaldo en la Nube (Google Drive)</h3>
             <div class="card" style="margin-bottom:16px; padding:16px;">
@@ -409,7 +406,6 @@
                     <input type="checkbox" id="chkAutoNube" onchange="toggleAutoNube()" style="width:18px; height:18px; accent-color:var(--primary-blue);">
                 </div>
             </div>
-
             <!-- Diagnóstico del Sistema -->
             <div class="card" style="margin-bottom: 16px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
@@ -437,7 +433,6 @@
                     </div>
                 </div>
             </div>
-
             <h3 style="font-size: 0.95rem; margin: 16px 0 10px 0;">Reglas Automáticas</h3>
             <div class="card" style="display: flex; align-items: center; justify-content: space-between; padding: 16px; margin-bottom:16px;">
                 <div>
@@ -446,7 +441,6 @@
                 </div>
                 <input type="checkbox" id="chkAutoArchivar" onchange="guardarConfigAutoArchivar()" style="width: 20px; height: 20px; accent-color: var(--primary-blue);">
             </div>
-
             <h3 style="font-size: 0.95rem; margin: 16px 0 10px 0;">Exportación Inteligente</h3>
             <div class="card" style="padding: 0;">
                 <div onclick="exportarCSVFiltrado()" style="display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid #F3F4F6; cursor:pointer;">
@@ -473,7 +467,7 @@
             </div>
         </section>
 
-        <!-- BOTÓN FLOTANTE FAB (SÓLO MÓVIL) -->
+        <!-- BOTÓN FLOTANTE FAB -->
         <button id="btnNuevoRegistroFlotante" class="fab-button" onclick="prepararNuevoRegistro()">
             <span class="material-symbols-outlined">add</span>
             <span>Nuevo registro</span>
@@ -562,16 +556,13 @@
         </div>
     </div>
 
-   <!-- LÍNEA 565: Agregale el ?v=1.2.0 al script de app.js -->
-<script src="app.js?v=1.2.0"></script>
-
-<script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      // LÍNEA 569: Como lo tenés en la captura (perfecto)
-      navigator.serviceWorker.register('./sw.js?v=1.2.0');
-    });
-  }
-</script>
+    <script src="app.js?v=1.2.0-PC"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js?v=1.2.0-PC');
+        });
+      }
+    </script>
 </body>
 </html>
