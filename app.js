@@ -1,5 +1,5 @@
 /* ==========================================================================
-   MEMORA CRM - CORE LOGIC (v1.2.0-libre DEFINITIVO E INTEGRADO)
+   MEMORA CRM - CORE LOGIC (v1.2.0-libre DEFINITIVO)
    ========================================================================== */
 
 const estados = [
@@ -14,7 +14,7 @@ const estados = [
 
 let registros = JSON.parse(localStorage.getItem('memora_registros') || '[]');
 let editando = null;
-let comentariosEdicionActual = [];
+let comentariosTemporalesInicio = [];
 let registrosUltimoFiltro = [];
 let mostrandoArchivados = false;
 let contactoOriginalBackup = "";
@@ -69,7 +69,7 @@ function cerrarBannerAviso() {
     if (banner) banner.style.display = 'none';
 }
 
-function mostrarConfirmMemora(mensaje, titulo = "¿Estás seguro?", icono = "help_outline", colorBoton = "#DC2626", callback = null) {
+function mostrarConfirmMemora(mensaje, titulo = "¿Es seguro?", icono = "help_outline", colorBoton = "#DC2626", callback = null) {
     if ($('confirmMemoraTexto')) $('confirmMemoraTexto').innerText = mensaje;
     if ($('confirmMemoraTitulo')) $('confirmMemoraTitulo').innerText = titulo;
     if ($('confirmMemoraIcono')) $('confirmMemoraIcono').innerText = icono;
@@ -106,7 +106,7 @@ function responderPromptMemora(valor) {
 }
 
 /* ==========================================================================
-   2. GOOGLE DRIVE API v3 - GUARDA Y RESTAURA (BIDIRECCIONAL)
+   2. GOOGLE DRIVE API v3
    ========================================================================== */
 const GOOGLE_CLIENT_ID = '766888773519-676shp6ma451vga2oe5rq3hu1ck7bhpo.apps.googleusercontent.com';
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
@@ -224,7 +224,7 @@ async function restaurarDesdeDrive() {
             mostrarAvisoMemora("No se encontró ningún archivo 'memora_backup.json' en tu Drive.", "Google Drive", "warning");
             return;
         }
-        mostrarConfirmMemora("¿Estás seguro de reemplazar tus registros locales con la copia respaldada en Drive?", "Restaurar Copia", "cloud_download", "#004F87", async (confirmado) => {
+        mostrarConfirmMemora("¿Es seguro de reemplazar tus registros locales con la copia respaldada en Drive?", "Restaurar Copia", "cloud_download", "#004F87", async (confirmado) => {
             if (confirmado) {
                 const downloadResp = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
                     headers: { 'Authorization': `Bearer ${googleAccessToken}` }
@@ -291,7 +291,10 @@ function actualizarSeguimiento() {
     });
 
     if ($('contadorSeguimiento')) $('contadorSeguimiento').innerText = lista.length;
+
     if ($('contenedorSeguimiento')) {
+        const esPC = window.innerWidth >= 800;
+
         $('contenedorSeguimiento').innerHTML = lista.map(r => {
             let horasTranscurridas = (ahora - new Date(r.ultimaModificacion || r.fecha)) / (1000 * 60 * 60);
             let diasAtraso = Math.floor(horasTranscurridas / 24);
@@ -306,12 +309,13 @@ function actualizarSeguimiento() {
             let fechaRevisionTexto = !isNaN(dModif.getTime()) 
                 ? `${String(dModif.getDate()).padStart(2, '0')}/${String(dModif.getMonth() + 1).padStart(2, '0')}/${dModif.getFullYear()}` 
                 : '-';
-
             let { avatarHTML, tituloHTML } = obtenerAvatarEIdentidad(r);
             let btnCanal = obtenerBotonAccionCanal(r);
 
+            let accionClick = esPC ? `editar(${r.id})` : `abrirFicha(${r.id})`;
+
             return `
-            <div class="card client-card" onclick="abrirFicha(${r.id})" style="cursor:pointer;">
+            <div class="card client-card" onclick="${accionClick}" style="cursor:pointer;">
                 <div class="client-info">
                     <div class="avatar avatar-blue">${avatarHTML}</div>
                     <div class="client-details">
@@ -325,7 +329,6 @@ function actualizarSeguimiento() {
                     <span style="color:var(--text-secondary);">Creado: <strong>${fechaCreacionTexto}</strong></span><br>
                     <span style="color:gray;">Última rev: ${fechaRevisionTexto}</span><br>
                     <strong style="color:#C2410C;">${textoAtraso}</strong><br>
-                    <small style="color:gray;">Revisá qué pasó...</small>
                 </div>
                 <div style="display:flex; gap:6px; align-items:center; margin-top:8px;">
                     ${btnCanal}
@@ -337,49 +340,72 @@ function actualizarSeguimiento() {
 }
 
 /* ==========================================================================
-   4. BÚSQUEDA PREDICTIVA NUMÉRICA DE CONTACTO
+   4. BÚSQUEDA PREDICTIVA UNIFICADA
    ========================================================================== */
-function buscarCoincidenciasTelefono(val) {
-    const texto = val.trim().replace(/\s+/g, '').toLowerCase();
-    const dropdown = $('coincidenciasTelefonoDrop');
-    
-    if (!texto || texto.length < 3) {
-        if (dropdown) dropdown.remove();
+function buscarCoincidenciasPredictivas(valor, campo, contenedorDropId) {
+    const texto = valor.trim().toLowerCase().replace(/\s+/g, '');
+    const drop = $(contenedorDropId);
+    if (!drop) return;
+
+    if (!texto || texto.length < 2) {
+        drop.style.display = 'none';
+        drop.innerHTML = '';
         return;
     }
-    const encontrados = registros.filter(r => (r.contacto || '').replace(/\s+/g, '').toLowerCase().includes(texto));
+
+    const encontrados = registros.filter(r => {
+        let valTarget = (campo === 'nombre' ? (r.nombre || '') : (r.contacto || '')).toLowerCase().replace(/\s+/g, '');
+        return valTarget.includes(texto);
+    });
+
     if (encontrados.length === 0) {
-        if (dropdown) dropdown.remove();
+        drop.style.display = 'none';
+        drop.innerHTML = '';
         return;
     }
-    if (!dropdown) {
-        const div = document.createElement('div');
-        div.id = 'coincidenciasTelefonoDrop';
-        div.className = 'coincidencias-drop';
-        $('campoCanal').appendChild(div);
-    }
-    const drop = $('coincidenciasTelefonoDrop');
-    drop.innerHTML = encontrados.map(r => `
-        <div class="drop-item" onclick="seleccionarCoincidencia(${r.id})">
-            <span><strong>${r.contacto}</strong> (${r.nombre || r.canal})</span>
-        </div>
-    `).join('');
+
+    drop.innerHTML = encontrados.map(r => {
+        let datoCoincidente = campo === 'nombre' ? (r.nombre || 'Sin nombre') : (r.contacto || 'Sin contacto');
+        let asuntoTexto = r.asunto ? `Último registro: ${r.asunto}` : 'Sin asunto registrado';
+        return `
+            <div class="drop-item-card" onclick="seleccionarCoincidencia(${r.id}, '${contenedorDropId}')">
+                <div class="drop-item-header">
+                    <strong>${campo === 'nombre' ? 'Cliente' : r.canal} ${datoCoincidente}</strong>
+                </div>
+                <div class="drop-item-sub">Ya existe · ${asuntoTexto}</div>
+                <div class="drop-item-badge ${obtenerClaseEstado(r.estado)}">${r.estado}</div>
+            </div>
+        `;
+    }).join('');
+
+    drop.style.display = 'block';
 }
 
-function seleccionarCoincidencia(id) {
-    const drop = $('coincidenciasTelefonoDrop');
-    if (drop) drop.remove();
+function seleccionarCoincidencia(id, contenedorDropId) {
+    const drop = $(contenedorDropId);
+    if (drop) {
+        drop.style.display = 'none';
+        drop.innerHTML = '';
+    }
     editar(id);
 }
 
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.coincidencias-drop') && !e.target.closest('input')) {
+        document.querySelectorAll('.coincidencias-drop').forEach(d => {
+            d.style.display = 'none';
+        });
+    }
+});
+
 /* ==========================================================================
-   5. NAVEGACIÓN Y ONBOARDING DE INICIO
+   5. NAVEGACIÓN Y RUTEO SEGURO
    ========================================================================== */
 function iniciarRelojHeader() {
     function actualizar() {
         const d = ahoraMemora();
         const diasSemana = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-        if ($('relojHeader')) $('relojHeader').innerText = `${diasSemana[d.getDay()]} ${d.getDate()}/${d.getMonth() + 1}   ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
+        if ($('relojHeader')) $('relojHeader').innerText = `${diasSemana[d.getDay()]} ${d.getDate()}/${d.getMonth() + 1} • ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
     }
     actualizar();
     setInterval(actualizar, 1000);
@@ -388,14 +414,14 @@ function iniciarRelojHeader() {
 function navegarA(pantalla, customTitle = null) {
     document.querySelectorAll('.app-section').forEach(sec => sec.style.display = 'none');
     document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
-
+    
     const esPC = window.innerWidth >= 800;
     if (esPC) document.body.classList.add('pc-view');
     else document.body.classList.remove('pc-view');
-
-    document.body.classList.remove('tab-inicio', 'tab-registros', 'tab-perfil', 'tab-formulario');
+    
+    document.body.classList.remove('tab-inicio', 'tab-registros', 'tab-perfil', 'tab-formulario', 'tab-ficha');
     document.body.classList.add(`tab-${pantalla}`);
-
+    
     const titleMap = { 
         'inicio': 'Inicio', 
         'registros': 'Registros', 
@@ -403,34 +429,27 @@ function navegarA(pantalla, customTitle = null) {
         'perfil': 'Perfil', 
         'ficha': 'Ficha Cliente' 
     };
+    
     if ($('screenTitle')) $('screenTitle').innerText = customTitle || titleMap[pantalla] || 'MEMORA';
+    
+    const secTarget = $(`sec-${pantalla}`);
+    if (secTarget) secTarget.style.display = 'block';
 
-    if (pantalla === 'inicio') { 
-        $('sec-inicio').style.display = 'block'; 
-        $('nav-inicio').classList.add('active'); 
-        $('btnHeaderBack').style.display = 'none'; 
+    if ($('btnHeaderBack')) {
+        $('btnHeaderBack').style.display = (pantalla === 'formulario' || pantalla === 'ficha') ? 'block' : 'none';
     }
-    else if (pantalla === 'registros') { 
-        $('sec-registros').style.display = 'block'; 
-        $('nav-registros').classList.add('active'); 
-        $('btnHeaderBack').style.display = 'none'; 
+
+    if ($(`nav-${pantalla}`)) $(`nav-${pantalla}`).classList.add('active');
+
+    try {
+        if (pantalla === 'perfil') { 
+            cargarDiagnosticoSistema(); 
+            cargarDatosUsuarioPerfil(); 
+        }
+        render();
+    } catch (err) {
+        console.error("Error al renderizar pestaña:", err);
     }
-    else if (pantalla === 'formulario') { 
-        $('sec-formulario').style.display = 'block'; 
-        $('btnHeaderBack').style.display = 'block'; 
-    }
-    else if (pantalla === 'perfil') { 
-        $('sec-perfil').style.display = 'block'; 
-        $('nav-perfil').classList.add('active'); 
-        $('btnHeaderBack').style.display = 'none'; 
-        cargarDiagnosticoSistema(); 
-        cargarDatosUsuarioPerfil(); 
-    }
-    else if (pantalla === 'ficha') { 
-        $('sec-ficha').style.display = 'block'; 
-        $('btnHeaderBack').style.display = 'block'; 
-    }
-    render();
 }
 
 function comprobarEstadoAccesoEInicial() {
@@ -449,14 +468,17 @@ function procesarPerfilInicial() {
     const cedula = $('initCedula')?.value.trim() || '';
     const empresa = $('initEmpresa')?.value.trim() || '';
     const whatsapp = $('initWhatsapp')?.value.trim() || '';
+    
     if (!nombre) {
         mostrarAvisoMemora("Debes ingresar un nombre para guardar tus datos y continuar.", "Dato Requerido", "warning");
         return;
     }
+    
     const datos = {
         rolAdmin: 'Usuario Administrador', nombreAdmin: nombre,
         cedulaAdmin: cedula, empresaAdmin: empresa, whatsappAdmin: whatsapp
     };
+    
     localStorage.setItem('memora_admin_user_data', JSON.stringify(datos));
     localStorage.setItem('memora_profile_completed', 'true');
     if ($('modalPerfilMemora')) $('modalPerfilMemora').style.display = 'none';
@@ -488,6 +510,7 @@ function renderStoryStep(nombre) {
             text: "Tus datos son tuyos. Todo se respalda directamente en tu Google Drive personal con la máxima seguridad."
         }
     ];
+    
     const current = stories[currentStoryStep];
     if ($('storyContent')) {
         $('storyContent').innerHTML = `
@@ -496,16 +519,19 @@ function renderStoryStep(nombre) {
             <p style="font-size:0.9rem; color:#6b7280;">${current.text}</p>
         `;
     }
+    
     for (let i = 0; i < 3; i++) {
         const fill = $(`story-fill-${i}`);
         if (fill) fill.style.width = i <= currentStoryStep ? '100%' : '0%';
     }
+    
     if ($('btnNextStory')) $('btnNextStory').innerText = currentStoryStep === stories.length - 1 ? "Ingresar a Memora" : "Siguiente";
 }
 
 function siguienteStory() {
     const datosRaw = localStorage.getItem('memora_admin_user_data');
     const datos = datosRaw ? JSON.parse(datosRaw) : { nombreAdmin: 'Usuario' };
+    
     if (currentStoryStep < 2) {
         currentStoryStep++;
         renderStoryStep(datos.nombreAdmin);
@@ -516,14 +542,27 @@ function siguienteStory() {
 }
 
 function desbloquearInterfazCompleta() {
-    if (document.querySelector('.main-content')) document.querySelector('.main-content').style.filter = 'none';
-    if (document.querySelector('.bottom-nav')) document.querySelector('.bottom-nav').style.display = 'flex';
+    const main = document.querySelector('.main-content');
+    const nav = document.querySelector('.bottom-nav');
+    
+    if (main) {
+        main.style.filter = 'none';
+        main.style.display = 'block';
+    }
+    if (nav) {
+        nav.style.display = 'flex';
+    }
+    
     cargarDatosUsuarioPerfil();
-    navegarA('inicio');
+    if ($('sec-inicio')?.style.display !== 'none' || $('sec-registros')?.style.display !== 'none' || $('sec-perfil')?.style.display !== 'none') {
+        // Mantiene la vista activa
+    } else {
+        navegarA('inicio');
+    }
 }
 
 /* ==========================================================================
-   6. AUXILIARES DE VISTA, TARJETAS E IDENTIFICADORES
+   6. AUXILIARES DE VISTA Y CARDS
    ========================================================================== */
 function obtenerAvatarEIdentidad(r) {
     let badgeText = 'CN';
@@ -557,9 +596,9 @@ function obtenerTextoIdentificador(r) {
     if (!r.identificador || !r.identificador.trim()) return '';
     let val = r.identificador.trim();
     if (val.toLowerCase().startsWith('rut')) {
-        return ` • N° RUT: ${val.replace(/rut/i, '').trim()}`;
+        return ` • RUT: ${val.replace(/rut/i, '').trim()}`;
     }
-    return ` • N° Cliente / Socio: ${val}`;
+    return ` • Cliente / Socio: ${val}`;
 }
 
 function obtenerBotonAccionCanal(r) {
@@ -587,6 +626,7 @@ function obtenerBotonAccionCanal(r) {
     
     return `<button onclick="event.stopPropagation(); abrirFicha(${r.id});" class="btn-action-channel btn-channel-generic"><span class="material-symbols-outlined" style="font-size:1rem;">visibility</span> Ver</button>`;
 }
+
 function tarjetaEstetica(r) {
     const dCreacion = new Date(r.fecha);
     const dModif = new Date(r.ultimaModificacion || r.fecha);
@@ -598,16 +638,18 @@ function tarjetaEstetica(r) {
     let fechaRevisionTexto = !isNaN(dModif.getTime()) 
         ? `${String(dModif.getDate()).padStart(2, '0')}/${String(dModif.getMonth() + 1).padStart(2, '0')}/${dModif.getFullYear()}` 
         : '-';
-
+    
     const { avatarHTML, tituloHTML } = obtenerAvatarEIdentidad(r);
     const btnCanal = obtenerBotonAccionCanal(r);
     const textoId = obtenerTextoIdentificador(r);
-
     let comentariosActivos = (r.comentarios || []).filter(c => !c.eliminado);
     let ultimoComentario = comentariosActivos.length > 0 ? comentariosActivos[comentariosActivos.length - 1].texto : null;
 
+    const esPC = window.innerWidth >= 800;
+    let accionClick = esPC ? `editar(${r.id})` : `abrirFicha(${r.id})`;
+
     return `
-    <div class="card client-card" style="cursor:pointer;" onclick="abrirFicha(${r.id})">
+    <div class="card client-card" style="cursor:pointer;" onclick="${accionClick}">
         <div class="client-info">
             <div class="avatar avatar-blue">${avatarHTML}</div>
             <div class="client-details">
@@ -636,50 +678,63 @@ function tarjetaEstetica(r) {
 }
 
 function render() {
-    procesarAutoArchivado();
-    actualizarKPIs();
-    actualizarSeguimiento();
-    actualizarMetricsInicio();
-    let busqueda = $('busquedaRapida')?.value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') || '';
-    let nombre = $('filtroNombre')?.value.toLowerCase() || '';
-    let canal = $('filtroCanal')?.value || '';
-    let dato = $('filtroDato')?.value.toLowerCase() || '';
-    let asunto = $('filtroAsunto')?.value.toLowerCase() || '';
-    let ident = $('filtroId')?.value.toLowerCase() || '';
-    let estado = $('filtroEstado')?.value || '';
-    let com = $('filtroComentario')?.value.toLowerCase() || '';
+    try {
+        procesarAutoArchivado();
+        actualizarKPIs();
+        actualizarSeguimiento();
+        actualizarMetricsInicio();
+        
+        let busqueda = $('busquedaRapida')?.value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') || '';
+        let nombre = $('filtroNombre')?.value.toLowerCase() || '';
+        let canal = $('filtroCanal')?.value || '';
+        let dato = $('filtroDato')?.value.toLowerCase() || '';
+        let asunto = $('filtroAsunto')?.value.toLowerCase() || '';
+        let ident = $('filtroId')?.value.toLowerCase() || '';
+        let estado = $('filtroEstado')?.value || '';
+        let com = $('filtroComentario')?.value.toLowerCase() || '';
 
-    registrosUltimoFiltro = registros.filter(r => {
-        let esArchiv = r.estado === 'Archivado';
-        if (mostrandoArchivados) { if (!esArchiv) return false; } else { if (esArchiv) return false; }
-        let matchBusqueda = !busqueda || JSON.stringify(r).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(busqueda);
-        let matchNombre = !nombre || (r.nombre || '').toLowerCase().includes(nombre);
-        let matchCanal = !canal || r.canal === canal;
-        let matchDato = !dato || (r.contacto || '').toLowerCase().includes(dato);
-        let matchAsunto = !asunto || (r.asunto || '').toLowerCase().includes(asunto);
-        let matchIdent = !ident || (r.identificador || '').toLowerCase().includes(ident);
-        let matchEstado = !estado || r.estado === estado;
-        let matchCom = !com || JSON.stringify(r.comentarios || []).toLowerCase().includes(com);
-        return matchBusqueda && matchNombre && matchCanal && matchDato && matchAsunto && matchIdent && matchEstado && matchCom;
-    });
+        registrosUltimoFiltro = registros.filter(r => {
+            let esArchiv = r.estado === 'Archivado';
+            if (mostrandoArchivados) { if (!esArchiv) return false; } else { if (esArchiv) return false; }
+            
+            let matchBusqueda = !busqueda || JSON.stringify(r).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(busqueda);
+            let matchNombre = !nombre || (r.nombre || '').toLowerCase().includes(nombre);
+            let matchCanal = !canal || r.canal === canal;
+            let matchDato = !dato || (r.contacto || '').toLowerCase().includes(dato);
+            let matchAsunto = !asunto || (r.asunto || '').toLowerCase().includes(asunto);
+            let matchIdent = !ident || (r.identificador || '').toLowerCase().includes(ident);
+            let matchEstado = !estado || r.estado === estado;
+            let matchCom = !com || JSON.stringify(r.comentarios || []).toLowerCase().includes(com);
 
-    if ($('listaRegistros')) $('listaRegistros').innerHTML = registrosUltimoFiltro.map(tarjetaEstetica).join('') || '<p style="text-align:center; padding:20px; color:var(--text-secondary);">No se encontraron registros.</p>';
-    if ($('totalRegistrosTexto')) $('totalRegistrosTexto').innerText = `${registrosUltimoFiltro.length} registros ${mostrandoArchivados ? '(Archivados)' : ''}`;
-    if ($('btnVerArchivados')) {
-        $('btnVerArchivados').innerText = mostrandoArchivados ? 'Ver Activos' : 'Ver Archivados';
-        $('btnVerArchivados').style.background = mostrandoArchivados ? '#E5E7EB' : '#F3F4F6';
+            return matchBusqueda && matchNombre && matchCanal && matchDato && matchAsunto && matchIdent && matchEstado && matchCom;
+        });
+
+        if ($('listaRegistros')) {
+            $('listaRegistros').innerHTML = registrosUltimoFiltro.map(tarjetaEstetica).join('') || '<p style="text-align:center; padding:20px; color:var(--text-secondary);">No se encontraron registros.</p>';
+        }
+        
+        if ($('totalRegistrosTexto')) {
+            $('totalRegistrosTexto').innerText = `${registrosUltimoFiltro.length} registros ${mostrandoArchivados ? '(Archivados)' : ''}`;
+        }
+        
+        if ($('btnVerArchivados')) {
+            $('btnVerArchivados').innerText = mostrandoArchivados ? 'Ver Activos' : 'Ver Archivados';
+            $('btnVerArchivados').style.background = mostrandoArchivados ? '#E5E7EB' : '#F3F4F6';
+        }
+    } catch (err) {
+        console.error("Error dentro de render():", err);
     }
 }
 
 /* ==========================================================================
-   7. LÓGICA DE FORMULARIO, CONTACTO Y COMENTARIOS
+   7. FORMULARIO, CONTROL DE CAMBIO DE DATO Y EDICIÓN (PC Y MÓVIL)
    ========================================================================== */
 function mostrarCanal() {
     let c = $('canal').value;
-    let nombres = { 
-        WhatsApp: 'Teléfono / WhatsApp', Instagram: 'Usuario Instagram', 
-        Email: 'Correo electrónico', Facebook: 'Usuario Facebook', 
-        Telegram: 'Telegram', Otro: 'Contacto' 
+    let nombres = {
+        WhatsApp: 'Teléfono / WhatsApp', Instagram: 'Usuario Instagram',
+        Email: 'Correo electrónico', Facebook: 'Usuario Facebook',
+        Telegram: 'Telegram', Otro: 'Contacto'
     };
     const estaBloqueado = editando !== null;
     $('campoCanal').style.position = 'relative';
@@ -690,19 +745,32 @@ function mostrarCanal() {
                 ${estaBloqueado ? `<a href="#" onclick="activarEdicionContacto(); return false;" style="font-size:0.75rem; color:var(--primary-blue); font-weight:600; text-decoration:none;">[ Cambiar dato ]</a>` : ''}
             </div>
         </div>
-        <input id="contacto" 
-             oninput="buscarCoincidenciasTelefono(this.value)" 
-             autocomplete="off" 
-             ${estaBloqueado ? 'readonly style="width:100%; padding:10px; border-radius:8px; border:1px solid #d1d5db; background-color:#f3f4f6; color:#6b7280; font-weight:600;"' : 'style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc;"'}
+        <input id="contacto"
+               oninput="buscarCoincidenciasPredictivas(this.value, 'contacto', 'dropContactoForm')"
+               autocomplete="off"
+               ${estaBloqueado ? 'readonly style="width:100%; padding:10px; border-radius:8px; border:1px solid #d1d5db; background-color:#f3f4f6; color:#6b7280; font-weight:600;"' : 'style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc;"'}
         >
+        <div id="dropContactoForm" class="coincidencias-drop"></div>
     `;
+}
+
+function mostrarCanalInicio() {
+    let c = $('canalInicio')?.value;
+    let nombres = {
+        WhatsApp: 'Teléfono / WhatsApp', Instagram: 'Usuario Instagram',
+        Email: 'Correo electrónico', Facebook: 'Usuario Facebook',
+        Telegram: 'Telegram', Otro: 'Contacto'
+    };
+    if ($('campoCanalInicio')) {
+        let label = $('campoCanalInicio').querySelector('label');
+        if (label) label.innerText = nombres[c] || 'Contacto';
+    }
 }
 
 function activarEdicionContacto() {
     const input = $('contacto');
     if (!input) return;
     contactoOriginalBackup = input.value;
-    
     input.removeAttribute('readonly');
     input.style.backgroundColor = '#ffffff';
     input.style.color = 'var(--text-primary)';
@@ -714,31 +782,227 @@ function activarEdicionContacto() {
     `;
 }
 
+function activarEdicionContactoInicio() {
+    const input = $('contactoInicio');
+    if (!input) return;
+    contactoOriginalBackup = input.value;
+    input.removeAttribute('readonly');
+    input.style.backgroundColor = '#ffffff';
+    input.style.color = 'var(--text-primary)';
+    input.style.border = '1.5px solid var(--primary-blue)';
+    input.focus();
+    $('btnAccionContactoContainerInicio').innerHTML = `
+        <a href="#" onclick="confirmarNuevoContactoInicio(); return false;" style="font-size:0.75rem; color:#10B981; font-weight:700; margin-right:8px; text-decoration:none;">[ Confirmar ]</a>
+        <a href="#" onclick="cancelarEdicionContactoInicio(); return false;" style="font-size:0.75rem; color:#DC2626; font-weight:600; text-decoration:none;">[ Conservar original ]</a>
+    `;
+}
+
 function confirmarNuevoContacto() {
     const input = $('contacto');
-    if (!input) return;
-    if (!input.value.trim()) {
+    if (!input || !input.value.trim()) {
         mostrarAvisoMemora("El campo de contacto no puede quedar vacío.", "Dato Requerido", "warning");
         return;
     }
-    bloquearInputContacto(input);
+    bloquearInputContacto(input, 'btnAccionContactoContainer', 'activarEdicionContacto');
+}
+
+function confirmarNuevoContactoInicio() {
+    const input = $('contactoInicio');
+    if (!input || !input.value.trim()) {
+        mostrarAvisoMemora("El campo de contacto no puede quedar vacío.", "Dato Requerido", "warning");
+        return;
+    }
+    bloquearInputContacto(input, 'btnAccionContactoContainerInicio', 'activarEdicionContactoInicio');
 }
 
 function cancelarEdicionContacto() {
     const input = $('contacto');
     if (!input) return;
     input.value = contactoOriginalBackup;
-    bloquearInputContacto(input);
+    bloquearInputContacto(input, 'btnAccionContactoContainer', 'activarEdicionContacto');
 }
 
-function bloquearInputContacto(input) {
+function cancelarEdicionContactoInicio() {
+    const input = $('contactoInicio');
+    if (!input) return;
+    input.value = contactoOriginalBackup;
+    bloquearInputContacto(input, 'btnAccionContactoContainerInicio', 'activarEdicionContactoInicio');
+}
+
+function bloquearInputContacto(input, containerId, fnNombre) {
     input.setAttribute('readonly', 'true');
     input.style.backgroundColor = '#f3f4f6';
     input.style.color = '#6b7280';
     input.style.border = '1px solid #d1d5db';
-    $('btnAccionContactoContainer').innerHTML = `
-        <a href="#" onclick="activarEdicionContacto(); return false;" style="font-size:0.75rem; color:var(--primary-blue); font-weight:600; text-decoration:none;">[ Cambiar dato ]</a>
-    `;
+    if ($(containerId)) {
+        $(containerId).innerHTML = `
+            <a href="#" onclick="${fnNombre}(); return false;" style="font-size:0.75rem; color:var(--primary-blue); font-weight:600; text-decoration:none;">[ Cambiar dato ]</a>
+        `;
+    }
+}
+
+function mostrarId() {
+    let t = $('tipoId')?.value;
+    if ($('campoId')) {
+        $('campoId').innerHTML = (t === 'Ninguno' || !t) ? '' : `
+            <label style="display:block; font-size:0.8rem; margin-bottom:4px; color:var(--text-secondary);">${t}</label>
+            <input id="valorId" type="text" placeholder="Ingrese ${t}" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc;">
+        `;
+    }
+}
+
+function mostrarIdInicio() {
+    let t = $('tipoIdInicio')?.value;
+    if ($('campoIdInicio')) {
+        $('campoIdInicio').innerHTML = (t === 'Ninguno' || !t) ? '' : `
+            <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px; color:var(--text-secondary);">${t}</label>
+            <input id="valorIdInicio" type="text" placeholder="Ingrese ${t}" style="width:100%; padding:12px; border-radius:8px; border:1px solid #ccc;">
+        `;
+    }
+}
+
+// --- COMENTARIOS TEMPORALES EN PC CON EDITAR Y ELIMINAR ---
+function agregarComentarioTemporalInicio() {
+    let txt = $('comentarioInicio')?.value.trim();
+    if (!txt) return;
+
+    comentariosTemporalesInicio.push({
+        texto: txt,
+        fecha: fechaHoraTextoFormateada(),
+        editado: null,
+        eliminado: false
+    });
+
+    if ($('comentarioInicio')) $('comentarioInicio').value = '';
+    renderComentariosTemporalesInicio();
+}
+
+function renderComentariosTemporalesInicio() {
+    let cont = $('listaComentariosTemporalesInicio');
+    if (!cont) return;
+
+    if (comentariosTemporalesInicio.length === 0) {
+        cont.innerHTML = '<p style="font-size:0.75rem; color:var(--text-secondary);">No hay comentarios adjuntos.</p>';
+        return;
+    }
+
+    cont.innerHTML = comentariosTemporalesInicio.map((c, i) => `
+        <div class="card" style="padding:10px; margin-top:6px; font-size:0.8rem; background:#F9FAFB; border:1px solid #E5E7EB; border-radius:8px;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:0.7rem; color:var(--text-secondary);">
+                <span>Comentario del ${c.fecha} ${c.editado ? `<strong style="color:#D97706;">(Editado el ${c.editado})</strong>` : ''}</span>
+                ${!c.eliminado ? `
+                <div>
+                    <a href="#" onclick="editarComentarioTemporalInicio(${i}); return false;" style="color:var(--primary-blue); font-weight:600; margin-right:8px; text-decoration:none;">Editar</a>
+                    <a href="#" onclick="eliminarComentarioTemporalInicio(${i}); return false;" style="color:#DC2626; font-weight:600; text-decoration:none;">Eliminar</a>
+                </div>` : ''}
+            </div>
+            <div style="font-weight:500; ${c.eliminado ? 'color:var(--text-secondary); font-style:italic;' : ''}">
+                ${c.texto}
+            </div>
+        </div>
+    `).join('');
+}
+
+function editarComentarioTemporalInicio(index) {
+    let c = comentariosTemporalesInicio[index];
+    if (!c) return;
+
+    mostrarPromptMemora("Modifica el contenido del comentario:", c.texto, "Editar Comentario", (nuevoTexto) => {
+        if (nuevoTexto !== null && nuevoTexto.trim() !== "") {
+            comentariosTemporalesInicio[index].texto = nuevoTexto.trim();
+            comentariosTemporalesInicio[index].editado = fechaHoraTextoFormateada();
+            renderComentariosTemporalesInicio();
+        }
+    });
+}
+
+function eliminarComentarioTemporalInicio(index) {
+    mostrarConfirmMemora("¿Deseas quitar este comentario?", "Eliminar Nota", "delete", "#DC2626", (confirmado) => {
+        if (confirmado) {
+            comentariosTemporalesInicio.splice(index, 1);
+            renderComentariosTemporalesInicio();
+        }
+    });
+}
+
+function guardarDesdeInicio() {
+    const contacto = $('contactoInicio')?.value.trim() || '';
+    if (!contacto) {
+        mostrarAvisoMemora('Debes ingresar el dato de contacto antes de guardar.', 'Error al cargar datos', 'error');
+        return;
+    }
+
+    let textoUltimo = $('comentarioInicio')?.value.trim();
+    if (textoUltimo) {
+        comentariosTemporalesInicio.push({
+            texto: textoUltimo,
+            fecha: fechaHoraTextoFormateada(),
+            editado: null,
+            eliminado: false
+        });
+    }
+
+    let r = {
+        id: editando || Date.now(),
+        nombre: $('nombreInicio')?.value.trim() || '',
+        canal: $('canalInicio')?.value || 'WhatsApp',
+        contacto: contacto,
+        asunto: $('asuntoInicio')?.value.trim() || '',
+        identificador: $('valorIdInicio')?.value.trim() || '',
+        estado: $('estadoInicio')?.value || 'Consulta nueva',
+        comentarios: [...comentariosTemporalesInicio],
+        fecha: editando ? (registros.find(x => x.id === editando)?.fecha || ahoraMemora().toISOString()) : ahoraMemora().toISOString(),
+        ultimaModificacion: ahoraMemora().toISOString()
+    };
+
+    if (editando) {
+        registros = registros.map(x => x.id === editando ? r : x);
+    } else {
+        registros.push(r);
+    }
+
+    guardarLocal();
+    sincronizarAutoNube(r);
+    limpiarInicio();
+    render();
+    mostrarAvisoMemora(editando ? 'Registro actualizado exitosamente.' : 'Registro guardado exitosamente.', 'MEMORA', 'check_circle');
+}
+
+function limpiarInicio() {
+    ['nombreInicio', 'contactoInicio', 'asuntoInicio', 'valorIdInicio', 'comentarioInicio'].forEach(id => {
+        if ($(id)) $(id).value = '';
+    });
+    if ($('tipoIdInicio')) $('tipoIdInicio').value = 'Ninguno';
+    if ($('canalInicio')) $('canalInicio').value = 'WhatsApp';
+    
+    editando = null;
+    comentariosTemporalesInicio = [];
+    renderComentariosTemporalesInicio();
+    mostrarIdInicio();
+    mostrarCanalInicio();
+
+    if ($('contactoInicio')) {
+        $('contactoInicio').removeAttribute('readonly');
+        $('contactoInicio').style.backgroundColor = '#ffffff';
+        $('contactoInicio').style.color = 'var(--text-primary)';
+        $('contactoInicio').style.border = '1px solid #ccc';
+    }
+    if ($('btnAccionContactoContainerInicio')) $('btnAccionContactoContainerInicio').innerHTML = '';
+
+    if ($('tituloFormularioInicio')) {
+        $('tituloFormularioInicio').innerText = 'Nuevo Registro / Carga Directa';
+    }
+
+    if ($('contenedorBotonesInicio')) {
+        $('contenedorBotonesInicio').innerHTML = `
+            <button id="btnGuardarInicio" onclick="guardarDesdeInicio()" style="flex:2; background:var(--primary-blue); color:white; border:none; padding:14px; border-radius:10px; font-weight:700; cursor:pointer; font-size:0.95rem;">
+                Guardar Registro
+            </button>
+            <button onclick="limpiarInicio()" style="flex:1; background:#E5E7EB; color:#374151; border:none; padding:14px; border-radius:10px; font-weight:600; cursor:pointer; font-size:0.95rem;">
+                Limpiar
+            </button>
+        `;
+    }
 }
 
 function agregarComentarioFormulario() {
@@ -754,28 +1018,6 @@ function agregarComentarioFormulario() {
     
     if ($('comentario')) $('comentario').value = '';
     renderListaComentariosEdicion();
-}
-
-function editarComentarioTexto(index) {
-    let actual = comentariosEdicionActual[index];
-    if (actual.eliminado) return;
-    mostrarPromptMemora("Modifica el contenido del comentario:", actual.texto, "Editar Comentario", (nuevoTexto) => {
-        if (nuevoTexto !== null && nuevoTexto.trim() !== "") {
-            comentariosEdicionActual[index].texto = nuevoTexto.trim();
-            comentariosEdicionActual[index].editado = fechaHoraTextoFormateada();
-            renderListaComentariosEdicion();
-        }
-    });
-}
-
-function borrarComentarioTexto(index) {
-    mostrarConfirmMemora("¿Deseas marcar este comentario como eliminado?", "Eliminar Comentario", "delete", "#DC2626", (confirmado) => {
-        if (confirmado) {
-            comentariosEdicionActual[index].texto = `Se ha eliminado este comentario (${fechaHoraTextoFormateada()})`;
-            comentariosEdicionActual[index].eliminado = true;
-            renderListaComentariosEdicion();
-        }
-    });
 }
 
 function renderListaComentariosEdicion() {
@@ -803,6 +1045,7 @@ function renderListaComentariosEdicion() {
 function prepararNuevoRegistro() {
     if (window.innerWidth >= 800) {
         navegarA('inicio');
+        limpiarInicio();
         setTimeout(() => {
             $('nombreInicio')?.focus();
             $('focoFormularioInicio')?.scrollIntoView({ behavior: 'smooth' });
@@ -815,9 +1058,9 @@ function prepararNuevoRegistro() {
 
 function guardar() {
     const contacto = $('contacto')?.value.trim() || '';
-    if (!contacto) { 
-        mostrarAvisoMemora('Debes ingresar el dato de contacto antes de guardar.', 'Error al cargar datos', 'error'); 
-        return; 
+    if (!contacto) {
+        mostrarAvisoMemora('Debes ingresar el dato de contacto antes de guardar.', 'Error al cargar datos', 'error');
+        return;
     }
     
     let viejo = registros.find(r => r.id === editando);
@@ -854,21 +1097,90 @@ function editar(id) {
     let r = registros.find(x => x.id === id);
     if (!r) return;
     editando = id;
-    $('nombre').value = r.nombre || '';
-    $('canal').value = r.canal;
-    mostrarCanal();
-    if ($('contacto')) $('contacto').value = r.contacto || '';
-    if ($('asunto')) $('asunto').value = r.asunto || '';
-    $('estado').value = r.estado;
-    if ($('tipoId')) $('tipoId').value = r.identificador ? (r.identificador.startsWith('RUT') ? 'RUT' : 'N° de Cliente') : 'Ninguno';
-    mostrarId();
-    if ($('valorId')) $('valorId').value = r.identificador || '';
-    comentariosEdicionActual = JSON.parse(JSON.stringify(r.comentarios || []));
-    renderListaComentariosEdicion();
-    navegarA('formulario');
+
+    const esPC = window.innerWidth >= 800;
+
+    if (esPC) {
+        if ($('nombreInicio')) $('nombreInicio').value = r.nombre || '';
+        if ($('canalInicio')) $('canalInicio').value = r.canal || 'WhatsApp';
+        mostrarCanalInicio();
+        
+        if ($('contactoInicio')) {
+            $('contactoInicio').value = r.contacto || '';
+            $('contactoInicio').setAttribute('readonly', 'true');
+            $('contactoInicio').style.backgroundColor = '#f3f4f6';
+            $('contactoInicio').style.color = '#6b7280';
+            $('contactoInicio').style.border = '1px solid #d1d5db';
+        }
+        if ($('btnAccionContactoContainerInicio')) {
+            $('btnAccionContactoContainerInicio').innerHTML = `
+                <a href="#" onclick="activarEdicionContactoInicio(); return false;" style="font-size:0.75rem; color:var(--primary-blue); font-weight:600; text-decoration:none;">[ Cambiar dato ]</a>
+            `;
+        }
+
+        if ($('asuntoInicio')) $('asuntoInicio').value = r.asunto || '';
+        if ($('estadoInicio')) $('estadoInicio').value = r.estado || 'Consulta nueva';
+        
+        if ($('tipoIdInicio')) $('tipoIdInicio').value = r.identificador ? (r.identificador.startsWith('RUT') ? 'RUT' : 'N° de Cliente') : 'Ninguno';
+        mostrarIdInicio();
+        if ($('valorIdInicio')) $('valorIdInicio').value = r.identificador || '';
+
+        comentariosTemporalesInicio = JSON.parse(JSON.stringify(r.comentarios || []));
+        renderComentariosTemporalesInicio();
+
+        navegarA('inicio');
+
+        if ($('tituloFormularioInicio')) {
+            $('tituloFormularioInicio').innerText = `✏️ Editando Registro: ${r.nombre || r.contacto}`;
+        }
+
+        let esArchivado = r.estado === 'Archivado';
+        if ($('contenedorBotonesInicio')) {
+            $('contenedorBotonesInicio').innerHTML = `
+                <button id="btnGuardarInicio" onclick="guardarDesdeInicio()" style="flex:2; background:var(--primary-blue); color:white; border:none; padding:14px; border-radius:10px; font-weight:700; cursor:pointer; font-size:0.95rem;">
+                    Actualizar Registro
+                </button>
+                <button onclick="archivarCliente(${r.id})" style="flex:1; background:#E5E7EB; color:#374151; border:none; padding:14px; border-radius:10px; font-weight:600; cursor:pointer; font-size:0.9rem;">
+                    ${esArchivado ? 'Desarchivar' : 'Archivar'}
+                </button>
+                <button onclick="eliminar(${r.id})" style="flex:1; background:#FEE2E2; color:#DC2626; border:none; padding:14px; border-radius:10px; font-weight:600; cursor:pointer; font-size:0.9rem;">
+                    Eliminar
+                </button>
+                <button onclick="limpiarInicio()" style="flex:1; background:#E5E7EB; color:#374151; border:none; padding:14px; border-radius:10px; font-weight:600; cursor:pointer; font-size:0.9rem;">
+                    Cancelar
+                </button>
+            `;
+        }
+
+        setTimeout(() => {
+            $('focoFormularioInicio')?.scrollIntoView({ behavior: 'smooth' });
+            mostrarAvisoMemora(`Datos de "${r.nombre || r.contacto}" cargados en el formulario de Inicio para su edición.`, "MEMORA PC", "edit");
+        }, 150);
+
+    } else {
+        if ($('nombre')) $('nombre').value = r.nombre || '';
+        if ($('canal')) $('canal').value = r.canal;
+        mostrarCanal();
+        if ($('contacto')) $('contacto').value = r.contacto || '';
+        if ($('asunto')) $('asunto').value = r.asunto || '';
+        if ($('estado')) $('estado').value = r.estado;
+        if ($('tipoId')) $('tipoId').value = r.identificador ? (r.identificador.startsWith('RUT') ? 'RUT' : 'N° de Cliente') : 'Ninguno';
+        mostrarId();
+        if ($('valorId')) $('valorId').value = r.identificador || '';
+        
+        comentariosEdicionActual = JSON.parse(JSON.stringify(r.comentarios || []));
+        renderListaComentariosEdicion();
+        navegarA('formulario');
+    }
 }
 
 function abrirFicha(id) {
+    const esPC = window.innerWidth >= 800;
+    if (esPC) {
+        editar(id);
+        return;
+    }
+
     let r = registros.find(x => x.id === id);
     if (!r) return;
     let { avatarHTML, tituloHTML } = obtenerAvatarEIdentidad(r);
@@ -903,7 +1215,7 @@ function abrirFicha(id) {
 }
 
 /* ==========================================================================
-   8. EXPORTACIÓN, DIAGNÓSTICO Y ACCESOS
+   8. EXPORTACIÓN, MÉTRICAS Y AUXILIARES
    ========================================================================== */
 function exportarCSVFiltrado() {
     let datosAExportar = registrosUltimoFiltro.length > 0 ? registrosUltimoFiltro : registros;
@@ -911,7 +1223,7 @@ function exportarCSVFiltrado() {
     let filtroLimpio = estadoFiltro.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_');
     if (!filtroLimpio || filtroLimpio === 'Inicio' || filtroLimpio === 'Perfil') filtroLimpio = 'Todos';
     let nombreArchivo = `MEMORA_Reporte_Clientes_${filtroLimpio}.xlsx`;
-    
+
     function clasificarContacto(canal, contacto) {
         let val = (contacto || '').trim();
         if (!val) return { telefono: '-', usuario: '-', email: '-', otro: '-' };
@@ -927,13 +1239,13 @@ function exportarCSVFiltrado() {
             return { telefono: '-', usuario: '-', email: '-', otro: val };
         }
     }
-    
+
     let filas = [[
         'Doc / RUT / N° Cliente', 'Nombre del Cliente', 'Asunto / Motivo', 'Canal', 'Teléfono / WhatsApp',
         'Usuario (@)', 'Correo Electrónico', 'Estado Actual', 'Último Comentario',
         'Total Comentarios', 'Fecha de Registro'
     ]];
-    
+
     datosAExportar.forEach(r => {
         let comentariosActivos = (r.comentarios || []).filter(c => !c.eliminado);
         let ultimoCom = comentariosActivos.length > 0 
@@ -942,6 +1254,7 @@ function exportarCSVFiltrado() {
         let d = new Date(r.fecha);
         let fechaCreacionTexto = isNaN(d.getTime()) ? r.fecha : `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
         let clasif = clasificarContacto(r.canal, r.contacto);
+        
         filas.push([
             r.identificador || 'N/A', r.nombre || 'Sin registrar', r.asunto || 'Sin asunto', r.canal || 'Otro',
             clasif.telefono, clasif.usuario, clasif.email, r.estado || 'Consulta nueva',
@@ -985,6 +1298,7 @@ function exportarPDFFiltrado() {
 }
 
 function exportarJSON() { descargar(JSON.stringify(registros, null, 2), 'memora.json', 'application/json'); }
+
 function descargar(c, n, t) {
     let a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([c], { type: t }));
@@ -997,12 +1311,11 @@ async function cargarDiagnosticoSistema() {
     let dev = "Escritorio (PC/Mac)";
     if (/android/i.test(ua)) dev = "Android Mobile";
     else if (/iphone|ipad|ipod/i.test(ua)) dev = "iOS Mobile";
-
     let nav = "Navegador Web";
     if (ua.includes("Brave") || (navigator.brave && await navigator.brave.isBrave())) nav = "Brave Browser";
     else if (ua.includes("Chrome")) nav = "Google Chrome";
     else if (ua.includes("Firefox")) nav = "Mozilla Firefox";
-
+    
     const storageBytes = new Blob([localStorage.getItem('memora_registros') || '']).size;
     
     if ($('sys-version')) $('sys-version').innerText = "v1.2.0-libre";
@@ -1026,48 +1339,194 @@ function cargarDatosUsuarioPerfil() {
     if (datos.empresaAdmin) htmlLista += `<div class="perfil-campo-linea"><span class="perfil-label">Empresa:</span> <span class="perfil-valor">${datos.empresaAdmin}</span></div>`;
     if (datos.whatsappAdmin) htmlLista += `<div class="perfil-campo-linea"><span class="perfil-label">Contacto / WA:</span> <span class="perfil-valor">${datos.whatsappAdmin}</span></div>`;
     if ($('perfilDatosLista')) $('perfilDatosLista').innerHTML = htmlLista || '<p style="font-size:0.8rem; color:var(--text-secondary);">Sin datos adicionales cargados.</p>';
-
+    
     const cfgSeg = obtenerConfigSeguimiento();
     if ($('cfgSegValor')) $('cfgSegValor').value = cfgSeg.valor;
     if ($('cfgSegUnidad')) $('cfgSegUnidad').value = cfgSeg.unidad;
 }
 
-function guardarDatosUsuarioAdmin() {
-    const nombre = $('cfgAdminNombre')?.value.trim() || '';
-    if (!nombre) {
-        mostrarAvisoMemora("Por favor, debes completar tu nombre.", "Dato Requerido", "warning");
-        return;
-    }
-    const datos = {
-        rolAdmin: $('cfgAdminRol')?.value.trim() || 'Usuario Administrador',
-        nombreAdmin: nombre,
-        cedulaAdmin: $('cfgAdminCedula')?.value.trim() || '',
-        empresaAdmin: $('cfgAdminEmpresa')?.value.trim() || '',
-        whatsappAdmin: $('cfgAdminWhatsapp')?.value.trim() || ''
-    };
-    localStorage.setItem('memora_admin_user_data', JSON.stringify(datos));
-    localStorage.setItem('memora_profile_completed', 'true');
-    cargarDatosUsuarioPerfil();
-    toggleModalConfigUser();
+function toggleModalConfigUser() {
+    const modal = $('modalConfigAdmin');
+    if (modal) modal.style.display = modal.style.display === 'none' ? 'block' : 'none';
 }
 
-function toggleModalConfigUser() { const modal = $('modalConfigAdmin'); if (modal) modal.style.display = modal.style.display === 'none' ? 'block' : 'none'; }
-function eliminar(id) { mostrarConfirmMemora("¿Estás seguro de eliminar este registro permanentemente?", "Eliminar Cliente", "delete", "#DC2626", (confirmado) => { if (confirmado) { registros = registros.filter(x => x.id !== id); guardarLocal(); navegarA('registros'); } }); }
-function archivarCliente(id) { let r = registros.find(x => x.id === id); if (!r) return; r.estado = r.estado === 'Archivado' ? 'Consulta nueva' : 'Archivado'; r.ultimaModificacion = ahoraMemora().toISOString(); guardarLocal(); navegarA('registros'); }
-function alternarVistaArchivados() { mostrandoArchivados = !mostrandoArchivados; if ($('filtroEstado')) $('filtroEstado').value = ''; render(); }
+function eliminar(id) {
+    mostrarConfirmMemora("¿Es seguro de eliminar este registro permanentemente?", "Eliminar Cliente", "delete", "#DC2626", (confirmado) => {
+        if (confirmado) {
+            registros = registros.filter(x => x.id !== id);
+            guardarLocal();
+            limpiarInicio();
+            navegarA('registros');
+        }
+    });
+}
+
+function archivarCliente(id) {
+    let r = registros.find(x => x.id === id);
+    if (!r) return;
+    r.estado = r.estado === 'Archivado' ? 'Consulta nueva' : 'Archivado';
+    r.ultimaModificacion = ahoraMemora().toISOString();
+    guardarLocal();
+    limpiarInicio();
+    navegarA('registros');
+}
+
+function alternarVistaArchivados() {
+    mostrandoArchivados = !mostrandoArchivados;
+    if ($('filtroEstado')) $('filtroEstado').value = '';
+    render();
+}
+
 function guardarLocal() { localStorage.setItem('memora_registros', JSON.stringify(registros)); }
-function limpiar() { ['nombre', 'contacto', 'asunto', 'valorId', 'comentario'].forEach(x => { if ($(x)) $(x).value = ''; }); editando = null; comentariosEdicionActual = []; renderListaComentariosEdicion(); mostrarCanal(); }
-function mostrarId() { let t = $('tipoId')?.value; if ($('campoId')) $('campoId').innerHTML = t === 'Ninguno' ? '' : `<label style="font-size: 0.8rem; color: var(--text-secondary);">${t}</label><input id="valorId" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc;">`; }
-function actualizarKPIs() { if ($('kpi-consulta')) $('kpi-consulta').innerText = registros.filter(r => r.estado === 'Consulta nueva').length; if ($('kpi-info')) $('kpi-info').innerText = registros.filter(r => r.estado === 'Información enviada').length; if ($('kpi-esperando')) $('kpi-esperando').innerText = registros.filter(r => r.estado === 'Esperando cliente').length; if ($('kpi-resp-interna')) $('kpi-resp-interna').innerText = registros.filter(r => r.estado === 'Esperando respuesta interna').length; if ($('kpi-cerrado')) $('kpi-cerrado').innerText = registros.filter(r => r.estado === 'Cerrado').length; if ($('kpi-perdido')) $('kpi-perdido').innerText = registros.filter(r => r.estado === 'Perdido').length; if ($('kpi-archivado')) $('kpi-archivado').innerText = registros.filter(r => r.estado === 'Archivado').length; }
-function actualizarMetricsInicio() { const activos = registros.filter(r => r.estado !== 'Archivado' && r.estado !== 'Perdido').length; const ahora = ahoraMemora(); const creadosMes = registros.filter(r => { const d = new Date(r.fecha); return d.getMonth() === ahora.getMonth() && d.getFullYear() === ahora.getFullYear(); }).length; if ($('dash-activos')) $('dash-activos').innerText = activos; if ($('dash-mes')) $('dash-mes').innerText = creadosMes; }
-function filtrarPorEstadoKPI(est) { mostrandoArchivados = (est === 'Archivado'); if ($('filtroEstado')) $('filtroEstado').value = est === 'Archivado' ? '' : est; navegarA('registros', est); }
-function toggleFiltroAvanzado() { const f = document.getElementById('filtroAvanzado'); if (f) f.style.display = f.style.display === 'none' ? 'block' : 'none'; }
-function guardarConfigAutoArchivar() { const valor = $('chkAutoArchivar')?.checked ?? false; localStorage.setItem('memora_auto_archivar', valor); render(); }
-function procesarAutoArchivado() { const autoActivo = localStorage.getItem('memora_auto_archivar') === 'true'; if (!autoActivo) return; const ahora = ahoraMemora(); let modificado = false; registros.forEach(r => { if (r.estado === 'Cerrado' || r.estado === 'Perdido') { let dias = Math.floor((ahora - new Date(r.ultimaModificacion || r.fecha)) / (1000 * 60 * 60 * 24)); if (dias >= 30) { r.estado = 'Archivado'; modificado = true; } } }); if (modificado) guardarLocal(); }
-function forzarLimpiezaCachePWA() { if ('caches' in window) { caches.keys().then(names => { for (let name of names) caches.delete(name); }); mostrarAvisoMemora("Caché borrada con éxito. Recargando aplicación...", "Caché PWA", "refresh", () => { window.location.reload(true); }); } }
+
+function limpiar() {
+    ['nombre', 'contacto', 'asunto', 'valorId', 'comentario'].forEach(x => { if ($(x)) $(x).value = ''; });
+    editando = null;
+    comentariosEdicionActual = [];
+    renderListaComentariosEdicion();
+    mostrarCanal();
+}
+
+function actualizarKPIs() {
+    if ($('kpi-consulta')) $('kpi-consulta').innerText = registros.filter(r => r.estado === 'Consulta nueva').length;
+    if ($('kpi-info')) $('kpi-info').innerText = registros.filter(r => r.estado === 'Información enviada').length;
+    if ($('kpi-esperando')) $('kpi-esperando').innerText = registros.filter(r => r.estado === 'Esperando cliente').length;
+    if ($('kpi-resp-interna')) $('kpi-resp-interna').innerText = registros.filter(r => r.estado === 'Esperando respuesta interna').length;
+    if ($('kpi-cerrado')) $('kpi-cerrado').innerText = registros.filter(r => r.estado === 'Cerrado').length;
+    if ($('kpi-perdido')) $('kpi-perdido').innerText = registros.filter(r => r.estado === 'Perdido').length;
+    if ($('kpi-archivado')) $('kpi-archivado').innerText = registros.filter(r => r.estado === 'Archivado').length;
+}
+
+function actualizarMetricsInicio() {
+    const activos = registros.filter(r => r.estado !== 'Archivado' && r.estado !== 'Perdido').length;
+    const ahora = ahoraMemora();
+    const creadosMes = registros.filter(r => {
+        const d = new Date(r.fecha);
+        return d.getMonth() === ahora.getMonth() && d.getFullYear() === ahora.getFullYear();
+    }).length;
+
+    let conteoCanales = {};
+    registros.forEach(r => {
+        if (r.canal) conteoCanales[r.canal] = (conteoCanales[r.canal] || 0) + 1;
+    });
+    let topCanal = '-';
+    let max = 0;
+    for (let c in conteoCanales) {
+        if (conteoCanales[c] > max) {
+            max = conteoCanales[c];
+            topCanal = c;
+        }
+    }
+
+    if ($('dash-activos')) $('dash-activos').innerText = activos;
+    if ($('dash-mes')) $('dash-mes').innerText = creadosMes;
+    if ($('dash-canal')) $('dash-canal').innerText = topCanal;
+}
+
+function filtrarPorEstadoKPI(est) {
+    mostrandoArchivados = (est === 'Archivado');
+    if ($('filtroEstado')) $('filtroEstado').value = est === 'Archivado' ? '' : est;
+    navegarA('registros', est);
+}
+
+function toggleFiltroAvanzado() {
+    const f = document.getElementById('filtroAvanzado');
+    if (f) f.style.display = f.style.display === 'none' ? 'block' : 'none';
+}
+
+function guardarConfigAutoArchivar() {
+    const valor = $('chkAutoArchivar')?.checked ?? false;
+    localStorage.setItem('memora_auto_archivar', valor);
+    render();
+}
+
+function procesarAutoArchivado() {
+    const autoActivo = localStorage.getItem('memora_auto_archivar') === 'true';
+    if (!autoActivo) return;
+    const ahora = ahoraMemora();
+    let modificado = false;
+    registros.forEach(r => {
+        if (r.estado === 'Cerrado' || r.estado === 'Perdido') {
+            let dias = Math.floor((ahora - new Date(r.ultimaModificacion || r.fecha)) / (1000 * 60 * 60 * 24));
+            if (dias >= 30) {
+                r.estado = 'Archivado';
+                modificado = true;
+            }
+        }
+    });
+    if (modificado) guardarLocal();
+}
+
+function forzarLimpiezaCachePWA() {
+    if ('caches' in window) {
+        caches.keys().then(names => {
+            for (let name of names) caches.delete(name);
+        });
+        mostrarAvisoMemora("Caché borrada con éxito. Recargando aplicación...", "Caché PWA", "refresh", () => {
+            window.location.reload(true);
+        });
+    }
+}
+
+function cargarModoDemoSiAplica() {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('demo') === 'true') {
+        const datosLocales = localStorage.getItem('memora_registros');
+        if (!datosLocales || JSON.parse(datosLocales).length === 0) {
+            const registrosDemo = [
+                {
+                    id: 101,
+                    nombre: "Carlos López",
+                    canal: "WhatsApp",
+                    contacto: "099123456",
+                    asunto: "Consulta por kit de cámaras",
+                    identificador: "RUT 219998880011",
+                    estado: "Esperando cliente",
+                    comentarios: [{ texto: "Presupuesto enviado por WhatsApp.", fecha: "01/09/2026 10:30", editado: null, eliminado: false }],
+                    fecha: new Date(Date.now() - (4 * 24 * 60 * 60 * 1000)).toISOString(),
+                    ultimaModificacion: new Date(Date.now() - (4 * 24 * 60 * 60 * 1000)).toISOString()
+                },
+                {
+                    id: 102,
+                    nombre: "Mariana Gómez",
+                    canal: "Instagram",
+                    contacto: "@marianag_design",
+                    asunto: "Diseño de renders 3D",
+                    identificador: "N° Cliente 452",
+                    estado: "Cerrado",
+                    comentarios: [{ texto: "Pago recibido correctamente.", fecha: "02/09/2026 16:15", editado: null, eliminado: false }],
+                    fecha: new Date().toISOString(),
+                    ultimaModificacion: new Date().toISOString()
+                }
+            ];
+            localStorage.setItem('memora_registros', JSON.stringify(registrosDemo));
+            localStorage.setItem('memora_profile_completed', 'true');
+            localStorage.setItem('memora_admin_user_data', JSON.stringify({
+                rolAdmin: 'Tester Demo',
+                nombreAdmin: 'Usuario Demo',
+                empresaAdmin: 'Mi Empresa'
+            }));
+            registros = registrosDemo;
+        }
+        mostrarBannerDemoSuperior();
+    }
+}
+
+function mostrarBannerDemoSuperior() {
+    if (document.getElementById('bannerModoDemo')) return;
+    const banner = document.createElement('div');
+    banner.id = 'bannerModoDemo';
+    banner.style.cssText = 'background:#004F87; color:white; text-align:center; padding:8px 12px; font-size:0.8rem; font-weight:600; position:sticky; top:0; z-index:999; display:flex; justify-content:space-between; align-items:center; box-shadow: 0 2px 8px rgba(0,0,0,0.2);';
+    banner.innerHTML = `
+        <span>⚡ Estás probando el Modo Demo Sandbox</span>
+        <a href="./#contacto" style="background:#0EA5E9; color:white; padding:5px 12px; border-radius:6px; text-decoration:none; font-size:0.75rem; font-weight:700;">Solicitar Licencia</a>
+    `;
+    document.body.prepend(banner);
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     iniciarRelojHeader();
+    cargarModoDemoSiAplica();
     if ($('estado')) $('estado').innerHTML = estados.map(e => `<option>${e}</option>`).join('');
     if ($('filtroEstado')) $('filtroEstado').innerHTML = '<option value="">Todos los estados</option>' + estados.map(e => `<option>${e}</option>`).join('');
     mostrarCanal();
