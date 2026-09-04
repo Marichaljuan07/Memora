@@ -562,13 +562,16 @@
         </div>
     </div>
 
-    <script src="app.js"></script>
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('./sw.js?v=1.2.0-PC');
-        });
-      }
-    </script>
+   <!-- LÍNEA 565: Agregale el ?v=1.2.0 al script de app.js -->
+<script src="app.js?v=1.2.0"></script>
+
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      // LÍNEA 569: Como lo tenés en la captura (perfecto)
+      navigator.serviceWorker.register('./sw.js?v=1.2.0');
+    });
+  }
+</script>
 </body>
 </html>
