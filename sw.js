@@ -1,4 +1,4 @@
-const CACHE_NAME = 'memora-v1.2.0-libre';
+const CACHE_NAME = 'memora-v1.2.0-PC';
 const ASSETS = [
   './',
   './index.html',
@@ -21,4 +21,10 @@ self.addEventListener('activate', (e) => {
     })
   );
   self.clients.claim();
+});
+
+self.addEventListener('fetch', (e) => {
+  e.respondWith(
+    caches.match(e.request).then((res) => res || fetch(e.request))
+  );
 });
