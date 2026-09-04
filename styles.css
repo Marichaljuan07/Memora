@@ -159,10 +159,20 @@ body { background-color: var(--bg-light); color: var(--text-primary); padding-bo
     align-items: center; gap: 8px; font-weight: 600; box-shadow: 0 4px 10px rgba(0, 79, 135, 0.4);
     cursor: pointer; z-index: 99;
 }
+
 .bottom-nav {
-    position: fixed; bottom: 0; left: 0; width: 100%; background: var(--card-white);
-    display: flex; justify-content: space-around; padding: 10px 0; border-top: 1px solid #E5E7EB; z-index: 100;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: var(--card-white);
+    display: flex !important;
+    justify-content: space-around;
+    padding: 10px 0;
+    border-top: 1px solid #E5E7EB;
+    z-index: 100;
 }
+
 .nav-item { display: flex; flex-direction: column; align-items: center; color: var(--text-secondary); text-decoration: none; font-size: 0.75rem; }
 .nav-item.active { color: var(--primary-blue); }
 
