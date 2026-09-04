@@ -1511,17 +1511,25 @@ function cargarModoDemoSiAplica() {
         mostrarBannerDemoSuperior();
     }
 }
-
 function mostrarBannerDemoSuperior() {
     if (document.getElementById('bannerModoDemo')) return;
     const banner = document.createElement('div');
     banner.id = 'bannerModoDemo';
     banner.style.cssText = 'background:#004F87; color:white; text-align:center; padding:8px 12px; font-size:0.8rem; font-weight:600; position:sticky; top:0; z-index:999; display:flex; justify-content:space-between; align-items:center; box-shadow: 0 2px 8px rgba(0,0,0,0.2);';
+    
     banner.innerHTML = `
         <span>⚡ Estás probando el Modo Demo Sandbox</span>
-        <a href="./#contacto" style="background:#0EA5E9; color:white; padding:5px 12px; border-radius:6px; text-decoration:none; font-size:0.75rem; font-weight:700;">Solicitar Licencia</a>
+        <button type="button" id="btnIrALandingDemo" style="background:#18a957; color:white; padding:5px 12px; border-radius:6px; border:none; text-decoration:none; font-size:0.75rem; font-weight:700; cursor:pointer;">
+            Solicitar Licencia
+        </button>
     `;
     document.body.prepend(banner);
+
+    // Redirección forzada sin depender del tag <a> de HTML
+    document.getElementById('btnIrALandingDemo').addEventListener('click', function(e) {
+        e.preventDefault();
+        window.top.location.href = "https://memora-landing-two.vercel.app/";
+    });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
