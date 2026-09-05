@@ -41,7 +41,6 @@ body { background-color: var(--bg-light); color: var(--text-primary); padding-bo
 .kpi-carousel-wrapper { margin: 0 -16px 20px -16px; padding: 0 16px; overflow-x: auto; scrollbar-width: none; }
 .kpi-carousel-wrapper::-webkit-scrollbar { display: none; }
 .kpi-carousel { display: flex; gap: 12px; scroll-snap-type: x mandatory; }
-
 .kpi-card {
     min-width: 120px; flex: 0 0 auto; scroll-snap-align: start; background: var(--card-white);
     padding: 12px; border-radius: 14px; display: flex; flex-direction: column; box-shadow: var(--shadow-soft);
@@ -68,7 +67,6 @@ body { background-color: var(--bg-light); color: var(--text-primary); padding-bo
 
 .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
 .link-more { color: var(--primary-blue); text-decoration: none; font-size: 0.85rem; font-weight: 600; }
-
 .card { background: var(--card-white); border-radius: 16px; padding: 16px; box-shadow: var(--shadow-soft); margin-bottom: 12px; }
 .client-info { display: flex; align-items: center; position: relative; }
 .avatar { width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; margin-right: 12px; flex-shrink: 0; }
@@ -155,8 +153,8 @@ body { background-color: var(--bg-light); color: var(--text-primary); padding-bo
 .btn-channel-ins { background-color: #E1306C; color: white; }
 .btn-channel-mail { background-color: #0284C7; color: white; }
 .btn-channel-generic { background-color: #6B7280; color: white; }
-.btn-action-edit { background-color: #E5E7EB; color: #374151; padding: 6px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; border: none; cursor: pointer; }
 
+.btn-action-edit { background-color: #E5E7EB; color: #374151; padding: 6px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; border: none; cursor: pointer; }
 .desktop-form-direct { display: none; }
 
 /* VISTA ESCRITORIO (PC) */
@@ -166,10 +164,11 @@ body { background-color: var(--bg-light); color: var(--text-primary); padding-bo
     .kpi-carousel-wrapper { margin: 0 0 28px 0 !important; padding: 0 !important; overflow-x: auto; }
     .kpi-carousel { display: flex !important; gap: 14px !important; }
     .kpi-card { min-width: 165px !important; padding: 16px 18px !important; border: 1.5px solid #E5E7EB !important; border-radius: 14px !important; background: #FFFFFF !important; }
-         
+    
     body.pc-view #btnNuevoRegistroFlotante { display: none !important; }
     body.pc-view.tab-registros #btnNuevoRegistroFlotante,
     body.pc-view.tab-perfil #btnNuevoRegistroFlotante { display: flex !important; }
+    
     #listaRegistros .client-card,
     #contenedorSeguimiento .client-card {
         display: grid !important;
@@ -185,4 +184,60 @@ body { background-color: var(--bg-light); color: var(--text-primary); padding-bo
     #listaRegistros .client-card .tag-row,
     #contenedorSeguimiento .client-card .tag-row { margin: 0 !important; }
     .bottom-nav { max-width: 1100px !important; left: 50% !important; transform: translateX(-50%) !important; border-radius: 16px 16px 0 0 !important; }
+}
+
+/* ==========================================================================
+   NUEVOS ESTILOS V1.3.0 - TANDA 3 (TOAST PC Y MULTICANAL)
+   ========================================================================== */
+.toast-memora-pc {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #004F87;
+    color: #ffffff;
+    padding: 12px 20px;
+    border-radius: 10px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    z-index: 10000;
+    opacity: 0;
+    transform: translateY(-15px);
+    transition: all 0.3s ease;
+}
+
+.toast-memora-pc.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.channel-buttons-group {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.sub-canal-block {
+    background: #F9FAFB;
+    border: 1px dashed #D1D5DB;
+    border-radius: 8px;
+    padding: 10px;
+    margin-top: 8px;
+    position: relative;
+}
+
+.btn-remove-canal {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    background: none;
+    border: none;
+    color: #EF4444;
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-weight: 700;
 }
