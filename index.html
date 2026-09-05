@@ -101,7 +101,7 @@
                 <div style="display:flex; gap:10px; align-items:flex-start;">
                     <span class="material-symbols-outlined" style="color:var(--primary-blue);">auto_awesome</span>
                     <div>
-                        <h4 style="font-size: 0.85rem; color: var(--primary-blue); font-weight:700;">Seguimiento Inteligente ✨</h4>
+                        <h4 style="font-size: 0.85rem; color: var(--primary-blue); font-weight:700;">Seguimiento Inteligente ⚡</h4>
                         <p style="font-size: 0.75rem; color: var(--text-primary); margin-top: 2px; line-height: 1.3;" id="textoBannerSeguimiento">
                             MEMORA administra automáticamente a los clientes inactivos según tus reglas.
                         </p>
@@ -142,15 +142,11 @@
                     <h3 id="tituloFormularioInicio" style="font-size: 1.15rem; color: var(--primary-blue);">Nuevo Registro / Carga Directa</h3>
                 </div>
                 <div style="display: flex; flex-direction: column; gap: 14px;">
-                    
-                    <!-- NOMBRE COMPLETO -->
                     <div style="position:relative;">
                         <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px; color:var(--text-secondary);">Nombre Completo (Opcional)</label>
                         <input id="nombreInicio" type="text" oninput="buscarCoincidenciasPredictivas(this.value, 'nombre', 'dropNombreInicio')" placeholder="Ej: Juan González" style="width:100%; padding:12px; border-radius:8px; border:1px solid #ccc;">
                         <div id="dropNombreInicio" class="coincidencias-drop"></div>
                     </div>
-
-                    <!-- CANAL PRINCIPAL SELECCIÓN -->
                     <div>
                         <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px; color:var(--text-secondary);">Canal Principal</label>
                         <select id="canalInicio" onchange="mostrarCanalInicio()" style="width:100%; padding:12px; border-radius:8px; border:1px solid #ccc;">
@@ -162,8 +158,6 @@
                             <option value="Otro">Otro</option>
                         </select>
                     </div>
-
-                    <!-- DATO DE CONTACTO PRINCIPAL -->
                     <div id="campoCanalInicio" style="position:relative;">
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
                             <label style="font-size:0.85rem; font-weight:600; color:var(--text-secondary);">Teléfono / WhatsApp</label>
@@ -172,23 +166,15 @@
                         <input id="contactoInicio" type="text" oninput="buscarCoincidenciasPredictivas(this.value, 'contacto', 'dropContactoInicio')" placeholder="099 777 677" style="width:100%; padding:12px; border-radius:8px; border:1px solid #ccc;">
                         <div id="dropContactoInicio" class="coincidencias-drop"></div>
                     </div>
-
-                    <!-- CONTENEDOR DINÁMICO MULTICANAL -->
                     <div id="contenedorCanalesExtraInicio" style="display:flex; flex-direction:column; gap:8px;"></div>
-
-                    <!-- BOTÓN PARA AÑADIR CANALES ADICIONALES -->
                     <button type="button" onclick="agregarCampoCanalExtraInicio()" style="background:none; border:1px dashed var(--primary-blue); color:var(--primary-blue); padding:10px; border-radius:8px; font-weight:600; font-size:0.82rem; cursor:pointer; margin-top:2px; display:flex; align-items:center; justify-content:center; gap:6px;">
                         <span class="material-symbols-outlined" style="font-size:1.1rem;">add_circle</span>
                         <span>Agregar otro canal (IG, Mail, FB, TG)</span>
                     </button>
-
-                    <!-- ASUNTO -->
                     <div>
                         <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px; color:var(--text-secondary);">Asunto / Motivo de la Consulta</label>
                         <input id="asuntoInicio" type="text" placeholder="Ej: Venta sillas gamer, Información de viaje, etc." style="width:100%; padding:12px; border-radius:8px; border:1px solid #ccc;">
                     </div>
-
-                    <!-- IDENTIFICADOR / DOCUMENTO -->
                     <div>
                         <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px; color:var(--text-secondary);">Tipo de Documento / Identificador</label>
                         <select id="tipoIdInicio" onchange="mostrarIdInicio()" style="width:100%; padding:12px; border-radius:8px; border:1px solid #ccc;">
@@ -198,8 +184,6 @@
                         </select>
                     </div>
                     <div id="campoIdInicio"></div>
-
-                    <!-- ESTADO -->
                     <div>
                         <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px; color:var(--text-secondary);">Estado</label>
                         <select id="estadoInicio" style="width:100%; padding:12px; border-radius:8px; border:1px solid #ccc;">
@@ -212,8 +196,6 @@
                             <option>Archivado</option>
                         </select>
                     </div>
-
-                    <!-- COMENTARIOS / NOTAS -->
                     <div>
                         <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px; color:var(--text-secondary);">Comentarios / Notas</label>
                         <div style="display: flex; gap: 8px;">
@@ -224,8 +206,6 @@
                         </div>
                         <div id="listaComentariosTemporalesInicio" style="margin-top: 8px; display: flex; flex-direction: column; gap: 4px;"></div>
                     </div>
-
-                    <!-- BOTONERA DE ACCIÓN UNIFICADA -->
                     <div id="contenedorBotonesInicio" style="display:flex; gap:10px; margin-top:8px;">
                         <button id="btnGuardarInicio" onclick="guardarDesdeInicio()" style="flex:2; background:var(--primary-blue); color:white; border:none; padding:14px; border-radius:10px; font-weight:700; cursor:pointer; font-size:0.95rem;">
                             Guardar Registro
@@ -234,7 +214,6 @@
                             Limpiar Campos
                         </button>
                     </div>
-
                 </div>
             </div>
         </section>
@@ -268,7 +247,7 @@
                 <select id="filtroEstado" onchange="render()" style="width:100%; margin-bottom:6px; padding:6px;"></select>
                 <input type="text" id="filtroComentario" placeholder="Filtrar en comentarios" oninput="render()" style="width:100%; padding:6px;">
             </div>
-            <div style="display:flex; justify-space-between; align-items:center; margin-bottom: 12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px;">
                 <p id="totalRegistrosTexto" style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 500;">0 registros</p>
                 <div style="display:flex; gap:8px;">
                     <button id="btnVerArchivados" onclick="alternarVistaArchivados()" style="background:#F3F4F6; border:none; color:var(--text-primary); font-size:0.75rem; font-weight:600; padding:6px 12px; border-radius:8px; cursor:pointer;">
@@ -309,6 +288,14 @@
                         </select>
                     </div>
                     <div id="campoCanal" style="position:relative;"></div>
+
+                    <!-- NUEVA SECCIÓN MÓVIL: HASTA 3 CANALES -->
+                    <div id="contenedorCanalesExtraMovil" style="display:flex; flex-direction:column; gap:8px;"></div>
+                    <button type="button" onclick="agregarCampoCanalExtraMovil()" style="background:none; border:1px dashed var(--primary-blue); color:var(--primary-blue); padding:10px; border-radius:8px; font-weight:600; font-size:0.82rem; cursor:pointer; margin-top:2px; display:flex; align-items:center; justify-content:center; gap:6px;">
+                        <span class="material-symbols-outlined" style="font-size:1.1rem;">add_circle</span>
+                        <span>Agregar otro canal (IG, Mail, FB, TG)</span>
+                    </button>
+
                     <div>
                         <label style="font-size: 0.8rem; color: var(--text-secondary);">Asunto / Motivo de la Consulta</label>
                         <input type="text" id="asunto" placeholder="Ej: Venta sillas gamer, Información de viaje, etc." style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc;">
@@ -409,7 +396,7 @@
                 </div>
             </div>
 
-            <!-- Preferencia de Visibilidad de Canales (v1.3.0) -->
+            <!-- Preferencia de Visibilidad de Canales -->
             <h3 style="font-size: 0.95rem; margin: 16px 0 10px 0;">Visualización de Canales</h3>
             <div class="card" style="margin-bottom:16px; padding:16px;">
                 <p style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:10px;">
