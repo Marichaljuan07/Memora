@@ -1,6 +1,7 @@
 /* ==========================================================================
    MEMORA CRM - CORE LOGIC (v1.3.0 - CONSOLIDADO Y COMPLETO)
    ========================================================================== */
+
 const estados = [
     "Consulta nueva",
     "Información enviada",
@@ -19,11 +20,15 @@ let registrosUltimoFiltro = [];
 let mostrandoArchivados = false;
 let contactoOriginalBackup = "";
 let currentStoryStep = 0;
+
 let canalesExtraContadorInicio = 0;
+let canalesExtraContadorMovil = 0;
 
 const $ = id => document.getElementById(id);
 
-function ahoraMemora() { return new Date(); }
+function ahoraMemora() {
+    return new Date();
+}
 
 function fechaHoraTextoFormateada(d = ahoraMemora()) {
     const dia = String(d.getDate()).padStart(2, '0');
@@ -53,6 +58,7 @@ function mostrarAvisoMemora(mensaje, titulo = "MEMORA", icono = "check_circle", 
     } else {
         if ($('avisoMemoraIcono')) $('avisoMemoraIcono').style.color = '#004F87';
     }
+    
     callbackAvisoGlobal = callback;
     if ($('modalAvisoMemora')) $('modalAvisoMemora').style.display = 'flex';
 }
@@ -613,7 +619,6 @@ function guardarConfigVisibilidadCanales() {
 function construirBotonUnicoCanal(canal, contacto) {
     if (!contacto || !contacto.trim()) return '';
     const contactoLimpio = contacto.replace(/\s+/g, '');
-
     if (canal === 'WhatsApp') {
         const numWA = contactoLimpio.startsWith('+') ? contactoLimpio.replace('+', '') : `598${contactoLimpio.replace(/^0/, '')}`;
         return `<a href="https://wa.me/${numWA}" target="_blank" onclick="event.stopPropagation();" class="btn-action-channel btn-channel-wa">
@@ -640,7 +645,6 @@ function construirBotonUnicoCanal(canal, contacto) {
 function obtenerBotonAccionCanal(r) {
     const modoVisibilidad = obtenerConfigVisibilidadCanales();
     let HTMLBotones = [];
-
     if (r.canal && r.contacto) {
         HTMLBotones.push(construirBotonUnicoCanal(r.canal, r.contacto));
     }
@@ -650,11 +654,9 @@ function obtenerBotonAccionCanal(r) {
     if (modoVisibilidad === 'todos' && r.canal3 && r.contacto3) {
         HTMLBotones.push(construirBotonUnicoCanal(r.canal3, r.contacto3));
     }
-
     if (HTMLBotones.length === 0) {
         return `<button onclick="event.stopPropagation(); abrirFicha(${r.id});" class="btn-action-channel btn-channel-generic"><span class="material-symbols-outlined" style="font-size:1rem;">visibility</span> Ver</button>`;
     }
-
     return `<div class="channel-buttons-group" style="display:flex; gap:4px; align-items:center;">${HTMLBotones.join('')}</div>`;
 }
 
@@ -755,7 +757,7 @@ function render() {
 }
 
 /* ==========================================================================
-   7. LÓGICA DINÁMICA MULTICANAL Y FORMULARIO DE INICIO
+   7. LÓGICA DINÁMICA MULTICANAL Y FORMULARIO DE INICIO / MÓVIL
    ========================================================================== */
 function agregarCampoCanalExtraInicio(canalVal = 'Instagram', contactoVal = '') {
     const contenedor = $('contenedorCanalesExtraInicio');
@@ -802,6 +804,52 @@ function quitarCampoCanalExtraInicio(idNum) {
     if (el) el.remove();
 }
 
+/* LÓGICA AÑADIDA PARA 3 CANALES EN MÓVIL */
+function agregarCampoCanalExtraMovil(canalVal = 'Instagram', contactoVal = '') {
+    const contenedor = $('contenedorCanalesExtraMovil');
+    if (!contenedor) return;
+    
+    const bloquesActuales = contenedor.querySelectorAll('.sub-canal-block-movil').length;
+    if (bloquesActuales >= 2) {
+        mostrarAvisoMemora("Máximo 3 canales alcanzado", "MEMORA", "warning");
+        return;
+    }
+
+    canalesExtraContadorMovil++;
+    const idNum = canalesExtraContadorMovil;
+
+    const div = document.createElement('div');
+    div.className = 'sub-canal-block-movil';
+    div.id = `bloqueCanalExtraMovil_${idNum}`;
+    div.style.cssText = 'background:#F9FAFB; padding:8px 12px; border:1px solid #E5E7EB; border-radius:8px; position:relative; margin-top:8px;';
+    div.innerHTML = `
+        <button type="button" onclick="quitarCampoCanalExtraMovil(${idNum})" style="position:absolute; top:6px; right:8px; background:none; border:none; color:#DC2626; font-weight:700; font-size:0.75rem; cursor:pointer;">✕ Quitar</button>
+        <div style="display:grid; grid-template-columns: 1fr 2fr; gap:8px; margin-top:12px;">
+            <div>
+                <label style="font-size:0.75rem; font-weight:600; color:var(--text-secondary);">Canal Extra</label>
+                <select id="canalExtraMovil_${idNum}" style="width:100%; padding:8px; border-radius:6px; border:1px solid #ccc; font-size:0.85rem;">
+                    <option value="Instagram" ${canalVal === 'Instagram' ? 'selected' : ''}>Instagram</option>
+                    <option value="WhatsApp" ${canalVal === 'WhatsApp' ? 'selected' : ''}>WhatsApp</option>
+                    <option value="Email" ${canalVal === 'Email' ? 'selected' : ''}>Email</option>
+                    <option value="Facebook" ${canalVal === 'Facebook' ? 'selected' : ''}>Facebook</option>
+                    <option value="Telegram" ${canalVal === 'Telegram' ? 'selected' : ''}>Telegram</option>
+                    <option value="Otro" ${canalVal === 'Otro' ? 'selected' : ''}>Otro</option>
+                </select>
+            </div>
+            <div>
+                <label style="font-size:0.75rem; font-weight:600; color:var(--text-secondary);">Contacto / Usuario</label>
+                <input type="text" id="contactoExtraMovil_${idNum}" value="${contactoVal}" placeholder="Ej: @usuario / mail" style="width:100%; padding:8px; border-radius:6px; border:1px solid #ccc; font-size:0.85rem;">
+            </div>
+        </div>
+    `;
+    contenedor.appendChild(div);
+}
+
+function quitarCampoCanalExtraMovil(idNum) {
+    const el = $(`bloqueCanalExtraMovil_${idNum}`);
+    if (el) el.remove();
+}
+
 function mostrarCanal() {
     let c = $('canal').value;
     let nombres = {
@@ -810,6 +858,7 @@ function mostrarCanal() {
         Telegram: 'Telegram', Otro: 'Contacto'
     };
     const estaBloqueado = editando !== null;
+    
     $('campoCanal').style.position = 'relative';
     $('campoCanal').innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
@@ -998,7 +1047,6 @@ function guardarDesdeInicio() {
         mostrarAvisoMemora('Debes ingresar el dato de contacto antes de guardar.', 'Error al cargar datos', 'error');
         return;
     }
-
     const contenedor = $('contenedorCanalesExtraInicio');
     const bloques = contenedor ? contenedor.querySelectorAll('.sub-canal-block') : [];
     
@@ -1023,6 +1071,7 @@ function guardarDesdeInicio() {
             eliminado: false
         });
     }
+
     let r = {
         id: editando || Date.now(),
         nombre: $('nombreInicio')?.value.trim() || '',
@@ -1039,11 +1088,13 @@ function guardarDesdeInicio() {
         fecha: editando ? (registros.find(x => x.id === editando)?.fecha || ahoraMemora().toISOString()) : ahoraMemora().toISOString(),
         ultimaModificacion: ahoraMemora().toISOString()
     };
+
     if (editando) {
         registros = registros.map(x => x.id === editando ? r : x);
     } else {
         registros.push(r);
     }
+
     guardarLocal();
     sincronizarAutoNube(r);
     limpiarCamposFormularioInicio();
@@ -1059,7 +1110,6 @@ function limpiarCamposFormularioInicio() {
     if ($('canalInicio')) $('canalInicio').value = 'WhatsApp';
     
     if ($('contenedorCanalesExtraInicio')) $('contenedorCanalesExtraInicio').innerHTML = '';
-
     editando = null;
     comentariosTemporalesInicio = [];
     renderComentariosTemporalesInicio();
@@ -1073,6 +1123,7 @@ function limpiarCamposFormularioInicio() {
         $('contactoInicio').style.border = '1px solid #ccc';
     }
     if ($('btnAccionContactoContainerInicio')) $('btnAccionContactoContainerInicio').innerHTML = '';
+
     if ($('tituloFormularioInicio')) {
         $('tituloFormularioInicio').innerText = 'Nuevo Registro / Carga Directa';
     }
@@ -1168,6 +1219,22 @@ function guardar() {
         return;
     }
     
+    // Extracción de canales extra (Móvil)
+    const contenedor = $('contenedorCanalesExtraMovil');
+    const bloques = contenedor ? contenedor.querySelectorAll('.sub-canal-block-movil') : [];
+    
+    let canal2 = '', contacto2 = '';
+    let canal3 = '', contacto3 = '';
+
+    if (bloques[0]) {
+        canal2 = bloques[0].querySelector('select')?.value || '';
+        contacto2 = bloques[0].querySelector('input')?.value.trim() || '';
+    }
+    if (bloques[1]) {
+        canal3 = bloques[1].querySelector('select')?.value || '';
+        contacto3 = bloques[1].querySelector('input')?.value.trim() || '';
+    }
+
     let viejo = registros.find(r => r.id === editando);
     let comentariosConsolidados = viejo ? [...(viejo.comentarios || [])] : [];
     comentariosEdicionActual.forEach(nuevoC => {
@@ -1175,11 +1242,16 @@ function guardar() {
             comentariosConsolidados.push(nuevoC);
         }
     });
+
     let r = {
         id: editando || Date.now(),
         nombre: $('nombre')?.value ? $('nombre').value.trim() : '',
         canal: $('canal')?.value || 'WhatsApp',
         contacto,
+        canal2,
+        contacto2,
+        canal3,
+        contacto3,
         asunto: $('asunto')?.value.trim() || '',
         identificador: $('valorId')?.value || '',
         estado: $('estado')?.value || 'Consulta nueva',
@@ -1187,8 +1259,10 @@ function guardar() {
         fecha: viejo?.fecha || ahoraMemora().toISOString(),
         ultimaModificacion: ahoraMemora().toISOString()
     };
+
     if (viejo) registros = registros.map(x => x.id === r.id ? r : x);
     else registros.push(r);
+
     guardarLocal();
     sincronizarAutoNube(r);
     limpiar();
@@ -1205,7 +1279,6 @@ function editar(id) {
         if ($('nombreInicio')) $('nombreInicio').value = r.nombre || '';
         if ($('canalInicio')) $('canalInicio').value = r.canal || 'WhatsApp';
         mostrarCanalInicio();
-
         if ($('contactoInicio')) {
             $('contactoInicio').value = r.contacto || '';
             $('contactoInicio').setAttribute('readonly', 'true');
@@ -1261,13 +1334,21 @@ function editar(id) {
         if ($('canal')) $('canal').value = r.canal || 'WhatsApp';
         mostrarCanal();
         if ($('contacto')) $('contacto').value = r.contacto || '';
+
+        // Cargar canales extra en Móvil
+        if ($('contenedorCanalesExtraMovil')) $('contenedorCanalesExtraMovil').innerHTML = '';
+        if (r.canal2 && r.contacto2) agregarCampoCanalExtraMovil(r.canal2, r.contacto2);
+        if (r.canal3 && r.contacto3) agregarCampoCanalExtraMovil(r.canal3, r.contacto3);
+
         if ($('asunto')) $('asunto').value = r.asunto || '';
         if ($('estado')) $('estado').value = r.estado || 'Consulta nueva';
         if ($('tipoId')) $('tipoId').value = r.identificador ? (r.identificador.startsWith('RUT') ? 'RUT' : 'Nº de Cliente') : 'Ninguno';
         mostrarId();
         if ($('valorId')) $('valorId').value = r.identificador || '';
+
         comentariosEdicionActual = JSON.parse(JSON.stringify(r.comentarios || []));
         renderListaComentariosEdicion();
+
         navegarA('formulario', 'Editar Cliente');
     }
 }
@@ -1280,6 +1361,7 @@ function abrirFicha(id) {
     }
     let r = registros.find(x => x.id === id);
     if (!r) return;
+
     let { avatarHTML, tituloHTML } = obtenerAvatarEIdentidad(r);
     let comentarios = r.comentarios || [];
     let ultimoComentario = comentarios.length > 0 ? comentarios[comentarios.length - 1] : null;
@@ -1305,11 +1387,10 @@ function abrirFicha(id) {
             <button onclick="archivarCliente(${r.id})" style="flex: 1; background-color: #E5E7EB; color: #374151; border: none; padding: 10px; border-radius: 10px; font-weight: 600; cursor:pointer;">${r.estado === 'Archivado' ? 'Desarchivar' : 'Archivar'}</button>
             <button onclick="eliminar(${r.id})" style="flex: 1; background-color: #FEE2E2; color: #DC2626; border: none; padding: 10px; border-radius: 10px; font-weight: 600; cursor:pointer;">Eliminar</button>
         </div>
-        <button onclick="editar(${r.id}); setTimeout(() => agregarCampoCanalExtraInicio(), 150);" style="width:100%; background:none; border:1px dashed var(--primary-blue); color:var(--primary-blue); padding:10px; border-radius:10px; font-weight:600; font-size:0.85rem; cursor:pointer; margin-bottom:16px; display:flex; align-items:center; justify-content:center; gap:6px;">
+        <button onclick="editar(${r.id}); setTimeout(() => agregarCampoCanalExtraMovil(), 150);" style="width:100%; background:none; border:1px dashed var(--primary-blue); color:var(--primary-blue); padding:10px; border-radius:10px; font-weight:600; font-size:0.85rem; cursor:pointer; margin-bottom:16px; display:flex; align-items:center; justify-content:center; gap:6px;">
             <span class="material-symbols-outlined" style="font-size:1.1rem;">add_circle</span>
             <span>+ Añadir otro canal de contacto</span>
         </button>
-
         <div class="section-header"><h3>Comentarios</h3></div>
         ${ultimoComentario ? `<div class="card" style="padding: 14px; margin-bottom: 12px; border-left: 4px solid var(--primary-blue);"><p style="font-size:0.9rem;">${ultimoComentario.texto}</p></div>` : '<p style="font-size:0.85rem; color:var(--text-secondary);">Sin comentarios.</p>'}
         ${historialComentarios.length > 0 ? historialComentarios.map(c => `<div class="card" style="padding:10px; margin-bottom:8px; background:#FAFAFA;"><p style="font-size:0.85rem;">${c.texto}</p></div>`).join('') : ''}
@@ -1327,7 +1408,7 @@ function exportarCSVFiltrado() {
     let filtroLimpio = estadoFiltro.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_');
     if (!filtroLimpio || filtroLimpio === 'Inicio' || filtroLimpio === 'Perfil') filtroLimpio = 'Todos';
     let nombreArchivo = `MEMORA_Reporte_Clientes_${filtroLimpio}.xlsx`;
-    
+
     function clasificarContacto(canal, contacto) {
         let val = (contacto || '').trim();
         if (!val) return { telefono: '-', usuario: '-', email: '-', otro: '-' };
@@ -1343,13 +1424,13 @@ function exportarCSVFiltrado() {
             return { telefono: '-', usuario: '-', email: '-', otro: val };
         }
     }
-    
+
     let filas = [[
         'Doc / RUT / Nº Cliente', 'Nombre del Cliente', 'Asunto / Motivo', 'Canal Principal', 'Teléfono / WhatsApp',
         'Usuario (@)', 'Correo Electrónico', 'Canal 2', 'Contacto 2', 'Canal 3', 'Contacto 3', 'Estado Actual', 'Último Comentario',
         'Total Comentarios', 'Fecha de Registro'
     ]];
-    
+
     datosAExportar.forEach(r => {
         let comentariosActivos = (r.comentarios || []).filter(c => !c.eliminado);
         let ultimoCom = comentariosActivos.length > 0 
@@ -1365,7 +1446,7 @@ function exportarCSVFiltrado() {
             ultimoCom, (r.comentarios || []).length, fechaCreacionTexto
         ]);
     });
-    
+
     if (typeof XLSX !== 'undefined') {
         let ws = XLSX.utils.aoa_to_sheet(filas);
         let colWidths = filas[0].map((col, colIdx) => {
@@ -1510,6 +1591,8 @@ function guardarLocal() { localStorage.setItem('memora_registros', JSON.stringif
 
 function limpiar() {
     ['nombre', 'contacto', 'asunto', 'valorId', 'comentario'].forEach(x => { if ($(x)) $(x).value = ''; });
+    if ($('contenedorCanalesExtraMovil')) $('contenedorCanalesExtraMovil').innerHTML = '';
+    if ($('formTitulo')) $('formTitulo').innerText = "Nuevo Registro";
     editando = null;
     comentariosEdicionActual = [];
     renderListaComentariosEdicion();
@@ -1533,12 +1616,14 @@ function actualizarMetricsInicio() {
         const d = new Date(r.fecha);
         return d.getMonth() === ahora.getMonth() && d.getFullYear() === ahora.getFullYear();
     }).length;
+
     let conteoCanales = {};
     registros.forEach(r => {
         if (r.canal) conteoCanales[r.canal] = (conteoCanales[r.canal] || 0) + 1;
         if (r.canal2) conteoCanales[r.canal2] = (conteoCanales[r.canal2] || 0) + 1;
         if (r.canal3) conteoCanales[r.canal3] = (conteoCanales[r.canal3] || 0) + 1;
     });
+
     let topCanal = '-';
     let max = 0;
     for (let c in conteoCanales) {
@@ -1547,6 +1632,7 @@ function actualizarMetricsInicio() {
             topCanal = c;
         }
     }
+
     if ($('dash-activos')) $('dash-activos').innerText = activos;
     if ($('dash-mes')) $('dash-mes').innerText = creadosMes;
     if ($('dash-canal')) $('dash-canal').innerText = topCanal;
@@ -1574,6 +1660,7 @@ function procesarAutoArchivado() {
     if (!autoActivo) return;
     const ahora = ahoraMemora();
     let modificado = false;
+
     registros.forEach(r => {
         if (r.estado === 'Cerrado' || r.estado === 'Perdido') {
             let dias = Math.floor((ahora - new Date(r.ultimaModificacion || r.fecha)) / (1000 * 60 * 60 * 24));
@@ -1583,6 +1670,7 @@ function procesarAutoArchivado() {
             }
         }
     });
+
     if (modificado) guardarLocal();
 }
 
@@ -1652,7 +1740,7 @@ function mostrarBannerDemoSuperior() {
     banner.style.cssText = 'background:#004F87; color:white; text-align:center; padding:8px 12px; font-size:0.8rem; font-weight:600; position:sticky; top:0; z-index:999; display:flex; justify-content:space-between; align-items:center; box-shadow: 0 2px 8px rgba(0,0,0,0.2);';
     
     banner.innerHTML = `
-        <span>🧪 Estás probando el Modo Demo Sandbox</span>
+        <span>⚡ Estás probando el Modo Demo Sandbox</span>
         <button type="button" id="btnIrALandingDemo" style="background:#18a957; color:white; padding:5px 12px; border-radius:6px; border:none; text-decoration:none; font-size:0.75rem; font-weight:700; cursor:pointer;">
             Solicitar Licencia
         </button>
