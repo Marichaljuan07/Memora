@@ -1,5 +1,5 @@
 /* ==========================================================================
-   MEMORA CRM - CORE LOGIC (v1.2.0-PC DEFINITIVO - BOTÓN EDITAR FIX)
+   MEMORA CRM - CORE LOGIC (v1.3.0 - CONSOLIDADO Y COMPLETO)
    ========================================================================== */
 const estados = [
     "Consulta nueva",
@@ -19,6 +19,7 @@ let registrosUltimoFiltro = [];
 let mostrandoArchivados = false;
 let contactoOriginalBackup = "";
 let currentStoryStep = 0;
+let canalesExtraContadorInicio = 0;
 
 const $ = id => document.getElementById(id);
 
@@ -44,7 +45,7 @@ function mostrarAvisoMemora(mensaje, titulo = "MEMORA", icono = "check_circle", 
     if ($('avisoMemoraTexto')) $('avisoMemoraTexto').innerText = mensaje;
     if ($('avisoMemoraTitulo')) $('avisoMemoraTitulo').innerText = titulo;
     if ($('avisoMemoraIcono')) $('avisoMemoraIcono').innerText = icono;
-         
+    
     if (icono === 'error' || icono === 'cancel') {
         if ($('avisoMemoraIcono')) $('avisoMemoraIcono').style.color = '#EF4444';
     } else if (icono === 'warning' || icono === 'schedule') {
@@ -54,6 +55,22 @@ function mostrarAvisoMemora(mensaje, titulo = "MEMORA", icono = "check_circle", 
     }
     callbackAvisoGlobal = callback;
     if ($('modalAvisoMemora')) $('modalAvisoMemora').style.display = 'flex';
+}
+
+function mostrarToastPC(mensaje, icono = "edit") {
+    let toast = document.getElementById('toastMemoraPC');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'toastMemoraPC';
+        toast.className = 'toast-memora-pc';
+        document.body.appendChild(toast);
+    }
+    toast.innerHTML = `<span class="material-symbols-outlined">${icono}</span> <span>${mensaje}</span>`;
+    toast.classList.add('show');
+    
+    setTimeout(() => {
+        toast.classList.remove('show');
+    }, 2200);
 }
 
 function cerrarAvisoMemora() {
@@ -74,7 +91,7 @@ function mostrarConfirmMemora(mensaje, titulo = "¿Es seguro?", icono = "help_ou
     if ($('confirmMemoraTitulo')) $('confirmMemoraTitulo').innerText = titulo;
     if ($('confirmMemoraIcono')) $('confirmMemoraIcono').innerText = icono;
     if ($('confirmMemoraBtnAceptar')) $('confirmMemoraBtnAceptar').style.background = colorBoton;
-         
+    
     callbackConfirmGlobal = callback;
     if ($('modalConfirmMemora')) $('modalConfirmMemora').style.display = 'flex';
 }
@@ -91,7 +108,7 @@ function mostrarPromptMemora(mensaje, valorInicial = "", titulo = "Editar inform
     if ($('promptMemoraTexto')) $('promptMemoraTexto').innerText = mensaje;
     if ($('promptMemoraTitulo')) $('promptMemoraTitulo').innerText = titulo;
     if ($('promptMemoraInput')) $('promptMemoraInput').value = valorInicial;
-         
+    
     callbackPromptGlobal = callback;
     if ($('modalPromptMemora')) $('modalPromptMemora').style.display = 'flex';
     setTimeout(() => $('promptMemoraInput')?.focus(), 150);
@@ -126,7 +143,7 @@ function inicializarGoogleDriveAPI() {
                 googleAccessToken = response.access_token;
                 localStorage.setItem('memora_gdrive_token', googleAccessToken);
                 localStorage.setItem('memora_nube_conectado', 'true');
-                                 
+                
                 if ($('cloudStatusText')) $('cloudStatusText').innerText = 'Conectado a Google Drive';
                 mostrarAvisoMemora("¡Google Drive vinculado con éxito!", "Google Drive", "cloud_done");
             },
@@ -164,18 +181,18 @@ async function subirRespaldoADrive() {
     try {
         const datosBackup = JSON.stringify(registros, null, 2);
         const searchUrl = "https://www.googleapis.com/drive/v3/files?q=name%3D%27memora_backup.json%27%20and%20trashed%3Dfalse";
-                 
+        
         const searchResp = await fetch(searchUrl, {
             headers: { 'Authorization': `Bearer ${googleAccessToken}` }
         });
-                 
+        
         if (searchResp.status === 401) {
             if (tokenClient) tokenClient.requestAccessToken({ prompt: '' });
             return;
         }
         const searchData = await searchResp.json();
         let fileId = (searchData.files && searchData.files.length > 0) ? searchData.files[0].id : null;
-                 
+        
         if (fileId) {
             await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
                 method: 'PATCH',
@@ -279,12 +296,12 @@ function actualizarSeguimiento() {
     let ahora = ahoraMemora();
     let config = obtenerConfigSeguimiento();
     let horasLimite = config.unidad === 'horas' ? config.valor : config.valor * 24;
-         
+    
     if ($('textoBannerSeguimiento')) {
         let tiempoTexto = config.unidad === 'horas' ? `${config.valor} hora(s)` : `${config.valor} día(s)`;
         $('textoBannerSeguimiento').innerHTML = `MEMORA administra automáticamente a los clientes que llevan <strong>${tiempoTexto} o más sin gestión</strong>. Si un registro no se ha actualizado y no está en <em>Cerrado, Perdido o Archivado</em>, aparecerá abajo para tu revisión.`;
     }
-         
+    
     let lista = registros.filter(r => {
         let horasTranscurridas = (ahora - new Date(r.ultimaModificacion || r.fecha)) / (1000 * 60 * 60);
         return horasTranscurridas >= horasLimite && r.estado !== "Cerrado" && r.estado !== "Perdido" && r.estado !== "Archivado";
@@ -296,16 +313,16 @@ function actualizarSeguimiento() {
             let horasTranscurridas = (ahora - new Date(r.ultimaModificacion || r.fecha)) / (1000 * 60 * 60);
             let diasAtraso = Math.floor(horasTranscurridas / 24);
             let textoAtraso = config.unidad === 'horas' ? `${Math.floor(horasTranscurridas)} hs de atraso` : `${diasAtraso} día(s) de atraso`;
-                         
+            
             let dCreacion = new Date(r.fecha);
             let dModif = new Date(r.ultimaModificacion || r.fecha);
-                         
+            
             let fechaCreacionTexto = !isNaN(dCreacion.getTime()) 
-                 ? `${String(dCreacion.getDate()).padStart(2, '0')}/${String(dCreacion.getMonth() + 1).padStart(2, '0')}/${dCreacion.getFullYear()}` 
-                 : r.fecha;
+                ? `${String(dCreacion.getDate()).padStart(2, '0')}/${String(dCreacion.getMonth() + 1).padStart(2, '0')}/${dCreacion.getFullYear()}` 
+                : r.fecha;
             let fechaRevisionTexto = !isNaN(dModif.getTime()) 
-                 ? `${String(dModif.getDate()).padStart(2, '0')}/${String(dModif.getMonth() + 1).padStart(2, '0')}/${dModif.getFullYear()}` 
-                 : '-';
+                ? `${String(dModif.getDate()).padStart(2, '0')}/${String(dModif.getMonth() + 1).padStart(2, '0')}/${dModif.getFullYear()}` 
+                : '-';
             let { avatarHTML, tituloHTML } = obtenerAvatarEIdentidad(r);
             let btnCanal = obtenerBotonAccionCanal(r);
             let accionClick = esPC ? `editar(${r.id})` : `abrirFicha(${r.id})`;
@@ -361,7 +378,7 @@ function buscarCoincidenciasPredictivas(valor, campo, contenedorDropId) {
         return `
             <div class="drop-item-card" onclick="seleccionarCoincidencia(${r.id}, '${contenedorDropId}')">
                 <div class="drop-item-header">
-                    <strong>${campo === 'nombre' ? 'Cliente' : r.canal} ${datoCoincidente}</strong>
+                    <strong>${campo === 'nombre' ? 'Cliente' : r.canal}: ${datoCoincidente}</strong>
                 </div>
                 <div class="drop-item-sub">Ya existe • ${asuntoTexto}</div>
                 <div class="drop-item-badge ${obtenerClaseEstado(r.estado)}">${r.estado}</div>
@@ -404,44 +421,44 @@ function iniciarRelojHeader() {
 function navegarA(pantalla, customTitle = null) {
     document.querySelectorAll('.app-section').forEach(sec => sec.style.display = 'none');
     document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
-         
+    
     const esPC = window.innerWidth >= 800;
     if (esPC) document.body.classList.add('pc-view');
     else document.body.classList.remove('pc-view');
-         
+    
     document.body.classList.remove('tab-inicio', 'tab-registros', 'tab-perfil', 'tab-formulario', 'tab-ficha');
     document.body.classList.add(`tab-${pantalla}`);
-         
-    const titleMap = { 
-        'inicio': 'Inicio', 
-        'registros': 'Registros', 
-        'formulario': editando ? 'Editar Cliente' : 'Nuevo Cliente', 
-        'perfil': 'Perfil', 
-        'ficha': 'Ficha Cliente' 
+    
+    const titleMap = {
+        'inicio': 'Inicio',
+        'registros': 'Registros',
+        'formulario': editando ? 'Editar Cliente' : 'Nuevo Cliente',
+        'perfil': 'Perfil',
+        'ficha': 'Ficha Cliente'
     };
-         
+    
     if ($('screenTitle')) $('screenTitle').innerText = customTitle || titleMap[pantalla] || 'MEMORA';
-         
-    if (pantalla === 'inicio') { 
-        if ($('sec-inicio')) $('sec-inicio').style.display = 'block'; 
-        if ($('nav-inicio')) $('nav-inicio').classList.add('active'); 
-        if ($('btnHeaderBack')) $('btnHeaderBack').style.display = 'none'; 
-    } else if (pantalla === 'registros') { 
-        if ($('sec-registros')) $('sec-registros').style.display = 'block'; 
-        if ($('nav-registros')) $('nav-registros').classList.add('active'); 
-        if ($('btnHeaderBack')) $('btnHeaderBack').style.display = 'none'; 
-    } else if (pantalla === 'formulario') { 
-        if ($('sec-formulario')) $('sec-formulario').style.display = 'block'; 
-        if ($('btnHeaderBack')) $('btnHeaderBack').style.display = 'block'; 
-    } else if (pantalla === 'perfil') { 
-        if ($('sec-perfil')) $('sec-perfil').style.display = 'block'; 
-        if ($('nav-perfil')) $('nav-perfil').classList.add('active'); 
-        if ($('btnHeaderBack')) $('btnHeaderBack').style.display = 'none'; 
-        cargarDiagnosticoSistema(); 
-        cargarDatosUsuarioPerfil(); 
-    } else if (pantalla === 'ficha') { 
-        if ($('sec-ficha')) $('sec-ficha').style.display = 'block'; 
-        if ($('btnHeaderBack')) $('btnHeaderBack').style.display = 'block'; 
+    
+    if (pantalla === 'inicio') {
+        if ($('sec-inicio')) $('sec-inicio').style.display = 'block';
+        if ($('nav-inicio')) $('nav-inicio').classList.add('active');
+        if ($('btnHeaderBack')) $('btnHeaderBack').style.display = 'none';
+    } else if (pantalla === 'registros') {
+        if ($('sec-registros')) $('sec-registros').style.display = 'block';
+        if ($('nav-registros')) $('nav-registros').classList.add('active');
+        if ($('btnHeaderBack')) $('btnHeaderBack').style.display = 'none';
+    } else if (pantalla === 'formulario') {
+        if ($('sec-formulario')) $('sec-formulario').style.display = 'block';
+        if ($('btnHeaderBack')) $('btnHeaderBack').style.display = 'block';
+    } else if (pantalla === 'perfil') {
+        if ($('sec-perfil')) $('sec-perfil').style.display = 'block';
+        if ($('nav-perfil')) $('nav-perfil').classList.add('active');
+        if ($('btnHeaderBack')) $('btnHeaderBack').style.display = 'none';
+        cargarDiagnosticoSistema();
+        cargarDatosUsuarioPerfil();
+    } else if (pantalla === 'ficha') {
+        if ($('sec-ficha')) $('sec-ficha').style.display = 'block';
+        if ($('btnHeaderBack')) $('btnHeaderBack').style.display = 'block';
     }
     render();
 }
@@ -462,17 +479,17 @@ function procesarPerfilInicial() {
     const cedula = $('initCedula')?.value.trim() || '';
     const empresa = $('initEmpresa')?.value.trim() || '';
     const whatsapp = $('initWhatsapp')?.value.trim() || '';
-         
+    
     if (!nombre) {
         mostrarAvisoMemora("Debes ingresar un nombre para guardar tus datos y continuar.", "Dato Requerido", "warning");
         return;
     }
-         
+    
     const datos = {
         rolAdmin: 'Usuario Administrador', nombreAdmin: nombre,
         cedulaAdmin: cedula, empresaAdmin: empresa, whatsappAdmin: whatsapp
     };
-         
+    
     localStorage.setItem('memora_admin_user_data', JSON.stringify(datos));
     localStorage.setItem('memora_profile_completed', 'true');
     if ($('modalPerfilMemora')) $('modalPerfilMemora').style.display = 'none';
@@ -504,7 +521,7 @@ function renderStoryStep(nombre) {
             text: "Tus datos son tuyos. Todo se respalda directamente en tu Google Drive personal con la máxima seguridad."
         }
     ];
-         
+    
     const current = stories[currentStoryStep];
     if ($('storyContent')) {
         $('storyContent').innerHTML = `
@@ -513,19 +530,19 @@ function renderStoryStep(nombre) {
             <p style="font-size:0.9rem; color:#6b7280;">${current.text}</p>
         `;
     }
-         
+    
     for (let i = 0; i < 3; i++) {
         const fill = $(`story-fill-${i}`);
         if (fill) fill.style.width = i <= currentStoryStep ? '100%' : '0%';
     }
-         
+    
     if ($('btnNextStory')) $('btnNextStory').innerText = currentStoryStep === stories.length - 1 ? "Ingresar a Memora" : "Siguiente";
 }
 
 function siguienteStory() {
     const datosRaw = localStorage.getItem('memora_admin_user_data');
     const datos = datosRaw ? JSON.parse(datosRaw) : { nombreAdmin: 'Usuario' };
-         
+    
     if (currentStoryStep < 2) {
         currentStoryStep++;
         renderStoryStep(datos.nombreAdmin);
@@ -543,31 +560,31 @@ function desbloquearInterfazCompleta() {
 }
 
 /* ==========================================================================
-   6. AUXILIARES DE VISTA Y CARDS
+   6. AUXILIARES DE VISTA Y CARDS (MULTICANAL V1.3.0)
    ========================================================================== */
 function obtenerAvatarEIdentidad(r) {
     let badgeText = 'CN';
     let iconName = null;
-    if (r.canal === 'WhatsApp') badgeText = 'WP';
-    else if (r.canal === 'Instagram') badgeText = 'INS';
+    if (r.canal === 'WhatsApp') badgeText = 'WA';
+    else if (r.canal === 'Instagram') badgeText = 'IG';
     else if (r.canal === 'Email') iconName = 'alternate_email';
     else if (r.identificador) iconName = 'badge';
     else iconName = 'person';
-         
+    
     let avatarInner = iconName ? `<span class="material-symbols-outlined">${iconName}</span>` : badgeText;
     let tituloTexto = (r.nombre && r.nombre.trim().length > 0) ? r.nombre : (r.contacto || r.identificador || 'Contacto Sin Nombre');
-         
+    
     return { avatarHTML: avatarInner, tituloHTML: `<span style="color:var(--text-primary); font-weight:600;">${tituloTexto}</span>` };
 }
 
 function obtenerClaseEstado(estado) {
     const mapa = {
-        'Consulta nueva': 'tag-consulta-nueva', 
+        'Consulta nueva': 'tag-consulta-nueva',
         'Información enviada': 'tag-informacion-enviada',
-        'Esperando cliente': 'tag-esperando-cliente', 
+        'Esperando cliente': 'tag-esperando-cliente',
         'Esperando respuesta interna': 'tag-esperando-respuesta-interna',
-        'Cerrado': 'tag-cerrado', 
-        'Perdido': 'tag-perdido', 
+        'Cerrado': 'tag-cerrado',
+        'Perdido': 'tag-perdido',
         'Archivado': 'tag-archivado'
     };
     return mapa[estado] || 'tag-consulta-nueva';
@@ -582,49 +599,93 @@ function obtenerTextoIdentificador(r) {
     return ` • Cliente / Socio: ${val}`;
 }
 
-function obtenerBotonAccionCanal(r) {
-    const contactoLimpio = (r.contacto || '').replace(/\s+/g, '');
-         
-    if (r.canal === 'WhatsApp') {
+function obtenerConfigVisibilidadCanales() {
+    return localStorage.getItem('memora_modo_canales') || 'todos';
+}
+
+function guardarConfigVisibilidadCanales() {
+    const val = $('cfgModoCanales')?.value || 'todos';
+    localStorage.setItem('memora_modo_canales', val);
+    mostrarAvisoMemora("Preferencia de visibilidad de canales actualizada.", "Configuración", "tune");
+    render();
+}
+
+function construirBotonUnicoCanal(canal, contacto) {
+    if (!contacto || !contacto.trim()) return '';
+    const contactoLimpio = contacto.replace(/\s+/g, '');
+
+    if (canal === 'WhatsApp') {
         const numWA = contactoLimpio.startsWith('+') ? contactoLimpio.replace('+', '') : `598${contactoLimpio.replace(/^0/, '')}`;
-        return `<a href="https://wa.me/${numWA}" target="_blank" onclick="event.stopPropagation();" class="btn-action-channel btn-channel-wa"><span class="material-symbols-outlined" style="font-size:1rem;">chat</span> WhatsApp</a>`;
-    } 
-    else if (r.canal === 'Instagram') {
+        return `<a href="https://wa.me/${numWA}" target="_blank" onclick="event.stopPropagation();" class="btn-action-channel btn-channel-wa">
+            <svg style="width:14px; height:14px; fill:currentColor;" viewBox="0 0 24 24"><path d="M12.031 2c-5.517 0-9.993 4.476-9.993 9.993 0 1.763.459 3.479 1.33 4.996l-1.417 5.176 5.297-1.389c1.464.798 3.119 1.217 4.783 1.217 5.517 0 9.993-4.476 9.993-9.993 0-5.517-4.476-9.993-9.993-9.993zm5.824 14.129c-.243.684-1.22 1.251-1.996 1.341-.532.062-1.226.111-3.558-.853-2.984-1.233-4.9-4.269-5.049-4.469-.148-.199-1.216-1.621-1.216-3.092 0-1.471.771-2.193 1.045-2.491.274-.298.599-.373.799-.373.199 0 .399.002.573.011.184.01.431-.07.674.513.243.583.823 2.012.897 2.16.074.149.124.323.025.522-.099.199-.149.323-.298.497-.149.174-.313.388-.447.522-.149.149-.305.311-.131.61.174.298.773 1.277 1.66 2.067 1.14 1.015 2.102 1.328 2.399 1.477.298.149.472.124.646-.074.174-.199.746-.87.945-1.168.199-.298.398-.248.671-.149.273.099 1.741.821 2.039.97.298.149.497.223.572.348.074.124.074.721-.169 1.405z"/></svg> WA</a>`;
+    } else if (canal === 'Instagram') {
         const userInsta = contactoLimpio.replace('@', '');
-        return `<a href="https://instagram.com/${userInsta}" target="_blank" onclick="event.stopPropagation();" class="btn-action-channel btn-channel-ins"><span class="material-symbols-outlined" style="font-size:1rem;">photo_camera</span> Instagram</a>`;
-    } 
-    else if (r.canal === 'Facebook') {
+        return `<a href="https://instagram.com/${userInsta}" target="_blank" onclick="event.stopPropagation();" class="btn-action-channel btn-channel-ins">
+            <svg style="width:14px; height:14px; fill:currentColor;" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg> IG</a>`;
+    } else if (canal === 'Facebook') {
         const userFB = contactoLimpio.replace('@', '');
-        return `<a href="https://m.me/${userFB}" target="_blank" onclick="event.stopPropagation();" class="btn-action-channel" style="background-color:#1877F2; color:white; border:none; padding:4px 10px; border-radius:6px; font-size:0.75rem; font-weight:600; text-decoration:none; display:inline-flex; align-items:center; gap:4px;"><span class="material-symbols-outlined" style="font-size:1rem;">forum</span> Facebook</a>`;
-    } 
-    else if (r.canal === 'Telegram') {
+        return `<a href="https://m.me/${userFB}" target="_blank" onclick="event.stopPropagation();" class="btn-action-channel" style="background-color:#1877F2; color:white;">
+            <svg style="width:14px; height:14px; fill:currentColor;" viewBox="0 0 24 24"><path d="M9 8h-3v4h3v12h5v-12h3.642l.358-4h-4v-1.667c0-.955.192-1.333 1.115-1.333h2.885v-5h-3.808c-3.596 0-5.192 1.583-5.192 4.615v3.385z"/></svg> FB</a>`;
+    } else if (canal === 'Telegram') {
         const userTG = contactoLimpio.replace('@', '');
-        return `<a href="https://t.me/${userTG}" target="_blank" onclick="event.stopPropagation();" class="btn-action-channel" style="background-color:#229ED9; color:white; border:none; padding:4px 10px; border-radius:6px; font-size:0.75rem; font-weight:600; text-decoration:none; display:inline-flex; align-items:center; gap:4px;"><span class="material-symbols-outlined" style="font-size:1rem;">send</span> Telegram</a>`;
-    } 
-    else if (r.canal === 'Email') {
-        return `<a href="mailto:${r.contacto}" onclick="event.stopPropagation();" class="btn-action-channel btn-channel-mail"><span class="material-symbols-outlined" style="font-size:1rem;">mail</span> Email</a>`;
+        return `<a href="https://t.me/${userTG}" target="_blank" onclick="event.stopPropagation();" class="btn-action-channel" style="background-color:#229ED9; color:white;">
+            <svg style="width:14px; height:14px; fill:currentColor;" viewBox="0 0 24 24"><path d="M12 0c-6.627 0-12 5.373-12 12s5.373 12 12 12 12-5.373 12-12-5.373-12-12-12zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.121l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.536-.197 1.006.129.832.941z"/></svg> TG</a>`;
+    } else if (canal === 'Email') {
+        return `<a href="mailto:${contacto}" onclick="event.stopPropagation();" class="btn-action-channel btn-channel-mail">
+            <span class="material-symbols-outlined" style="font-size:0.9rem;">mail</span> Mail</a>`;
     }
-         
-    return `<button onclick="event.stopPropagation(); abrirFicha(${r.id});" class="btn-action-channel btn-channel-generic"><span class="material-symbols-outlined" style="font-size:1rem;">visibility</span> Ver</button>`;
+    return '';
+}
+
+function obtenerBotonAccionCanal(r) {
+    const modoVisibilidad = obtenerConfigVisibilidadCanales();
+    let HTMLBotones = [];
+
+    if (r.canal && r.contacto) {
+        HTMLBotones.push(construirBotonUnicoCanal(r.canal, r.contacto));
+    }
+    if (modoVisibilidad !== 'principal' && r.canal2 && r.contacto2) {
+        HTMLBotones.push(construirBotonUnicoCanal(r.canal2, r.contacto2));
+    }
+    if (modoVisibilidad === 'todos' && r.canal3 && r.contacto3) {
+        HTMLBotones.push(construirBotonUnicoCanal(r.canal3, r.contacto3));
+    }
+
+    if (HTMLBotones.length === 0) {
+        return `<button onclick="event.stopPropagation(); abrirFicha(${r.id});" class="btn-action-channel btn-channel-generic"><span class="material-symbols-outlined" style="font-size:1rem;">visibility</span> Ver</button>`;
+    }
+
+    return `<div class="channel-buttons-group" style="display:flex; gap:4px; align-items:center;">${HTMLBotones.join('')}</div>`;
 }
 
 function tarjetaEstetica(r) {
     const dCreacion = new Date(r.fecha);
     const dModif = new Date(r.ultimaModificacion || r.fecha);
-         
+    
     let fechaCreacionTexto = !isNaN(dCreacion.getTime()) 
-         ? `${String(dCreacion.getDate()).padStart(2, '0')}/${String(dCreacion.getMonth() + 1).padStart(2, '0')}/${dCreacion.getFullYear()} ${String(dCreacion.getHours()).padStart(2, '0')}:${String(dCreacion.getMinutes()).padStart(2, '0')}` 
-         : r.fecha;
-             
+        ? `${String(dCreacion.getDate()).padStart(2, '0')}/${String(dCreacion.getMonth() + 1).padStart(2, '0')}/${dCreacion.getFullYear()} ${String(dCreacion.getHours()).padStart(2, '0')}:${String(dCreacion.getMinutes()).padStart(2, '0')}` 
+        : r.fecha;
+        
     let fechaRevisionTexto = !isNaN(dModif.getTime()) 
-         ? `${String(dModif.getDate()).padStart(2, '0')}/${String(dModif.getMonth() + 1).padStart(2, '0')}/${dModif.getFullYear()}` 
-         : '-';
-         
+        ? `${String(dModif.getDate()).padStart(2, '0')}/${String(dModif.getMonth() + 1).padStart(2, '0')}/${dModif.getFullYear()}` 
+        : '-';
+
     const { avatarHTML, tituloHTML } = obtenerAvatarEIdentidad(r);
     const btnCanal = obtenerBotonAccionCanal(r);
     const textoId = obtenerTextoIdentificador(r);
     let comentariosActivos = (r.comentarios || []).filter(c => !c.eliminado);
     let ultimoComentario = comentariosActivos.length > 0 ? comentariosActivos[comentariosActivos.length - 1].texto : null;
+
+    let esArchivado = r.estado === 'Archivado';
+
+    let botonesAccionDerecha = esArchivado ? `
+        <button class="btn-action-edit" style="background:#E5E7EB; color:#374151;" onclick="event.stopPropagation(); archivarCliente(${r.id});">Desarchivar</button>
+        <button class="btn-action-edit" style="background:#FEE2E2; color:#DC2626;" onclick="event.stopPropagation(); eliminar(${r.id});">Eliminar</button>
+    ` : `
+        ${btnCanal}
+        <button class="btn-action-edit" onclick="event.stopPropagation(); editar(${r.id});">Editar</button>
+    `;
+
     return `
     <div class="card client-card" style="cursor:pointer;" onclick="abrirFicha(${r.id})">
         <div class="client-info">
@@ -634,22 +695,21 @@ function tarjetaEstetica(r) {
                 <div class="client-sub">${r.canal} • ${r.contacto}${textoId}</div>
             </div>
         </div>
-                 
+        
         <div>
             ${r.asunto ? `<div style="font-size: 0.8rem; font-weight:600; color:var(--primary-blue);">Asunto: ${r.asunto}</div>` : '<span style="color:gray; font-size:0.75rem;">Sin asunto</span>'}
             ${ultimoComentario ? `<div style="font-size: 0.73rem; color:#4B5563; margin-top:3px; background:#F3F4F6; padding:4px 8px; border-radius:6px; display:inline-block; max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Último comentario: ${ultimoComentario}</div>` : ''}
         </div>
-                 
+        
         <div class="tag-row"><span class="tag ${obtenerClaseEstado(r.estado)}">${r.estado}</span></div>
-                 
+        
         <div class="time-ago">
             <span style="font-size:0.72rem; color:var(--text-secondary);">Creado: <strong>${fechaCreacionTexto}</strong></span><br>
             <span style="font-size:0.68rem; color:gray;">Última rev: ${fechaRevisionTexto}</span>
         </div>
-                 
+        
         <div style="display:flex; gap:6px; align-items:center; margin-top:8px;">
-            ${btnCanal}
-            <button class="btn-action-edit" onclick="event.stopPropagation(); editar(${r.id});">Editar</button>
+            ${botonesAccionDerecha}
         </div>
     </div>`;
 }
@@ -659,7 +719,7 @@ function render() {
     actualizarKPIs();
     actualizarSeguimiento();
     actualizarMetricsInicio();
-         
+    
     let busqueda = $('busquedaRapida')?.value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') || '';
     let nombre = $('filtroNombre')?.value.toLowerCase() || '';
     let canal = $('filtroCanal')?.value || '';
@@ -668,23 +728,26 @@ function render() {
     let ident = $('filtroId')?.value.toLowerCase() || '';
     let estado = $('filtroEstado')?.value || '';
     let com = $('filtroComentario')?.value.toLowerCase() || '';
+
     registrosUltimoFiltro = registros.filter(r => {
         let esArchiv = r.estado === 'Archivado';
         if (mostrandoArchivados) { if (!esArchiv) return false; } else { if (esArchiv) return false; }
-                 
+        
         let matchBusqueda = !busqueda || JSON.stringify(r).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(busqueda);
         let matchNombre = !nombre || (r.nombre || '').toLowerCase().includes(nombre);
-        let matchCanal = !canal || r.canal === canal;
-        let matchDato = !dato || (r.contacto || '').toLowerCase().includes(dato);
+        let matchCanal = !canal || r.canal === canal || r.canal2 === canal || r.canal3 === canal;
+        let matchDato = !dato || (r.contacto || '').toLowerCase().includes(dato) || (r.contacto2 || '').toLowerCase().includes(dato) || (r.contacto3 || '').toLowerCase().includes(dato);
         let matchAsunto = !asunto || (r.asunto || '').toLowerCase().includes(asunto);
         let matchIdent = !ident || (r.identificador || '').toLowerCase().includes(ident);
         let matchEstado = !estado || r.estado === estado;
         let matchCom = !com || JSON.stringify(r.comentarios || []).toLowerCase().includes(com);
+
         return matchBusqueda && matchNombre && matchCanal && matchDato && matchAsunto && matchIdent && matchEstado && matchCom;
     });
+
     if ($('listaRegistros')) $('listaRegistros').innerHTML = registrosUltimoFiltro.map(tarjetaEstetica).join('') || '<p style="text-align:center; padding:20px; color:var(--text-secondary);">No se encontraron registros.</p>';
     if ($('totalRegistrosTexto')) $('totalRegistrosTexto').innerText = `${registrosUltimoFiltro.length} registros ${mostrandoArchivados ? '(Archivados)' : ''}`;
-         
+    
     if ($('btnVerArchivados')) {
         $('btnVerArchivados').innerText = mostrandoArchivados ? 'Ver Activos' : 'Ver Archivados';
         $('btnVerArchivados').style.background = mostrandoArchivados ? '#E5E7EB' : '#F3F4F6';
@@ -692,8 +755,53 @@ function render() {
 }
 
 /* ==========================================================================
-   7. FORMULARIO Y CONTROL DE CAMBIO DE DATO Y EDICIÓN
+   7. LÓGICA DINÁMICA MULTICANAL Y FORMULARIO DE INICIO
    ========================================================================== */
+function agregarCampoCanalExtraInicio(canalVal = 'Instagram', contactoVal = '') {
+    const contenedor = $('contenedorCanalesExtraInicio');
+    if (!contenedor) return;
+    
+    const bloquesActuales = contenedor.querySelectorAll('.sub-canal-block').length;
+    if (bloquesActuales >= 2) {
+        mostrarToastPC("Máximo 3 canales alcanzado", "warning");
+        return;
+    }
+
+    canalesExtraContadorInicio++;
+    const idNum = canalesExtraContadorInicio;
+
+    const div = document.createElement('div');
+    div.className = 'sub-canal-block';
+    div.id = `bloqueCanalExtra_${idNum}`;
+    div.style.cssText = 'background:#F9FAFB; padding:8px 12px; border:1px solid #E5E7EB; border-radius:8px; position:relative;';
+    div.innerHTML = `
+        <button type="button" onclick="quitarCampoCanalExtraInicio(${idNum})" style="position:absolute; top:6px; right:8px; background:none; border:none; color:#DC2626; font-weight:700; font-size:0.75rem; cursor:pointer;">✕ Quitar</button>
+        <div style="display:grid; grid-template-columns: 1fr 2fr; gap:8px; margin-top:12px;">
+            <div>
+                <label style="font-size:0.75rem; font-weight:600; color:var(--text-secondary);">Canal Extra</label>
+                <select id="canalExtra_${idNum}" style="width:100%; padding:8px; border-radius:6px; border:1px solid #ccc; font-size:0.85rem;">
+                    <option value="Instagram" ${canalVal === 'Instagram' ? 'selected' : ''}>Instagram</option>
+                    <option value="WhatsApp" ${canalVal === 'WhatsApp' ? 'selected' : ''}>WhatsApp</option>
+                    <option value="Email" ${canalVal === 'Email' ? 'selected' : ''}>Email</option>
+                    <option value="Facebook" ${canalVal === 'Facebook' ? 'selected' : ''}>Facebook</option>
+                    <option value="Telegram" ${canalVal === 'Telegram' ? 'selected' : ''}>Telegram</option>
+                    <option value="Otro" ${canalVal === 'Otro' ? 'selected' : ''}>Otro</option>
+                </select>
+            </div>
+            <div>
+                <label style="font-size:0.75rem; font-weight:600; color:var(--text-secondary);">Contacto / Usuario</label>
+                <input type="text" id="contactoExtra_${idNum}" value="${contactoVal}" placeholder="Ej: @usuario / mail" style="width:100%; padding:8px; border-radius:6px; border:1px solid #ccc; font-size:0.85rem;">
+            </div>
+        </div>
+    `;
+    contenedor.appendChild(div);
+}
+
+function quitarCampoCanalExtraInicio(idNum) {
+    const el = $(`bloqueCanalExtra_${idNum}`);
+    if (el) el.remove();
+}
+
 function mostrarCanal() {
     let c = $('canal').value;
     let nombres = {
@@ -710,8 +818,8 @@ function mostrarCanal() {
                 ${estaBloqueado ? `<a href="#" onclick="activarEdicionContacto(); return false;" style="font-size:0.75rem; color:var(--primary-blue); font-weight:600; text-decoration:none;">[ Cambiar dato ]</a>` : ''}
             </div>
         </div>
-        <input id="contacto"
-               oninput="buscarCoincidenciasPredictivas(this.value, 'contacto', 'dropContactoForm')"
+        <input id="contacto" 
+               oninput="buscarCoincidenciasPredictivas(this.value, 'contacto', 'dropContactoForm')" 
                autocomplete="off"
                ${estaBloqueado ? 'readonly style="width:100%; padding:10px; border-radius:8px; border:1px solid #d1d5db; background-color:#f3f4f6; color:#6b7280; font-weight:600;"' : 'style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc;"'}
         >
@@ -890,6 +998,22 @@ function guardarDesdeInicio() {
         mostrarAvisoMemora('Debes ingresar el dato de contacto antes de guardar.', 'Error al cargar datos', 'error');
         return;
     }
+
+    const contenedor = $('contenedorCanalesExtraInicio');
+    const bloques = contenedor ? contenedor.querySelectorAll('.sub-canal-block') : [];
+    
+    let canal2 = '', contacto2 = '';
+    let canal3 = '', contacto3 = '';
+
+    if (bloques[0]) {
+        canal2 = bloques[0].querySelector('select')?.value || '';
+        contacto2 = bloques[0].querySelector('input')?.value.trim() || '';
+    }
+    if (bloques[1]) {
+        canal3 = bloques[1].querySelector('select')?.value || '';
+        contacto3 = bloques[1].querySelector('input')?.value.trim() || '';
+    }
+
     let textoUltimo = $('comentarioInicio')?.value.trim();
     if (textoUltimo) {
         comentariosTemporalesInicio.push({
@@ -904,6 +1028,10 @@ function guardarDesdeInicio() {
         nombre: $('nombreInicio')?.value.trim() || '',
         canal: $('canalInicio')?.value || 'WhatsApp',
         contacto: contacto,
+        canal2: canal2,
+        contacto2: contacto2,
+        canal3: canal3,
+        contacto3: contacto3,
         asunto: $('asuntoInicio')?.value.trim() || '',
         identificador: $('valorIdInicio')?.value.trim() || '',
         estado: $('estadoInicio')?.value || 'Consulta nueva',
@@ -918,23 +1046,26 @@ function guardarDesdeInicio() {
     }
     guardarLocal();
     sincronizarAutoNube(r);
-    limpiarInicio();
+    limpiarCamposFormularioInicio();
     render();
     mostrarAvisoMemora(editando ? 'Registro actualizado exitosamente.' : 'Registro guardado exitosamente.', 'MEMORA', 'check_circle');
 }
 
-function limpiarInicio() {
+function limpiarCamposFormularioInicio() {
     ['nombreInicio', 'contactoInicio', 'asuntoInicio', 'valorIdInicio', 'comentarioInicio'].forEach(id => {
         if ($(id)) $(id).value = '';
     });
     if ($('tipoIdInicio')) $('tipoIdInicio').value = 'Ninguno';
     if ($('canalInicio')) $('canalInicio').value = 'WhatsApp';
-         
+    
+    if ($('contenedorCanalesExtraInicio')) $('contenedorCanalesExtraInicio').innerHTML = '';
+
     editando = null;
     comentariosTemporalesInicio = [];
     renderComentariosTemporalesInicio();
     mostrarIdInicio();
     mostrarCanalInicio();
+
     if ($('contactoInicio')) {
         $('contactoInicio').removeAttribute('readonly');
         $('contactoInicio').style.backgroundColor = '#ffffff';
@@ -945,13 +1076,14 @@ function limpiarInicio() {
     if ($('tituloFormularioInicio')) {
         $('tituloFormularioInicio').innerText = 'Nuevo Registro / Carga Directa';
     }
+    
     if ($('contenedorBotonesInicio')) {
         $('contenedorBotonesInicio').innerHTML = `
             <button id="btnGuardarInicio" onclick="guardarDesdeInicio()" style="flex:2; background:var(--primary-blue); color:white; border:none; padding:14px; border-radius:10px; font-weight:700; cursor:pointer; font-size:0.95rem;">
                 Guardar Registro
             </button>
-            <button onclick="limpiarInicio()" style="flex:1; background:#E5E7EB; color:#374151; border:none; padding:14px; border-radius:10px; font-weight:600; cursor:pointer; font-size:0.95rem;">
-                Limpiar
+            <button type="button" onclick="limpiarCamposFormularioInicio()" style="flex:1; background:#FEE2E2; color:#DC2626; border:none; padding:14px; border-radius:10px; font-weight:600; cursor:pointer; font-size:0.9rem;">
+                Limpiar Campos
             </button>
         `;
     }
@@ -960,14 +1092,14 @@ function limpiarInicio() {
 function agregarComentarioFormulario() {
     let txt = $('comentario')?.value.trim();
     if (!txt) return;
-         
+    
     comentariosEdicionActual.push({
         texto: txt,
         fecha: fechaHoraTextoFormateada(),
         editado: null,
         eliminado: false
     });
-         
+    
     if ($('comentario')) $('comentario').value = '';
     renderListaComentariosEdicion();
 }
@@ -994,7 +1126,6 @@ function renderListaComentariosEdicion() {
     `).join('');
 }
 
-// RESTAURACIÓN DE HANDLERS FALTANTES PARA MÓVIL
 function editarComentarioTexto(index) {
     let c = comentariosEdicionActual[index];
     if (!c) return;
@@ -1019,7 +1150,7 @@ function borrarComentarioTexto(index) {
 function prepararNuevoRegistro() {
     if (window.innerWidth >= 800) {
         navegarA('inicio');
-        limpiarInicio();
+        limpiarCamposFormularioInicio();
         setTimeout(() => {
             $('nombreInicio')?.focus();
             $('focoFormularioInicio')?.scrollIntoView({ behavior: 'smooth' });
@@ -1036,7 +1167,7 @@ function guardar() {
         mostrarAvisoMemora('Debes ingresar el dato de contacto antes de guardar.', 'Error al cargar datos', 'error');
         return;
     }
-         
+    
     let viejo = registros.find(r => r.id === editando);
     let comentariosConsolidados = viejo ? [...(viejo.comentarios || [])] : [];
     comentariosEdicionActual.forEach(nuevoC => {
@@ -1064,9 +1195,6 @@ function guardar() {
     navegarA('registros');
 }
 
-/* ==========================================================================
-   FUNCIÓN EDITAR CORREGIDA Y PROTOCALIZADA
-   ========================================================================== */
 function editar(id) {
     let r = registros.find(x => x.id === id);
     if (!r) return;
@@ -1074,11 +1202,10 @@ function editar(id) {
     const esPC = window.innerWidth >= 800;
 
     if (esPC) {
-        // --- VISTA PC ---
         if ($('nombreInicio')) $('nombreInicio').value = r.nombre || '';
         if ($('canalInicio')) $('canalInicio').value = r.canal || 'WhatsApp';
         mostrarCanalInicio();
-                 
+
         if ($('contactoInicio')) {
             $('contactoInicio').value = r.contacto || '';
             $('contactoInicio').setAttribute('readonly', 'true');
@@ -1091,20 +1218,24 @@ function editar(id) {
                 <a href="#" onclick="activarEdicionContactoInicio(); return false;" style="font-size:0.75rem; color:var(--primary-blue); font-weight:600; text-decoration:none;">[ Cambiar dato ]</a>
             `;
         }
+
+        if ($('contenedorCanalesExtraInicio')) $('contenedorCanalesExtraInicio').innerHTML = '';
+        if (r.canal2 && r.contacto2) agregarCampoCanalExtraInicio(r.canal2, r.contacto2);
+        if (r.canal3 && r.contacto3) agregarCampoCanalExtraInicio(r.canal3, r.contacto3);
+
         if ($('asuntoInicio')) $('asuntoInicio').value = r.asunto || '';
         if ($('estadoInicio')) $('estadoInicio').value = r.estado || 'Consulta nueva';
-                 
-        if ($('tipoIdInicio')) $('tipoIdInicio').value = r.identificador ? (r.identificador.startsWith('RUT') ? 'RUT' : 'N° de Cliente') : 'Ninguno';
+        if ($('tipoIdInicio')) $('tipoIdInicio').value = r.identificador ? (r.identificador.startsWith('RUT') ? 'RUT' : 'Nº de Cliente') : 'Ninguno';
         mostrarIdInicio();
         if ($('valorIdInicio')) $('valorIdInicio').value = r.identificador || '';
+
         comentariosTemporalesInicio = JSON.parse(JSON.stringify(r.comentarios || []));
         renderComentariosTemporalesInicio();
-        
-        navegarA('inicio');
 
         if ($('tituloFormularioInicio')) {
-            $('tituloFormularioInicio').innerText = `✏️ Editando Registro: ${r.nombre || r.contacto}`;
+            $('tituloFormularioInicio').innerText = `Editando Registro: ${r.nombre || r.contacto}`;
         }
+
         let esArchivado = r.estado === 'Archivado';
         if ($('contenedorBotonesInicio')) {
             $('contenedorBotonesInicio').innerHTML = `
@@ -1117,31 +1248,26 @@ function editar(id) {
                 <button onclick="eliminar(${r.id})" style="flex:1; background:#FEE2E2; color:#DC2626; border:none; padding:14px; border-radius:10px; font-weight:600; cursor:pointer; font-size:0.9rem;">
                     Eliminar
                 </button>
-                <button onclick="limpiarInicio()" style="flex:1; background:#E5E7EB; color:#374151; border:none; padding:14px; border-radius:10px; font-weight:600; cursor:pointer; font-size:0.9rem;">
+                <button onclick="limpiarCamposFormularioInicio()" style="flex:1; background:#E5E7EB; color:#374151; border:none; padding:14px; border-radius:10px; font-weight:600; cursor:pointer; font-size:0.9rem;">
                     Cancelar
                 </button>
             `;
         }
-        setTimeout(() => {
-            $('focoFormularioInicio')?.scrollIntoView({ behavior: 'smooth' });
-            mostrarAvisoMemora(`Datos de "${r.nombre || r.contacto}" cargados en el formulario de Inicio para su edición.`, "MEMORA PC", "edit");
-        }, 150);
+
+        mostrarToastPC(`Datos cargados en Inicio. Ve a Inicio para modificar.`, "info");
+
     } else {
-        // --- VISTA MÓVIL ---
         if ($('nombre')) $('nombre').value = r.nombre || '';
         if ($('canal')) $('canal').value = r.canal || 'WhatsApp';
         mostrarCanal();
         if ($('contacto')) $('contacto').value = r.contacto || '';
         if ($('asunto')) $('asunto').value = r.asunto || '';
         if ($('estado')) $('estado').value = r.estado || 'Consulta nueva';
-        if ($('tipoId')) $('tipoId').value = r.identificador ? (r.identificador.startsWith('RUT') ? 'RUT' : 'N° de Cliente') : 'Ninguno';
+        if ($('tipoId')) $('tipoId').value = r.identificador ? (r.identificador.startsWith('RUT') ? 'RUT' : 'Nº de Cliente') : 'Ninguno';
         mostrarId();
         if ($('valorId')) $('valorId').value = r.identificador || '';
-                 
         comentariosEdicionActual = JSON.parse(JSON.stringify(r.comentarios || []));
         renderListaComentariosEdicion();
-        
-        // Cambio de sección forzado a la pestaña 'formulario'
         navegarA('formulario', 'Editar Cliente');
     }
 }
@@ -1158,6 +1284,7 @@ function abrirFicha(id) {
     let comentarios = r.comentarios || [];
     let ultimoComentario = comentarios.length > 0 ? comentarios[comentarios.length - 1] : null;
     let historialComentarios = comentarios.length > 1 ? comentarios.slice(0, comentarios.length - 1) : [];
+    
     let html = `
         <div class="card" style="padding: 20px 16px;">
             <div style="display: flex; align-items: center; gap: 16px;">
@@ -1165,17 +1292,24 @@ function abrirFicha(id) {
                 <div>
                     <h3 style="font-size: 1.1rem;">${tituloHTML}</h3>
                     <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px;">${r.canal} • ${r.contacto}</p>
+                    ${r.canal2 && r.contacto2 ? `<p style="font-size: 0.75rem; color: var(--text-secondary);">${r.canal2} • ${r.contacto2}</p>` : ''}
+                    ${r.canal3 && r.contacto3 ? `<p style="font-size: 0.75rem; color: var(--text-secondary);">${r.canal3} • ${r.contacto3}</p>` : ''}
                     ${r.asunto ? `<p style="font-size: 0.8rem; font-weight:600; color:var(--primary-blue); margin-top:2px;">Asunto: ${r.asunto}</p>` : ''}
                     ${r.identificador ? `<p style="font-size: 0.75rem; color: var(--text-secondary);">${obtenerTextoIdentificador(r)}</p>` : ''}
                     <div style="margin-top: 6px;"><span class="tag ${obtenerClaseEstado(r.estado)}">${r.estado}</span></div>
                 </div>
             </div>
         </div>
-        <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+        <div style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
             <button onclick="editar(${r.id})" style="flex: 1; background-color: var(--primary-blue); color: white; border: none; padding: 10px; border-radius: 10px; font-weight: 600; cursor:pointer;">Editar</button>
             <button onclick="archivarCliente(${r.id})" style="flex: 1; background-color: #E5E7EB; color: #374151; border: none; padding: 10px; border-radius: 10px; font-weight: 600; cursor:pointer;">${r.estado === 'Archivado' ? 'Desarchivar' : 'Archivar'}</button>
             <button onclick="eliminar(${r.id})" style="flex: 1; background-color: #FEE2E2; color: #DC2626; border: none; padding: 10px; border-radius: 10px; font-weight: 600; cursor:pointer;">Eliminar</button>
         </div>
+        <button onclick="editar(${r.id}); setTimeout(() => agregarCampoCanalExtraInicio(), 150);" style="width:100%; background:none; border:1px dashed var(--primary-blue); color:var(--primary-blue); padding:10px; border-radius:10px; font-weight:600; font-size:0.85rem; cursor:pointer; margin-bottom:16px; display:flex; align-items:center; justify-content:center; gap:6px;">
+            <span class="material-symbols-outlined" style="font-size:1.1rem;">add_circle</span>
+            <span>+ Añadir otro canal de contacto</span>
+        </button>
+
         <div class="section-header"><h3>Comentarios</h3></div>
         ${ultimoComentario ? `<div class="card" style="padding: 14px; margin-bottom: 12px; border-left: 4px solid var(--primary-blue);"><p style="font-size:0.9rem;">${ultimoComentario.texto}</p></div>` : '<p style="font-size:0.85rem; color:var(--text-secondary);">Sin comentarios.</p>'}
         ${historialComentarios.length > 0 ? historialComentarios.map(c => `<div class="card" style="padding:10px; margin-bottom:8px; background:#FAFAFA;"><p style="font-size:0.85rem;">${c.texto}</p></div>`).join('') : ''}
@@ -1193,11 +1327,12 @@ function exportarCSVFiltrado() {
     let filtroLimpio = estadoFiltro.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_');
     if (!filtroLimpio || filtroLimpio === 'Inicio' || filtroLimpio === 'Perfil') filtroLimpio = 'Todos';
     let nombreArchivo = `MEMORA_Reporte_Clientes_${filtroLimpio}.xlsx`;
+    
     function clasificarContacto(canal, contacto) {
         let val = (contacto || '').trim();
         if (!val) return { telefono: '-', usuario: '-', email: '-', otro: '-' };
         let cLower = (canal || '').toLowerCase();
-                 
+        
         if (cLower === 'whatsapp' || (/^[0-9+\s\-()]{7,}$/.test(val) && !val.includes('@'))) {
             return { telefono: val, usuario: '-', email: '-', otro: '-' };
         } else if (cLower === 'email' || (val.includes('@') && val.includes('.'))) {
@@ -1208,26 +1343,29 @@ function exportarCSVFiltrado() {
             return { telefono: '-', usuario: '-', email: '-', otro: val };
         }
     }
+    
     let filas = [[
-        'Doc / RUT / N° Cliente', 'Nombre del Cliente', 'Asunto / Motivo', 'Canal', 'Teléfono / WhatsApp',
-        'Usuario (@)', 'Correo Electrónico', 'Estado Actual', 'Último Comentario',
+        'Doc / RUT / Nº Cliente', 'Nombre del Cliente', 'Asunto / Motivo', 'Canal Principal', 'Teléfono / WhatsApp',
+        'Usuario (@)', 'Correo Electrónico', 'Canal 2', 'Contacto 2', 'Canal 3', 'Contacto 3', 'Estado Actual', 'Último Comentario',
         'Total Comentarios', 'Fecha de Registro'
     ]];
+    
     datosAExportar.forEach(r => {
         let comentariosActivos = (r.comentarios || []).filter(c => !c.eliminado);
         let ultimoCom = comentariosActivos.length > 0 
-             ? comentariosActivos[comentariosActivos.length - 1].texto.replace(/[\r\n]+/g, ' ') 
-             : 'Sin comentarios';
+            ? comentariosActivos[comentariosActivos.length - 1].texto.replace(/[\r\n]+/g, ' ') 
+            : 'Sin comentarios';
         let d = new Date(r.fecha);
         let fechaCreacionTexto = isNaN(d.getTime()) ? r.fecha : `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
         let clasif = clasificarContacto(r.canal, r.contacto);
-                 
+        
         filas.push([
             r.identificador || 'N/A', r.nombre || 'Sin registrar', r.asunto || 'Sin asunto', r.canal || 'Otro',
-            clasif.telefono, clasif.usuario, clasif.email, r.estado || 'Consulta nueva',
+            clasif.telefono, clasif.usuario, clasif.email, r.canal2 || '-', r.contacto2 || '-', r.canal3 || '-', r.contacto3 || '-', r.estado || 'Consulta nueva',
             ultimoCom, (r.comentarios || []).length, fechaCreacionTexto
         ]);
     });
+    
     if (typeof XLSX !== 'undefined') {
         let ws = XLSX.utils.aoa_to_sheet(filas);
         let colWidths = filas[0].map((col, colIdx) => {
@@ -1255,7 +1393,10 @@ function exportarPDFFiltrado() {
     let ventana = window.open('', '_blank');
     let contenido = `<html><head><title>Reporte MEMORA</title></head><body><h1>MEMORA - Reporte (${datosAExportar.length} Registros)</h1><p>Fecha: ${ahoraMemora().toLocaleString()}</p>`;
     datosAExportar.forEach(r => {
-        contenido += `<hr><b>${r.nombre || r.contacto}</b><br>Asunto: ${r.asunto || 'N/A'}<br>Contacto: ${r.canal} - ${r.contacto}<br>Estado: ${r.estado}<br>`;
+        contenido += `<hr><b>${r.nombre || r.contacto}</b><br>Asunto: ${r.asunto || 'N/A'}<br>Contacto Principal: ${r.canal} - ${r.contacto}<br>`;
+        if (r.canal2 && r.contacto2) contenido += `Canal 2: ${r.canal2} - ${r.contacto2}<br>`;
+        if (r.canal3 && r.contacto3) contenido += `Canal 3: ${r.canal3} - ${r.contacto3}<br>`;
+        contenido += `Estado: ${r.estado}<br>`;
         contenido += `Comentarios:<br>${(r.comentarios || []).map(c => `- ${c.texto}`).join('<br>')}<br>`;
     });
     contenido += '</body></html>';
@@ -1264,7 +1405,6 @@ function exportarPDFFiltrado() {
 }
 
 function exportarJSON() { descargar(JSON.stringify(registros, null, 2), 'memora.json', 'application/json'); }
-
 function descargar(c, n, t) {
     let a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([c], { type: t }));
@@ -1277,14 +1417,15 @@ async function cargarDiagnosticoSistema() {
     let dev = "Escritorio (PC/Mac)";
     if (/android/i.test(ua)) dev = "Android Mobile";
     else if (/iphone|ipad|ipod/i.test(ua)) dev = "iOS Mobile";
+    
     let nav = "Navegador Web";
     if (ua.includes("Brave") || (navigator.brave && await navigator.brave.isBrave())) nav = "Brave Browser";
     else if (ua.includes("Chrome")) nav = "Google Chrome";
     else if (ua.includes("Firefox")) nav = "Mozilla Firefox";
-         
+
     const storageBytes = new Blob([localStorage.getItem('memora_registros') || '']).size;
-         
-    if ($('sys-version')) $('sys-version').innerText = "v1.2.0-PC";
+
+    if ($('sys-version')) $('sys-version').innerText = "v1.3.0";
     if ($('sys-device')) $('sys-device').innerText = dev;
     if ($('sys-browser')) $('sys-browser').innerText = nav;
     if ($('sys-storage')) $('sys-storage').innerText = `${(storageBytes / 1024).toFixed(2)} KB`;
@@ -1296,19 +1437,23 @@ async function cargarDiagnosticoSistema() {
 function cargarDatosUsuarioPerfil() {
     const datosRaw = localStorage.getItem('memora_admin_user_data');
     const datos = datosRaw ? JSON.parse(datosRaw) : { rolAdmin: 'Usuario Administrador', nombreAdmin: '', cedulaAdmin: '', empresaAdmin: '', whatsappAdmin: '' };
-    if ($('saludo')) $('saludo').innerText = `👋 ¡Hola, ${datos.nombreAdmin ? datos.nombreAdmin.split(' ')[0] : 'Usuario'}!`;
+    
+    if ($('saludo')) $('saludo').innerText = `¡Hola, ${datos.nombreAdmin ? datos.nombreAdmin.split(' ')[0] : 'Usuario'}!`;
     if ($('perfilRolAdmin')) $('perfilRolAdmin').innerText = datos.rolAdmin || 'Usuario Administrador';
-         
+
     let htmlLista = '';
     if (datos.nombreAdmin) htmlLista += `<div class="perfil-campo-linea"><span class="perfil-label">Nombre:</span> <span class="perfil-valor">${datos.nombreAdmin}</span></div>`;
     if (datos.cedulaAdmin) htmlLista += `<div class="perfil-campo-linea"><span class="perfil-label">Documento / C.I.:</span> <span class="perfil-valor">${datos.cedulaAdmin}</span></div>`;
     if (datos.empresaAdmin) htmlLista += `<div class="perfil-campo-linea"><span class="perfil-label">Empresa:</span> <span class="perfil-valor">${datos.empresaAdmin}</span></div>`;
     if (datos.whatsappAdmin) htmlLista += `<div class="perfil-campo-linea"><span class="perfil-label">Contacto / WA:</span> <span class="perfil-valor">${datos.whatsappAdmin}</span></div>`;
+    
     if ($('perfilDatosLista')) $('perfilDatosLista').innerHTML = htmlLista || '<p style="font-size:0.8rem; color:var(--text-secondary);">Sin datos adicionales cargados.</p>';
-         
+
     const cfgSeg = obtenerConfigSeguimiento();
     if ($('cfgSegValor')) $('cfgSegValor').value = cfgSeg.valor;
     if ($('cfgSegUnidad')) $('cfgSegUnidad').value = cfgSeg.unidad;
+    
+    if ($('cfgModoCanales')) $('cfgModoCanales').value = obtenerConfigVisibilidadCanales();
 }
 
 function toggleModalConfigUser() {
@@ -1316,13 +1461,31 @@ function toggleModalConfigUser() {
     if (modal) modal.style.display = modal.style.display === 'none' ? 'block' : 'none';
 }
 
+function guardarDatosUsuarioAdmin() {
+    const datos = {
+        rolAdmin: $('cfgAdminRol')?.value.trim() || 'Usuario Administrador',
+        nombreAdmin: $('cfgAdminNombre')?.value.trim() || '',
+        cedulaAdmin: $('cfgAdminCedula')?.value.trim() || '',
+        empresaAdmin: $('cfgAdminEmpresa')?.value.trim() || '',
+        whatsappAdmin: $('cfgAdminWhatsapp')?.value.trim() || ''
+    };
+    if (!datos.nombreAdmin) {
+        mostrarAvisoMemora("El nombre es requerido.", "Configuración", "warning");
+        return;
+    }
+    localStorage.setItem('memora_admin_user_data', JSON.stringify(datos));
+    toggleModalConfigUser();
+    cargarDatosUsuarioPerfil();
+    mostrarAvisoMemora("Datos de perfil guardados.", "Configuración", "check_circle");
+}
+
 function eliminar(id) {
     mostrarConfirmMemora("¿Es seguro de eliminar este registro permanentemente?", "Eliminar Cliente", "delete", "#DC2626", (confirmado) => {
         if (confirmado) {
             registros = registros.filter(x => x.id !== id);
             guardarLocal();
-            limpiarInicio();
-            navegarA('registros');
+            limpiarCamposFormularioInicio();
+            render();
         }
     });
 }
@@ -1333,8 +1496,8 @@ function archivarCliente(id) {
     r.estado = r.estado === 'Archivado' ? 'Consulta nueva' : 'Archivado';
     r.ultimaModificacion = ahoraMemora().toISOString();
     guardarLocal();
-    limpiarInicio();
-    navegarA('registros');
+    limpiarCamposFormularioInicio();
+    render();
 }
 
 function alternarVistaArchivados() {
@@ -1373,6 +1536,8 @@ function actualizarMetricsInicio() {
     let conteoCanales = {};
     registros.forEach(r => {
         if (r.canal) conteoCanales[r.canal] = (conteoCanales[r.canal] || 0) + 1;
+        if (r.canal2) conteoCanales[r.canal2] = (conteoCanales[r.canal2] || 0) + 1;
+        if (r.canal3) conteoCanales[r.canal3] = (conteoCanales[r.canal3] || 0) + 1;
     });
     let topCanal = '-';
     let max = 0;
@@ -1443,6 +1608,8 @@ function cargarModoDemoSiAplica() {
                     nombre: "Carlos López",
                     canal: "WhatsApp",
                     contacto: "099123456",
+                    canal2: "Instagram",
+                    contacto2: "@carloslopez_uy",
                     asunto: "Consulta por kit de cámaras",
                     identificador: "RUT 219998880011",
                     estado: "Esperando cliente",
@@ -1455,8 +1622,10 @@ function cargarModoDemoSiAplica() {
                     nombre: "Mariana Gómez",
                     canal: "Instagram",
                     contacto: "@marianag_design",
+                    canal2: "Email",
+                    contacto2: "mariana@design.com",
                     asunto: "Diseño de renders 3D",
-                    identificador: "N° Cliente 452",
+                    identificador: "Nº Cliente 452",
                     estado: "Cerrado",
                     comentarios: [{ texto: "Pago recibido correctamente.", fecha: "02/09/2026 16:15", editado: null, eliminado: false }],
                     fecha: new Date().toISOString(),
@@ -1483,13 +1652,12 @@ function mostrarBannerDemoSuperior() {
     banner.style.cssText = 'background:#004F87; color:white; text-align:center; padding:8px 12px; font-size:0.8rem; font-weight:600; position:sticky; top:0; z-index:999; display:flex; justify-content:space-between; align-items:center; box-shadow: 0 2px 8px rgba(0,0,0,0.2);';
     
     banner.innerHTML = `
-        <span>⚡ Estás probando el Modo Demo Sandbox</span>
+        <span>🧪 Estás probando el Modo Demo Sandbox</span>
         <button type="button" id="btnIrALandingDemo" style="background:#18a957; color:white; padding:5px 12px; border-radius:6px; border:none; text-decoration:none; font-size:0.75rem; font-weight:700; cursor:pointer;">
             Solicitar Licencia
         </button>
     `;
     document.body.prepend(banner);
-
     document.getElementById('btnIrALandingDemo').addEventListener('click', function(e) {
         e.preventDefault();
         window.top.location.href = "https://memora-landing-two.vercel.app/";
