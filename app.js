@@ -298,6 +298,20 @@ function guardarConfigSeguimiento() {
     render();
 }
 
+function formatearTiempoAtraso(horasTotales) {
+    let hs = Math.floor(horasTotales);
+    if (hs < 24) {
+        return `${hs} hs de atraso`;
+    }
+    let dias = Math.floor(hs / 24);
+    let hsRestantes = hs % 24;
+    
+    if (hsRestantes === 0) {
+        return `${dias} día(s) de atraso`;
+    }
+    return `${dias} día(s) y ${hsRestantes} hs de atraso`;
+}
+
 function actualizarSeguimiento() {
     let ahora = ahoraMemora();
     let config = obtenerConfigSeguimiento();
@@ -312,28 +326,37 @@ function actualizarSeguimiento() {
         let horasTranscurridas = (ahora - new Date(r.ultimaModificacion || r.fecha)) / (1000 * 60 * 60);
         return horasTranscurridas >= horasLimite && r.estado !== "Cerrado" && r.estado !== "Perdido" && r.estado !== "Archivado";
     });
+
     if ($('contadorSeguimiento')) $('contadorSeguimiento').innerText = lista.length;
+
     if ($('contenedorSeguimiento')) {
         const esPC = window.innerWidth >= 800;
         $('contenedorSeguimiento').innerHTML = lista.map(r => {
             let horasTranscurridas = (ahora - new Date(r.ultimaModificacion || r.fecha)) / (1000 * 60 * 60);
-            let diasAtraso = Math.floor(horasTranscurridas / 24);
-            let textoAtraso = config.unidad === 'horas' ? `${Math.floor(horasTranscurridas)} hs de atraso` : `${diasAtraso} día(s) de atraso`;
+            let textoAtraso = formatearTiempoAtraso(horasTranscurridas);
             
+            // Semaforización elegante vía Chip (sin romper el fondo blanco)
+            let esUrgenciaCritica = horasTranscurridas >= (horasLimite * 2);
+            let colorChipBg = esUrgenciaCritica ? '#FEE2E2' : '#FEF3C7';
+            let colorChipText = esUrgenciaCritica ? '#991B1B' : '#92400E';
+
             let dCreacion = new Date(r.fecha);
             let dModif = new Date(r.ultimaModificacion || r.fecha);
             
             let fechaCreacionTexto = !isNaN(dCreacion.getTime()) 
-                ? `${String(dCreacion.getDate()).padStart(2, '0')}/${String(dCreacion.getMonth() + 1).padStart(2, '0')}/${dCreacion.getFullYear()}` 
+                ? `${String(dCreacion.getDate()).padStart(2, '0')}/${String(dCreacion.getMonth() + 1).padStart(2, '0')}/${dCreacion.getFullYear()} ${String(dCreacion.getHours()).padStart(2, '0')}:${String(dCreacion.getMinutes()).padStart(2, '0')}` 
                 : r.fecha;
+
             let fechaRevisionTexto = !isNaN(dModif.getTime()) 
-                ? `${String(dModif.getDate()).padStart(2, '0')}/${String(dModif.getMonth() + 1).padStart(2, '0')}/${dModif.getFullYear()}` 
+                ? `${String(dModif.getDate()).padStart(2, '0')}/${String(dModif.getMonth() + 1).padStart(2, '0')}/${dModif.getFullYear()} ${String(dModif.getHours()).padStart(2, '0')}:${String(dModif.getMinutes()).padStart(2, '0')}` 
                 : '-';
+
             let { avatarHTML, tituloHTML } = obtenerAvatarEIdentidad(r);
             let btnCanal = obtenerBotonAccionCanal(r);
             let accionClick = esPC ? `editar(${r.id})` : `abrirFicha(${r.id})`;
+
             return `
-            <div class="card client-card" onclick="${accionClick}" style="cursor:pointer;">
+            <div class="card client-card" onclick="${accionClick}" style="cursor:pointer; background:#ffffff;">
                 <div class="client-info">
                     <div class="avatar avatar-blue">${avatarHTML}</div>
                     <div class="client-details">
@@ -343,12 +366,16 @@ function actualizarSeguimiento() {
                 </div>
                 <div>${r.asunto ? `<span style="font-size:0.8rem; font-weight:600; color:var(--primary-blue);">Asunto: ${r.asunto}</span>` : '-'}</div>
                 <div class="tag-row"><span class="tag ${obtenerClaseEstado(r.estado)}">${r.estado}</span></div>
-                <div style="font-size:0.75rem;">
-                    <span style="color:var(--text-secondary);">Creado: <strong>${fechaCreacionTexto}</strong></span><br>
-                    <span style="color:gray;">Última rev: ${fechaRevisionTexto}</span><br>
-                    <strong style="color:#C2410C;">${textoAtraso}</strong><br>
+                <div style="font-size:0.72rem; color:var(--text-secondary); line-height: 1.5;">
+                    <span>Creado: <strong>${fechaCreacionTexto}</strong></span><br>
+                    <span>Última rev: <strong>${fechaRevisionTexto}</strong></span>
                 </div>
-                <div style="display:flex; gap:6px; align-items:center; margin-top:8px;">
+                <div style="margin-top: 6px;">
+                    <span style="display:inline-block; background:${colorChipBg}; color:${colorChipText}; font-size:0.72rem; font-weight:700; padding:3px 8px; border-radius:6px;">
+                        ⚠️ ${textoAtraso}
+                    </span>
+                </div>
+                <div style="display:flex; gap:6px; align-items:center; margin-top:10px;">
                     ${btnCanal}
                     <button class="btn-action-edit" onclick="event.stopPropagation(); editar(${r.id});">Editar</button>
                 </div>
@@ -356,6 +383,8 @@ function actualizarSeguimiento() {
         }).join('') || '<p style="font-size:0.8rem; color:var(--text-secondary);">Sin seguimientos pendientes.</p>';
     }
 }
+
+
 
 /* ==========================================================================
    4. BÚSQUEDA PREDICTIVA UNIFICADA
