@@ -417,12 +417,23 @@ document.addEventListener('click', (e) => {
 function iniciarRelojHeader() {
     function actualizar() {
         const d = ahoraMemora();
-        const diasSemana = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-        if ($('relojHeader')) $('relojHeader').innerText = `${diasSemana[d.getDay()]} ${d.getDate()}/${d.getMonth() + 1} • ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
+        const diasSemana = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+        
+        const diaNombre = diasSemana[d.getDay()];
+        const diaNum = String(d.getDate()).padStart(2, '0');
+        const mesNum = String(d.getMonth() + 1).padStart(2, '0');
+        const anioDosDigitos = String(d.getFullYear()).slice(-2);
+        
+        const fechaTexto = `${diaNombre} ${diaNum}/${mesNum}/${anioDosDigitos}`;
+        const horaTexto = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+
+        if ($('relojHeader')) $('relojHeader').innerText = `${fechaTexto} • ${horaTexto}`;
     }
     actualizar();
     setInterval(actualizar, 1000);
 }
+
+
 
 function navegarA(pantalla, customTitle = null) {
     document.querySelectorAll('.app-section').forEach(sec => sec.style.display = 'none');
@@ -669,8 +680,8 @@ function tarjetaEstetica(r) {
         : r.fecha;
         
     let fechaRevisionTexto = !isNaN(dModif.getTime()) 
-        ? `${String(dModif.getDate()).padStart(2, '0')}/${String(dModif.getMonth() + 1).padStart(2, '0')}/${dModif.getFullYear()}` 
-        : '-';
+    ? `${String(dModif.getDate()).padStart(2, '0')}/${String(dModif.getMonth() + 1).padStart(2, '0')}/${dModif.getFullYear()} ${String(dModif.getHours()).padStart(2, '0')}:${String(dModif.getMinutes()).padStart(2, '0')}` 
+    : '-';
 
     const { avatarHTML, tituloHTML } = obtenerAvatarEIdentidad(r);
     const btnCanal = obtenerBotonAccionCanal(r);
@@ -705,10 +716,11 @@ function tarjetaEstetica(r) {
         
         <div class="tag-row"><span class="tag ${obtenerClaseEstado(r.estado)}">${r.estado}</span></div>
         
-        <div class="time-ago">
-            <span style="font-size:0.72rem; color:var(--text-secondary);">Creado: <strong>${fechaCreacionTexto}</strong></span><br>
-            <span style="font-size:0.68rem; color:gray;">Última rev: ${fechaRevisionTexto}</span>
-        </div>
+     <div class="time-ago">
+    <span style="font-size:0.72rem; color:var(--text-secondary);">Creado: <strong>${fechaCreacionTexto}</strong></span><br>
+    <span style="font-size:0.72rem; color:var(--text-secondary);">Última rev: <strong>${fechaRevisionTexto}</strong></span>
+</div>
+
         
         <div style="display:flex; gap:6px; align-items:center; margin-top:8px;">
             ${botonesAccionDerecha}
