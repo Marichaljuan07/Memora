@@ -1402,12 +1402,11 @@ function abrirFicha(id) {
     }
     let r = registros.find(x => x.id === id);
     if (!r) return;
-
     let { avatarHTML, tituloHTML } = obtenerAvatarEIdentidad(r);
     let comentarios = r.comentarios || [];
     let ultimoComentario = comentarios.length > 0 ? comentarios[comentarios.length - 1] : null;
     let historialComentarios = comentarios.length > 1 ? comentarios.slice(0, comentarios.length - 1) : [];
-    
+        
     let html = `
         <div class="card" style="padding: 20px 16px;">
             <div style="display: flex; align-items: center; gap: 16px;">
@@ -1423,22 +1422,20 @@ function abrirFicha(id) {
                 </div>
             </div>
         </div>
-        <div style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
-            <button onclick="editar(${r.id})" style="flex: 1; background-color: var(--primary-blue); color: white; border: none; padding: 10px; border-radius: 10px; font-weight: 600; cursor:pointer;">Editar</button>
-            <button onclick="archivarCliente(${r.id})" style="flex: 1; background-color: #E5E7EB; color: #374151; border: none; padding: 10px; border-radius: 10px; font-weight: 600; cursor:pointer;">${r.estado === 'Archivado' ? 'Desarchivar' : 'Archivar'}</button>
-            <button onclick="eliminar(${r.id})" style="flex: 1; background-color: #FEE2E2; color: #DC2626; border: none; padding: 10px; border-radius: 10px; font-weight: 600; cursor:pointer;">Eliminar</button>
+        <div style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
+            <button onclick="editar(${r.id})" style="flex: 1; background-color: var(--primary-blue); color: white; border: none; padding: 12px; border-radius: 10px; font-weight: 600; cursor:pointer;">Editar</button>
+            <button onclick="archivarCliente(${r.id})" style="flex: 1; background-color: #E5E7EB; color: #374151; border: none; padding: 12px; border-radius: 10px; font-weight: 600; cursor:pointer;">${r.estado === 'Archivado' ? 'Desarchivar' : 'Archivar'}</button>
+            <button onclick="eliminar(${r.id})" style="flex: 1; background-color: #FEE2E2; color: #DC2626; border: none; padding: 12px; border-radius: 10px; font-weight: 600; cursor:pointer;">Eliminar</button>
         </div>
-        <button onclick="editar(${r.id}); setTimeout(() => agregarCampoCanalExtraMovil(), 150);" style="width:100%; background:none; border:1px dashed var(--primary-blue); color:var(--primary-blue); padding:10px; border-radius:10px; font-weight:600; font-size:0.85rem; cursor:pointer; margin-bottom:16px; display:flex; align-items:center; justify-content:center; gap:6px;">
-            <span class="material-symbols-outlined" style="font-size:1.1rem;">add_circle</span>
-            <span>+ Añadir otro canal de contacto</span>
-        </button>
+        
         <div class="section-header"><h3>Comentarios</h3></div>
-        ${ultimoComentario ? `<div class="card" style="padding: 14px; margin-bottom: 12px; border-left: 4px solid var(--primary-blue);"><p style="font-size:0.9rem;">${ultimoComentario.texto}</p></div>` : '<p style="font-size:0.85rem; color:var(--text-secondary);">Sin comentarios.</p>'}
+        ${ultimoComentario ? `<div class="card" style="padding: 14px; margin-bottom: 12px; border-left: 4px solid var(--primary-blue);"><p style="font-size:0.9rem;">${ultimoComentario.texto}</p></div>` : '<p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom: 16px;">Sin comentarios.</p>'}
         ${historialComentarios.length > 0 ? historialComentarios.map(c => `<div class="card" style="padding:10px; margin-bottom:8px; background:#FAFAFA;"><p style="font-size:0.85rem;">${c.texto}</p></div>`).join('') : ''}
     `;
     $('contenidoFicha').innerHTML = html;
     navegarA('ficha');
 }
+
 
 /* ==========================================================================
    8. EXPORTACIÓN, MÉTRICAS Y AUXILIARES
@@ -1604,13 +1601,24 @@ function guardarDatosUsuarioAdmin() {
 function eliminar(id) {
     mostrarConfirmMemora("¿Es seguro de eliminar este registro permanentemente?", "Eliminar Cliente", "delete", "#DC2626", (confirmado) => {
         if (confirmado) {
+            // 1. Filtrar y eliminar de la memoria
             registros = registros.filter(x => x.id !== id);
             guardarLocal();
+            
+            // 2. Limpiar estados y formularios activos
+            limpiar();
             limpiarCamposFormularioInicio();
+            
+            // 3. Renderizar y redirigir inmediatamente a Registros
             render();
+            navegarA('registros');
+            
+            // 4. Feedback visual de confirmación
+            mostrarAvisoMemora("El registro ha sido eliminado correctamente.", "MEMORA", "delete");
         }
     });
 }
+
 
 function archivarCliente(id) {
     let r = registros.find(x => x.id === id);
