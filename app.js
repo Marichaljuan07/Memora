@@ -1638,15 +1638,36 @@ function alternarVistaArchivados() {
 
 function guardarLocal() { localStorage.setItem('memora_registros', JSON.stringify(registros)); }
 
+// 1. Limpia las variables de edición y fuerza el estado base a "Consulta nueva"
 function limpiar() {
-    ['nombre', 'contacto', 'asunto', 'valorId', 'comentario'].forEach(x => { if ($(x)) $(x).value = ''; });
-    if ($('contenedorCanalesExtraMovil')) $('contenedorCanalesExtraMovil').innerHTML = '';
-    if ($('formTitulo')) $('formTitulo').innerText = "Nuevo Registro";
     editando = null;
-    comentariosEdicionActual = [];
-    renderListaComentariosEdicion();
-    mostrarCanal();
+
+    if ($('nombre')) $('nombre').value = '';
+    if ($('contacto')) $('contacto').value = '';
+    if ($('asunto')) $('asunto').value = '';
+    if ($('canal')) $('canal').value = 'WhatsApp';
+    
+    // Forzar el estado por defecto
+    if ($('estado')) $('estado').value = 'Consulta nueva';
+
+    // Limpiar campos de canales secundarios si existen
+    if ($('canal2')) $('canal2').value = '';
+    if ($('contacto2')) $('contacto2').value = '';
+    if ($('canal3')) $('canal3').value = '';
+    if ($('contacto3')) $('contacto3').value = '';
 }
+
+// 2. Limpia el formulario rápido de la pantalla de Inicio y resetea el selector de estado
+function limpiarCamposFormularioInicio() {
+    if ($('nombreInicio')) $('nombreInicio').value = '';
+    if ($('contactoInicio')) $('contactoInicio').value = '';
+    if ($('asuntoInicio')) $('asuntoInicio').value = '';
+    if ($('canalInicio')) $('canalInicio').value = 'WhatsApp';
+    
+    // Forzar siempre 'Consulta nueva' para el siguiente cliente
+    if ($('estadoInicio')) $('estadoInicio').value = 'Consulta nueva';
+}
+
 
 function actualizarKPIs() {
     if ($('kpi-consulta')) $('kpi-consulta').innerText = registros.filter(r => r.estado === 'Consulta nueva').length;
