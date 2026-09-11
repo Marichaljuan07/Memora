@@ -1124,6 +1124,29 @@ function eliminarComentarioTemporalInicio(index) {
     });
 }
 
+/* ==========================================================================
+   VALIDACIÓN PREVIA AL GUARDADO
+   ========================================================================== */
+function validarFormularioAntesDeGuardar(sufijo = '') {
+    const contactoEl = $(`contacto${sufijo}`);
+    if (!contactoEl) return true;
+    
+    const valor = contactoEl.value.trim();
+    if (!valor) {
+        mostrarErrorCampo(contactoEl.id, `err_${contactoEl.id}`, "El campo de contacto no puede quedar vacío.", true);
+        return false;
+    }
+    
+    // Verificar si hay algún mensaje de error visible activado por la validación en tiempo real
+    const msgError = $(`err_${contactoEl.id}`);
+    if (msgError && msgError.style.display === 'block') {
+        return false;
+    }
+    
+    return true;
+}
+
+
 function guardarDesdeInicio() {
     // CANDADO DE SEGURIDAD: Usa el sufijo 'Inicio' para los inputs de PC
     if (!validarFormularioAntesDeGuardar('Inicio')) {
