@@ -1794,9 +1794,16 @@ function forzarLimpiezaCachePWA() {
     }
 }
 
+/* ==========================================================================
+   MODO DEMO SANDBOX (INYECCIÓN AUTOMÁTICA POR SUBDOMINIO)
+   ========================================================================== */
 function cargarModoDemoSiAplica() {
     const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('demo') === 'true') {
+    const esSubdominioDemo = window.location.hostname === 'demo.memoraapp.net';
+    const tieneParametroDemo = urlParams.get('demo') === 'true';
+
+    // Activa la demo si entra a demo.memoraapp.net/ O si trae ?demo=true
+    if (esSubdominioDemo || tieneParametroDemo) {
         const datosLocales = localStorage.getItem('memora_registros');
         if (!datosLocales || JSON.parse(datosLocales).length === 0) {
             const registrosDemo = [
@@ -1842,6 +1849,7 @@ function cargarModoDemoSiAplica() {
     }
 }
 
+
 function mostrarBannerDemoSuperior() {
     if (document.getElementById('bannerModoDemo')) return;
     const banner = document.createElement('div');
@@ -1857,7 +1865,7 @@ function mostrarBannerDemoSuperior() {
     document.body.prepend(banner);
     document.getElementById('btnIrALandingDemo').addEventListener('click', function(e) {
         e.preventDefault();
-        window.top.location.href = "https://memora-landing-two.vercel.app/";
+        window.top.location.href = "https://memoraapp.net/";
     });
 }
 
@@ -1966,46 +1974,6 @@ function validarCampoEnTiempoReal(sufijo = '') {
     }
 }
 
-/* ==========================================================================
-   CANDADO DE VALIDACIÓN AL PRESIONAR EL BOTÓN GUARDAR
-   ========================================================================== */
-function validarFormularioAntesDeGuardar(sufijo = '') {
-    const nombreVal = $(`nombre${sufijo}`)?.value.trim() || '';
-    const contactoVal = $(`contacto${sufijo}`)?.value.trim() || '';
-    const canalVal = $(`canal${sufijo}`)?.value || 'WhatsApp';
-    const asuntoVal = $(`asunto${sufijo}`)?.value.trim() || '';
-
-    let hayError = false;
-
-    // Check 1: Contacto (OBLIGATORIO)
-    if (!contactoVal) {
-        mostrarErrorCampo(`contacto${sufijo}`, `err_contacto${sufijo}`, "El dato de contacto es obligatorio para guardar.", true);
-        hayError = true;
-    } else if (canalVal === 'WhatsApp' && (contactoVal.replace(/\D/g, '').length < 8 || /[a-zA-Z]/.test(contactoVal))) {
-        mostrarErrorCampo(`contacto${sufijo}`, `err_contacto${sufijo}`, "Ingrese un número de celular válido (mínimo 8 dígitos).", true);
-        hayError = true;
-    } else if (canalVal === 'Email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactoVal)) {
-        mostrarErrorCampo(`contacto${sufijo}`, `err_contacto${sufijo}`, "Ingrese un correo electrónico válido.", true);
-        hayError = true;
-    } else if (['Instagram', 'Telegram', 'LinkedIn', 'Facebook'].includes(canalVal) && contactoVal.replace('@', '').length < 3) {
-        mostrarErrorCampo(`contacto${sufijo}`, `err_contacto${sufijo}`, "Ingrese un usuario válido (mínimo 3 caracteres).", true);
-        hayError = true;
-    }
-
-    // Check 2: Nombre Completo (Si lo completó, debe ser un nombre real)
-    if (nombreVal.length > 0 && (nombreVal.length < 3 || /[0-9]/.test(nombreVal))) {
-        mostrarErrorCampo(`nombre${sufijo}`, `err_nombre${sufijo}`, "Ingrese un nombre real (mínimo 3 letras, sin números).", true);
-        hayError = true;
-    }
-
-    // Check 3: Asunto (Si lo completó, exige mínimo 3 caracteres)
-    if (asuntoVal.length > 0 && asuntoVal.length < 3) {
-        mostrarErrorCampo(`asunto${sufijo}`, `err_asunto${sufijo}`, "Describe un asunto válido (mínimo 3 caracteres).", true);
-        hayError = true;
-    }
-
-    return !hayError; // Si devuelve false, frena el guardado
-}
 
 
 /* Inicialización del sistema con EventListeners en tiempo real */
