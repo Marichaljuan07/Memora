@@ -698,6 +698,9 @@ function obtenerBotonAccionCanal(r) {
     return `<div class="channel-buttons-group" style="display:flex; gap:4px; align-items:center;">${HTMLBotones.join('')}</div>`;
 }
 
+/* ==========================================================================
+   TARJETA ESTÉTICA PRINCIPAL (Maqueta Exacta Foto: Canales Izq / Fechas Der)
+   ========================================================================== */
 function tarjetaEstetica(r) {
     const dCreacion = new Date(r.fecha);
     const dModif = new Date(r.ultimaModificacion || r.fecha);
@@ -718,13 +721,10 @@ function tarjetaEstetica(r) {
     let ultimoComentario = comentariosActivos.length > 0 ? comentariosActivos[comentariosActivos.length - 1].texto : null;
     let esArchivado = r.estado === 'Archivado';
 
-    let botonesAccionDerecha = esArchivado ? `
+    let contenidoBotonera = esArchivado ? `
         <button class="btn-action-edit" style="background:#E5E7EB; color:#374151;" onclick="event.stopPropagation(); archivarCliente(${r.id});">Desarchivar</button>
         <button class="btn-action-edit" style="background:#FEE2E2; color:#DC2626;" onclick="event.stopPropagation(); eliminar(${r.id});">Eliminar</button>
-    ` : `
-        ${btnCanal}
-        <button class="btn-action-edit" onclick="event.stopPropagation(); editar(${r.id});">Editar</button>
-    `;
+    ` : `${btnCanal}`;
 
     return `
     <div class="card client-card" style="cursor:pointer;" onclick="abrirFicha(${r.id})">
@@ -737,22 +737,25 @@ function tarjetaEstetica(r) {
         </div>
         
         <div>
-            ${r.asunto ? `<div style="font-size: 0.8rem; font-weight:600; color:var(--primary-blue);">Asunto: ${r.asunto}</div>` : '<span style="color:gray; font-size:0.75rem;">Sin asunto</span>'}
-            ${ultimoComentario ? `<div style="font-size: 0.73rem; color:#4B5563; margin-top:3px; background:#F3F4F6; padding:4px 8px; border-radius:6px; display:inline-block; max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Último comentario: ${ultimoComentario}</div>` : ''}
+            ${r.asunto ? `<div style="font-size: 0.8rem; font-weight:600; color:var(--primary-blue);">Asunto: ${r.asunto}</div>` : ''}
+            ${ultimoComentario ? `<div style="font-size: 0.73rem; color:#4B5563; margin-top:3px; background:#F3F4F6; padding:3px 6px; border-radius:6px; display:inline-block; max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Último comentario: ${ultimoComentario}</div>` : ''}
         </div>
         
         <div class="tag-row"><span class="tag ${obtenerClaseEstado(r.estado)}">${r.estado}</span></div>
         
-        <div class="time-ago">
-            <span style="font-size:0.72rem; color:var(--text-secondary);">Creado: <strong>${fechaCreacionTexto}</strong></span><br>
-            <span style="font-size:0.72rem; color:var(--text-secondary);">Última rev: <strong>${fechaRevisionTexto}</strong></span>
-        </div>
-        
-        <div style="display:flex; gap:6px; align-items:center; margin-top:8px;">
-            ${botonesAccionDerecha}
+        <!-- ESTRUCTURA EXACTA DE LA FOTO -->
+        <div class="card-footer-row" style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:6px;">
+            <div class="channel-action-area" style="display:flex; gap:6px; align-items:center;">
+                ${contenidoBotonera}
+            </div>
+            <div class="time-ago" style="font-size:0.72rem; color:var(--text-secondary); text-align:right; line-height:1.2;">
+                <span>Creado: <strong>${fechaCreacionTexto}</strong></span><br>
+                <span>Última rev: <strong>${fechaRevisionTexto}</strong></span>
+            </div>
         </div>
     </div>`;
 }
+
 
 function render() {
     procesarAutoArchivado();
