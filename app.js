@@ -1,5 +1,5 @@
 /* ==========================================================================
-   MEMORA CRM - CORE LOGIC (v1.4.0)
+   MEMORA CRM - CORE LOGIC (v1.4.0 - Build 0.4)
    ========================================================================== */
 const estados = [
     "Consulta nueva",
@@ -10,6 +10,8 @@ const estados = [
     "Perdido",
     "Archivado"
 ];
+
+const CANALES_DISPONIBLES = ["WhatsApp", "Instagram", "Email", "LinkedIn", "Facebook", "Telegram"];
 
 let registros = JSON.parse(localStorage.getItem('memora_registros') || '[]');
 let editando = null;
@@ -37,6 +39,10 @@ function fechaHoraTextoFormateada(d = ahoraMemora()) {
     return `${dia}/${mes}/${anio} ${hora}:${min}`;
 }
 
+function obtenerUltimaRevisionEfectiva(r) {
+    return r.ultimaRevision || r.ultimaModificacion || r.fecha;
+}
+
 /* ==========================================================================
    1. SISTEMA DE MODALES Y ALERTAS VISUALES
    ========================================================================== */
@@ -56,7 +62,7 @@ function mostrarAvisoMemora(mensaje, titulo = "MEMORA", icono = "check_circle", 
     } else {
         if ($('avisoMemoraIcono')) $('avisoMemoraIcono').style.color = '#004F87';
     }
-    
+
     callbackAvisoGlobal = callback;
     if ($('modalAvisoMemora')) $('modalAvisoMemora').style.display = 'flex';
 }
@@ -90,7 +96,7 @@ function cerrarBannerAviso() {
     if (banner) banner.style.display = 'none';
 }
 
-function mostrarConfirmMemora(mensaje, titulo = "¿Es seguro?", icono = "help_outline", colorBoton = "#DC2626", callback = null) {
+function mostrarConfirmMemora(mensaje, titulo = "¿Estás seguro?", icono = "help_outline", colorBoton = "#DC2626", callback = null) {
     if ($('confirmMemoraTexto')) $('confirmMemoraTexto').innerText = mensaje;
     if ($('confirmMemoraTitulo')) $('confirmMemoraTitulo').innerText = titulo;
     if ($('confirmMemoraIcono')) $('confirmMemoraIcono').innerText = icono;
@@ -185,18 +191,18 @@ async function subirRespaldoADrive() {
     try {
         const datosBackup = JSON.stringify(registros, null, 2);
         const searchUrl = "https://www.googleapis.com/drive/v3/files?q=name%3D%27memora_backup.json%27%20and%20trashed%3Dfalse";
-                
+                        
         const searchResp = await fetch(searchUrl, {
             headers: { 'Authorization': `Bearer ${googleAccessToken}` }
         });
-                
+                        
         if (searchResp.status === 401) {
             if (tokenClient) tokenClient.requestAccessToken({ prompt: '' });
             return;
         }
         const searchData = await searchResp.json();
         let fileId = (searchData.files && searchData.files.length > 0) ? searchData.files[0].id : null;
-                
+                        
         if (fileId) {
             await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
                 method: 'PATCH',
@@ -279,7 +285,7 @@ function sincronizarAutoNube(r) {
 }
 
 /* ==========================================================================
-   3. SEGUIMIENTO PERSONALIZADO Y CONFIGURACIONES
+   3. SEGUIMIENTO PERSONALIZADO Y REVISIÓN (v1.4.0)
    ========================================================================== */
 function obtenerConfigSeguimiento() {
     const valor = parseInt(localStorage.getItem('memora_seg_valor') || '3');
@@ -296,7 +302,6 @@ function guardarConfigSeguimiento() {
     render();
 }
 
-/* Formateo de tiempo de atraso con icono de advertencia ⚠️ */
 function formatearTiempoAtraso(horasTotales) {
     let hs = Math.floor(horasTotales);
     if (hs < 24) {
@@ -311,6 +316,18 @@ function formatearTiempoAtraso(horasTotales) {
     return `⚠️ ${dias} día(s) y ${hsRestantes} hs de atraso`;
 }
 
+function marcarComoRevisado(id, event = null) {
+    if (event) event.stopPropagation();
+    let r = registros.find(x => x.id === id);
+    if (!r) return;
+
+    r.ultimaRevision = ahoraMemora().toISOString();
+    guardarLocal();
+    sincronizarAutoNube(r);
+    render();
+    mostrarAvisoMemora("Seguimiento actualizado. Registro marcado como revisado.", "Revisión", "check_circle");
+}
+
 function actualizarSeguimiento() {
     let ahora = ahoraMemora();
     let config = obtenerConfigSeguimiento();
@@ -322,7 +339,8 @@ function actualizarSeguimiento() {
     }
     
     let lista = registros.filter(r => {
-        let horasTranscurridas = (ahora - new Date(r.ultimaModificacion || r.fecha)) / (1000 * 60 * 60);
+        let refFecha = new Date(obtenerUltimaRevisionEfectiva(r));
+        let horasTranscurridas = (ahora - refFecha) / (1000 * 60 * 60);
         return horasTranscurridas >= horasLimite && r.estado !== "Cerrado" && r.estado !== "Perdido" && r.estado !== "Archivado";
     });
     
@@ -330,7 +348,8 @@ function actualizarSeguimiento() {
     if ($('contenedorSeguimiento')) {
         const esPC = window.innerWidth >= 800;
         $('contenedorSeguimiento').innerHTML = lista.map(r => {
-            let horasTranscurridas = (ahora - new Date(r.ultimaModificacion || r.fecha)) / (1000 * 60 * 60);
+            let refFecha = new Date(obtenerUltimaRevisionEfectiva(r));
+            let horasTranscurridas = (ahora - refFecha) / (1000 * 60 * 60);
             let textoAtraso = formatearTiempoAtraso(horasTranscurridas);
             
             let esUrgenciaCritica = horasTranscurridas >= (horasLimite * 2);
@@ -338,18 +357,19 @@ function actualizarSeguimiento() {
             let colorChipText = esUrgenciaCritica ? '#991B1B' : '#92400E';
             let dCreacion = new Date(r.fecha);
             let dModif = new Date(r.ultimaModificacion || r.fecha);
+            let dRev = new Date(obtenerUltimaRevisionEfectiva(r));
             
             let fechaCreacionTexto = !isNaN(dCreacion.getTime()) 
                 ? `${String(dCreacion.getDate()).padStart(2, '0')}/${String(dCreacion.getMonth() + 1).padStart(2, '0')}/${dCreacion.getFullYear()} ${String(dCreacion.getHours()).padStart(2, '0')}:${String(dCreacion.getMinutes()).padStart(2, '0')}`
                 : r.fecha;
-            let fechaRevisionTexto = !isNaN(dModif.getTime()) 
-                ? `${String(dModif.getDate()).padStart(2, '0')}/${String(dModif.getMonth() + 1).padStart(2, '0')}/${dModif.getFullYear()} ${String(dModif.getHours()).padStart(2, '0')}:${String(dModif.getMinutes()).padStart(2, '0')}`
+            let fechaRevisionTexto = !isNaN(dRev.getTime()) 
+                ? `${String(dRev.getDate()).padStart(2, '0')}/${String(dRev.getMonth() + 1).padStart(2, '0')}/${dRev.getFullYear()} ${String(dRev.getHours()).padStart(2, '0')}:${String(dRev.getMinutes()).padStart(2, '0')}`
                 : '-';
             let { avatarHTML, tituloHTML } = obtenerAvatarEIdentidad(r);
             let btnCanal = obtenerBotonAccionCanal(r);
             let accionClick = esPC ? `editar(${r.id})` : `abrirFicha(${r.id})`;
             return `
-            <div class="card client-card" onclick="${accionClick}" style="cursor:pointer; background:#ffffff;">
+            <div class="card client-card" onclick="${accionClick}" style="cursor:pointer; background:#ffffff; padding: 12px 14px; margin-bottom: 8px;">
                 <div class="client-info">
                     <div class="avatar avatar-blue">${avatarHTML}</div>
                     <div class="client-details">
@@ -358,19 +378,23 @@ function actualizarSeguimiento() {
                     </div>
                 </div>
                 <div>${r.asunto ? `<span style="font-size:0.8rem; font-weight:600; color:var(--primary-blue);">Asunto: ${r.asunto}</span>` : '-'}</div>
-                <div class="tag-row"><span class="tag ${obtenerClaseEstado(r.estado)}">${r.estado}</span></div>
-                <div style="font-size:0.72rem; color:var(--text-secondary); line-height: 1.5;">
-                    <span>Creado: <strong>${fechaCreacionTexto}</strong></span><br>
-                    <span>Última rev: <strong>${fechaRevisionTexto}</strong></span>
-                </div>
-                <div style="margin-top: 6px;">
-                    <span style="display:inline-block; background:${colorChipBg}; color:${colorChipText}; font-size:0.72rem; font-weight:700; padding:3px 8px; border-radius:6px;">
+                <div class="tag-row" style="margin-top:4px; margin-bottom:4px;"><span class="tag ${obtenerClaseEstado(r.estado)}">${r.estado}</span></div>
+                <div style="margin-top: 4px; display:flex; justify-content:space-between; align-items:center;">
+                    <span style="display:inline-block; background:${colorChipBg}; color:${colorChipText}; font-size:0.72rem; font-weight:700; padding:2px 6px; border-radius:6px;">
                         ${textoAtraso}
                     </span>
+                    <button class="btn-action-edit" style="background:#E0F2FE; color:#0284C7; font-size:0.72rem; padding:4px 8px;" onclick="marcarComoRevisado(${r.id}, event)">
+                        ✔ Revisado
+                    </button>
                 </div>
-                <div style="display:flex; gap:6px; align-items:center; margin-top:10px;">
-                    ${btnCanal}
-                    <button class="btn-action-edit" onclick="event.stopPropagation(); editar(${r.id});">Editar</button>
+                <div class="card-footer-row" style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:6px;">
+                    <div class="channel-action-area" style="display:flex; gap:6px; align-items:center;">
+                        ${btnCanal}
+                    </div>
+                    <div class="time-ago" style="font-size:0.70rem; color:var(--text-secondary); text-align:right; line-height:1.2;">
+                        <span>Creado: <strong>${fechaCreacionTexto}</strong></span><br>
+                        <span>Última rev: <strong>${fechaRevisionTexto}</strong></span>
+                    </div>
                 </div>
             </div>`;
         }).join('') || '<p style="font-size:0.8rem; color:var(--text-secondary);">Sin seguimientos pendientes.</p>';
@@ -378,8 +402,46 @@ function actualizarSeguimiento() {
 }
 
 /* ==========================================================================
-   4. BÚSQUEDA PREDICTIVA UNIFICADA
+   4. CANALES ÚNICOS Y BUSQUEDA PREDICTIVA UNIFICADA
    ========================================================================== */
+function obtenerCanalesUtilizadosEnFormulario(sufijo = '') {
+    let usados = [];
+    const canalPrincipal = $(`canal${sufijo}`)?.value;
+    if (canalPrincipal) usados.push(canalPrincipal);
+
+    const contenedorId = sufijo ? `contenedorCanalesExtra${sufijo}` : 'contenedorCanalesExtraMovil';
+    const contenedor = $(contenedorId);
+    if (contenedor) {
+        contenedor.querySelectorAll('.sub-canal-select').forEach(sel => {
+            if (sel.value) usados.push(sel.value);
+        });
+    }
+    return usados;
+}
+
+function actualizarOpcionesCanales(sufijo = '') {
+    const canalPrincipalEl = $(`canal${sufijo}`);
+    if (!canalPrincipalEl) return;
+    
+    const canalPrincipalVal = canalPrincipalEl.value || 'WhatsApp';
+    const usados = obtenerCanalesUtilizadosEnFormulario(sufijo);
+
+    if (!canalPrincipalEl.innerHTML || canalPrincipalEl.children.length === 0) {
+        canalPrincipalEl.innerHTML = CANALES_DISPONIBLES.map(c => `<option value="${c}">${c}</option>`).join('');
+        canalPrincipalEl.value = canalPrincipalVal;
+    }
+
+    const contenedorId = sufijo ? `contenedorCanalesExtra${sufijo}` : 'contenedorCanalesExtraMovil';
+    const contenedor = $(contenedorId);
+    if (!contenedor) return;
+
+    contenedor.querySelectorAll('.sub-canal-select').forEach(sel => {
+        const valActual = sel.value;
+        const opcionesValidas = CANALES_DISPONIBLES.filter(c => c === valActual || !usados.includes(c));
+        sel.innerHTML = opcionesValidas.map(c => `<option value="${c}" ${c === valActual ? 'selected' : ''}>${c}</option>`).join('');
+    });
+}
+
 function buscarCoincidenciasPredictivas(valor, campo, contenedorDropId) {
     const texto = valor.trim().toLowerCase().replace(/\s+/g, '');
     const drop = $(contenedorDropId);
@@ -432,7 +494,7 @@ document.addEventListener('click', (e) => {
 });
 
 /* ==========================================================================
-   5. NAVEGACIÓN Y ONBOARDING (MECÁNICA DE CAPAS Y FAB V1.4.0)
+   5. NAVEGACIÓN Y ONBOARDING (v1.4.0)
    ========================================================================== */
 function iniciarRelojHeader() {
     function actualizar() {
@@ -460,7 +522,6 @@ function navegarA(pantalla, customTitle = null) {
     if (esPC) document.body.classList.add('pc-view');
     else document.body.classList.remove('pc-view');
     
-    // Asignación de clase dinámica para CSS puro de ocultamiento FAB
     document.body.classList.remove('tab-inicio', 'tab-registros', 'tab-perfil', 'tab-formulario', 'tab-ficha');
     document.body.classList.add(`tab-${pantalla}`);
     
@@ -500,14 +561,19 @@ function navegarA(pantalla, customTitle = null) {
 
 function comprobarEstadoAccesoEInicial() {
     const perfilCompleto = localStorage.getItem('memora_profile_completed') === 'true';
+    
+    // Aseguramos que la barra siempre sea visible sin importar el estado inicial
+    if (document.querySelector('.bottom-nav')) {
+        document.querySelector('.bottom-nav').style.display = 'flex';
+    }
+
     if (!perfilCompleto) {
-        if (document.querySelector('.main-content')) document.querySelector('.main-content').style.filter = 'blur(8px)';
-        if (document.querySelector('.bottom-nav')) document.querySelector('.bottom-nav').style.display = 'none';
         if ($('modalPerfilMemora')) $('modalPerfilMemora').style.display = 'flex';
         return;
     }
     desbloquearInterfazCompleta();
 }
+
 
 function procesarPerfilInicial() {
     const nombre = $('initNombre')?.value.trim() || '';
@@ -537,38 +603,56 @@ function iniciarStoriesBienvenida(nombre) {
     renderStoryStep(nombre);
 }
 
+
 function renderStoryStep(nombre) {
-    const primerNombre = nombre ? nombre.split(' ')[0] : 'Usuario';
     const stories = [
         {
             icon: "waving_hand",
-            title: `¡Hola, ${primerNombre}!`,
-            text: "Bienvenido a MEMORA, el CRM inteligente diseñado para gestionar tus clientes e interacciones con la máxima agilidad."
+            title: "Bienvenido a Memora 👋",
+            text: "Memora te ayuda a organizar clientes, conversaciones y seguimientos para que no dependas de acordarte de todo."
         },
         {
-            icon: "auto_awesome",
-            title: "Seguimiento Inteligente",
-            text: "MEMORA monitorea tus contactos inactivos para que nunca olvides responder un mensaje ni pierdas una venta."
+            icon: "person_add",
+            title: "Todo empieza con un registro",
+            text: "Guardá a cada cliente con su motivo de contacto, estado, comentarios y los canales por donde hablás con él: WhatsApp, Instagram, LinkedIn y más."
+        },
+        {
+            icon: "schedule",
+            title: "Sabé a quién volver a contactar ⏱️",
+            text: "Definí cuánto tiempo puede pasar sin actividad. Cuando un registro supera ese plazo, Memora lo muestra en Seguimiento Requerido."
+        },
+        {
+            icon: "check_circle",
+            title: "¿Todo sigue igual? Marcá Revisado ✓",
+            text: "Si revisaste un caso y todavía no cambió nada, marcá Revisado. Memora registra la revisión y vuelve a programar el seguimiento sin modificar la información del cliente."
+        },
+        {
+            icon: "chat",
+            title: "Volvé a la conversación en un toque",
+            text: "Usá los botones de cada canal para retomar el contacto directamente. En WhatsApp, Memora puede dejar preparado el mensaje para continuar la conversación."
         },
         {
             icon: "cloud_done",
-            title: "Privacidad Total",
-            text: "Tus datos son tuyos. Todo se respalda directamente en tu Google Drive personal con la máxima seguridad."
+            title: "Tus datos siguen siendo tuyos",
+            text: "Podés respaldar tu información en Google Drive y exportar tus registros a Excel, PDF o JSON cuando lo necesites."
         }
     ];
     
-    const current = stories[currentStoryStep];
+    const current = stories[currentStoryStep] || stories[0];
     if ($('storyContent')) {
         $('storyContent').innerHTML = `
             <span class="material-symbols-outlined story-icon">${current.icon}</span>
             <h3 style="margin-bottom:8px;">${current.title}</h3>
-            <p style="font-size:0.9rem; color:#6b7280;">${current.text}</p>
+            <p style="font-size:0.9rem; color:#6b7280; line-height:1.4;">${current.text}</p>
         `;
     }
     
-    for (let i = 0; i < 3; i++) {
-        const fill = $(`story-fill-${i}`);
-        if (fill) fill.style.width = i <= currentStoryStep ? '100%' : '0%';
+    // Renderizado dinámico de los segmentos de progreso
+    const barContainer = document.querySelector('.stories-progress-bar');
+    if (barContainer) {
+        barContainer.innerHTML = stories.map((_, i) => `
+            <div class="story-segment"><div id="story-fill-${i}" class="story-segment-fill" style="width: ${i <= currentStoryStep ? '100%' : '0%'};"></div></div>
+        `).join('');
     }
     
     if ($('btnNextStory')) $('btnNextStory').innerText = currentStoryStep === stories.length - 1 ? "Ingresar a Memora" : "Siguiente";
@@ -578,7 +662,7 @@ function siguienteStory() {
     const datosRaw = localStorage.getItem('memora_admin_user_data');
     const datos = datosRaw ? JSON.parse(datosRaw) : { nombreAdmin: 'Usuario' };
     
-    if (currentStoryStep < 2) {
+    if (currentStoryStep < 5) {
         currentStoryStep++;
         renderStoryStep(datos.nombreAdmin);
     } else {
@@ -589,12 +673,22 @@ function siguienteStory() {
 
 function desbloquearInterfazCompleta() {
     if (document.querySelector('.main-content')) document.querySelector('.main-content').style.filter = 'none';
-    if (document.querySelector('.bottom-nav')) document.querySelector('.bottom-nav').style.display = 'flex';
+    
+    const nav = document.querySelector('.bottom-nav');
+    if (nav) {
+        nav.style.display = 'flex';
+        nav.style.visibility = 'visible';
+        nav.style.opacity = '1';
+        nav.style.zIndex = '99999';
+    }
+    
     cargarDatosUsuarioPerfil();
     navegarA('inicio');
 }
+
+
 /* ==========================================================================
-   6. AUXILIARES DE VISTA Y CARDS (INCLUYE LINKEDIN Y MULTICANAL v1.4.0)
+   6. AUXILIARES DE VISTA Y CARDS
    ========================================================================== */
 function obtenerAvatarEIdentidad(r) {
     let badgeText = 'CN';
@@ -628,10 +722,9 @@ function obtenerClaseEstado(estado) {
 function obtenerTextoIdentificador(r) {
     if (!r.identificador || !r.identificador.trim()) return '';
     let val = r.identificador.trim();
-    if (val.toLowerCase().startsWith('rut')) {
-        return ` • RUT: ${val.replace(/rut/i, '').trim()}`;
-    }
-    return ` • Cliente / Socio: ${val}`;
+    let tipo = r.tipoIdentificador || (val.toLowerCase().startsWith('rut') ? 'RUT' : 'Nº de Cliente');
+    let limpio = val.replace(/^(rut|nº de cliente|cliente|socio):?\s*/i, '');
+    return ` • ${tipo}: ${limpio}`;
 }
 
 function obtenerConfigVisibilidadCanales() {
@@ -645,13 +738,12 @@ function guardarConfigVisibilidadCanales() {
     render();
 }
 
-/* Construcción de botón dinámico por canal con LinkedIn y plantillas de mensaje */
 function construirBotonUnicoCanal(canal, contacto, nombreCliente = "", asuntoConsulta = "") {
     if (!contacto || !contacto.trim()) return '';
     const contactoLimpio = contacto.replace(/\s+/g, '');
     const primerNombre = nombreCliente ? nombreCliente.split(' ')[0] : '';
     const textoMensaje = encodeURIComponent(`Hola ${primerNombre}, te escribo respecto a tu consulta: ${asuntoConsulta || 'información general'}.`);
-
+    
     if (canal === 'WhatsApp') {
         const numWA = contactoLimpio.startsWith('+') ? contactoLimpio.replace('+', '') : `598${contactoLimpio.replace(/^0/, '')}`;
         return `<a href="https://wa.me/${numWA}?text=${textoMensaje}" target="_blank" onclick="event.stopPropagation();" class="btn-action-channel btn-channel-wa">
@@ -683,49 +775,54 @@ function construirBotonUnicoCanal(canal, contacto, nombreCliente = "", asuntoCon
 function obtenerBotonAccionCanal(r) {
     const modoVisibilidad = obtenerConfigVisibilidadCanales();
     let HTMLBotones = [];
+    let canalesUsados = new Set();
+
     if (r.canal && r.contacto) {
         HTMLBotones.push(construirBotonUnicoCanal(r.canal, r.contacto, r.nombre, r.asunto));
+        canalesUsados.add(r.canal.toLowerCase());
     }
-    if (modoVisibilidad !== 'principal' && r.canal2 && r.contacto2) {
+    
+    if (modoVisibilidad !== 'principal' && r.canal2 && r.contacto2 && !canalesUsados.has(r.canal2.toLowerCase())) {
         HTMLBotones.push(construirBotonUnicoCanal(r.canal2, r.contacto2, r.nombre, r.asunto));
+        canalesUsados.add(r.canal2.toLowerCase());
     }
-    if (modoVisibilidad === 'todos' && r.canal3 && r.contacto3) {
+    
+    if (modoVisibilidad === 'todos' && r.canal3 && r.contacto3 && !canalesUsados.has(r.canal3.toLowerCase())) {
         HTMLBotones.push(construirBotonUnicoCanal(r.canal3, r.contacto3, r.nombre, r.asunto));
+        canalesUsados.add(r.canal3.toLowerCase());
     }
+
     if (HTMLBotones.length === 0) {
         return `<button onclick="event.stopPropagation(); abrirFicha(${r.id});" class="btn-action-channel btn-channel-generic"><span class="material-symbols-outlined" style="font-size:1rem;">visibility</span> Ver</button>`;
     }
+
     return `<div class="channel-buttons-group" style="display:flex; gap:4px; align-items:center;">${HTMLBotones.join('')}</div>`;
 }
 
-/* ==========================================================================
-   TARJETA ESTÉTICA PRINCIPAL (Maqueta Exacta Foto: Canales Izq / Fechas Der)
-   ========================================================================== */
 function tarjetaEstetica(r) {
     const dCreacion = new Date(r.fecha);
-    const dModif = new Date(r.ultimaModificacion || r.fecha);
+    const dRev = new Date(obtenerUltimaRevisionEfectiva(r));
     
     let fechaCreacionTexto = !isNaN(dCreacion.getTime()) 
         ? `${String(dCreacion.getDate()).padStart(2, '0')}/${String(dCreacion.getMonth() + 1).padStart(2, '0')}/${dCreacion.getFullYear()} ${String(dCreacion.getHours()).padStart(2, '0')}:${String(dCreacion.getMinutes()).padStart(2, '0')}`
         : r.fecha;
         
-    let fechaRevisionTexto = !isNaN(dModif.getTime()) 
-        ? `${String(dModif.getDate()).padStart(2, '0')}/${String(dModif.getMonth() + 1).padStart(2, '0')}/${dModif.getFullYear()} ${String(dModif.getHours()).padStart(2, '0')}:${String(dModif.getMinutes()).padStart(2, '0')}`
+    let fechaRevisionTexto = !isNaN(dRev.getTime()) 
+        ? `${String(dRev.getDate()).padStart(2, '0')}/${String(dRev.getMonth() + 1).padStart(2, '0')}/${dRev.getFullYear()} ${String(dRev.getHours()).padStart(2, '0')}:${String(dRev.getMinutes()).padStart(2, '0')}`
         : '-';
-
     const { avatarHTML, tituloHTML } = obtenerAvatarEIdentidad(r);
     const btnCanal = obtenerBotonAccionCanal(r);
     const textoId = obtenerTextoIdentificador(r);
-
     let comentariosActivos = (r.comentarios || []).filter(c => !c.eliminado);
     let ultimoComentario = comentariosActivos.length > 0 ? comentariosActivos[comentariosActivos.length - 1].texto : null;
     let esArchivado = r.estado === 'Archivado';
-
+    
+    // BOTONERA CORREGIDA: Sin botón Revisado en la vista general
     let contenidoBotonera = esArchivado ? `
         <button class="btn-action-edit" style="background:#E5E7EB; color:#374151;" onclick="event.stopPropagation(); archivarCliente(${r.id});">Desarchivar</button>
         <button class="btn-action-edit" style="background:#FEE2E2; color:#DC2626;" onclick="event.stopPropagation(); eliminar(${r.id});">Eliminar</button>
     ` : `${btnCanal}`;
-
+    
     return `
     <div class="card client-card" style="cursor:pointer;" onclick="abrirFicha(${r.id})">
         <div class="client-info">
@@ -743,7 +840,6 @@ function tarjetaEstetica(r) {
         
         <div class="tag-row"><span class="tag ${obtenerClaseEstado(r.estado)}">${r.estado}</span></div>
         
-        <!-- ESTRUCTURA EXACTA DE LA FOTO -->
         <div class="card-footer-row" style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:6px;">
             <div class="channel-action-area" style="display:flex; gap:6px; align-items:center;">
                 ${contenidoBotonera}
@@ -771,7 +867,7 @@ function render() {
     let ident = $('filtroId')?.value.toLowerCase() || '';
     let estado = $('filtroEstado')?.value || '';
     let com = $('filtroComentario')?.value.toLowerCase() || '';
-
+    
     registrosUltimoFiltro = registros.filter(r => {
         let esArchiv = r.estado === 'Archivado';
         if (mostrandoArchivados) { if (!esArchiv) return false; } else { if (esArchiv) return false; }
@@ -784,10 +880,9 @@ function render() {
         let matchIdent = !ident || (r.identificador || '').toLowerCase().includes(ident);
         let matchEstado = !estado || r.estado === estado;
         let matchCom = !com || JSON.stringify(r.comentarios || []).toLowerCase().includes(com);
-
         return matchBusqueda && matchNombre && matchCanal && matchDato && matchAsunto && matchIdent && matchEstado && matchCom;
     });
-
+    
     if ($('listaRegistros')) $('listaRegistros').innerHTML = registrosUltimoFiltro.map(tarjetaEstetica).join('') || '<p style="text-align:center; padding:20px; color:var(--text-secondary);">No se encontraron registros.</p>';
     if ($('totalRegistrosTexto')) $('totalRegistrosTexto').innerText = `${registrosUltimoFiltro.length} registros ${mostrandoArchivados ? '(Archivados)' : ''}`;
     
@@ -798,9 +893,9 @@ function render() {
 }
 
 /* ==========================================================================
-   7. LÓGICA DINÁMICA MULTICANAL Y FORMULARIO DE INICIO / MÓVIL
+   7. LÓGICA DINÁMICA MULTICANAL
    ========================================================================== */
-function agregarCampoCanalExtraInicio(canalVal = 'Instagram', contactoVal = '') {
+function agregarCampoCanalExtraInicio(canalVal = '', contactoVal = '') {
     const contenedor = $('contenedorCanalesExtraInicio');
     if (!contenedor) return;
     
@@ -809,27 +904,18 @@ function agregarCampoCanalExtraInicio(canalVal = 'Instagram', contactoVal = '') 
         mostrarToastPC("Máximo 3 canales alcanzado", "warning");
         return;
     }
-
     canalesExtraContadorInicio++;
     const idNum = canalesExtraContadorInicio;
-
     const div = document.createElement('div');
     div.className = 'sub-canal-block';
     div.id = `bloqueCanalExtra_${idNum}`;
     div.style.cssText = 'background:#F9FAFB; padding:8px 12px; border:1px solid #E5E7EB; border-radius:8px; position:relative;';
     div.innerHTML = `
-        <button type="button" onclick="quitarCampoCanalExtraInicio(${idNum})" style="position:absolute; top:6px; right:8px; background:none; border:none; color:#DC2626; font-weight:700; font-size:0.75rem; cursor:pointer;">✕ Quitar</button>
+        <button type="button" onclick="quitarCampoCanalExtraInicio(${idNum})" style="position:absolute; top:6px; right:8px; background:none; border:none; color:#DC2626; font-weight:700; font-size:0.75rem; cursor:pointer;">✖ Quitar</button>
         <div style="display:grid; grid-template-columns: 1fr 2fr; gap:8px; margin-top:12px;">
             <div>
                 <label style="font-size:0.75rem; font-weight:600; color:var(--text-secondary);">Canal Extra</label>
-                <select id="canalExtra_${idNum}" style="width:100%; padding:8px; border-radius:6px; border:1px solid #ccc; font-size:0.85rem;">
-                    <option value="Instagram" ${canalVal === 'Instagram' ? 'selected' : ''}>Instagram</option>
-                    <option value="WhatsApp" ${canalVal === 'WhatsApp' ? 'selected' : ''}>WhatsApp</option>
-                    <option value="Email" ${canalVal === 'Email' ? 'selected' : ''}>Email</option>
-                    <option value="LinkedIn" ${canalVal === 'LinkedIn' ? 'selected' : ''}>LinkedIn</option>
-                    <option value="Facebook" ${canalVal === 'Facebook' ? 'selected' : ''}>Facebook</option>
-                    <option value="Telegram" ${canalVal === 'Telegram' ? 'selected' : ''}>Telegram</option>
-                </select>
+                <select id="canalExtra_${idNum}" class="sub-canal-select" onchange="actualizarOpcionesCanales('Inicio')" style="width:100%; padding:8px; border-radius:6px; border:1px solid #ccc; font-size:0.85rem;"></select>
             </div>
             <div>
                 <label style="font-size:0.75rem; font-weight:600; color:var(--text-secondary);">Contacto / Usuario</label>
@@ -838,14 +924,24 @@ function agregarCampoCanalExtraInicio(canalVal = 'Instagram', contactoVal = '') 
         </div>
     `;
     contenedor.appendChild(div);
+
+    actualizarOpcionesCanales('Inicio');
+    const sel = $(`canalExtra_${idNum}`);
+    if (sel) {
+        if (canalVal && Array.from(sel.options).some(opt => opt.value === canalVal)) {
+            sel.value = canalVal;
+        }
+        actualizarOpcionesCanales('Inicio');
+    }
 }
 
 function quitarCampoCanalExtraInicio(idNum) {
     const el = $(`bloqueCanalExtra_${idNum}`);
     if (el) el.remove();
+    actualizarOpcionesCanales('Inicio');
 }
 
-function agregarCampoCanalExtraMovil(canalVal = 'Instagram', contactoVal = '') {
+function agregarCampoCanalExtraMovil(canalVal = '', contactoVal = '') {
     const contenedor = $('contenedorCanalesExtraMovil');
     if (!contenedor) return;
     
@@ -854,27 +950,18 @@ function agregarCampoCanalExtraMovil(canalVal = 'Instagram', contactoVal = '') {
         mostrarAvisoMemora("Máximo 3 canales alcanzado", "MEMORA", "warning");
         return;
     }
-
     canalesExtraContadorMovil++;
     const idNum = canalesExtraContadorMovil;
-
     const div = document.createElement('div');
     div.className = 'sub-canal-block-movil';
     div.id = `bloqueCanalExtraMovil_${idNum}`;
     div.style.cssText = 'background:#F9FAFB; padding:8px 12px; border:1px solid #E5E7EB; border-radius:8px; position:relative; margin-top:8px;';
     div.innerHTML = `
-        <button type="button" onclick="quitarCampoCanalExtraMovil(${idNum})" style="position:absolute; top:6px; right:8px; background:none; border:none; color:#DC2626; font-weight:700; font-size:0.75rem; cursor:pointer;">✕ Quitar</button>
+        <button type="button" onclick="quitarCampoCanalExtraMovil(${idNum})" style="position:absolute; top:6px; right:8px; background:none; border:none; color:#DC2626; font-weight:700; font-size:0.75rem; cursor:pointer;">✖ Quitar</button>
         <div style="display:grid; grid-template-columns: 1fr 2fr; gap:8px; margin-top:12px;">
             <div>
                 <label style="font-size:0.75rem; font-weight:600; color:var(--text-secondary);">Canal Extra</label>
-                <select id="canalExtraMovil_${idNum}" style="width:100%; padding:8px; border-radius:6px; border:1px solid #ccc; font-size:0.85rem;">
-                    <option value="Instagram" ${canalVal === 'Instagram' ? 'selected' : ''}>Instagram</option>
-                    <option value="WhatsApp" ${canalVal === 'WhatsApp' ? 'selected' : ''}>WhatsApp</option>
-                    <option value="Email" ${canalVal === 'Email' ? 'selected' : ''}>Email</option>
-                    <option value="LinkedIn" ${canalVal === 'LinkedIn' ? 'selected' : ''}>LinkedIn</option>
-                    <option value="Facebook" ${canalVal === 'Facebook' ? 'selected' : ''}>Facebook</option>
-                    <option value="Telegram" ${canalVal === 'Telegram' ? 'selected' : ''}>Telegram</option>
-                </select>
+                <select id="canalExtraMovil_${idNum}" class="sub-canal-select" onchange="actualizarOpcionesCanales('')" style="width:100%; padding:8px; border-radius:6px; border:1px solid #ccc; font-size:0.85rem;"></select>
             </div>
             <div>
                 <label style="font-size:0.75rem; font-weight:600; color:var(--text-secondary);">Contacto / Usuario</label>
@@ -883,11 +970,21 @@ function agregarCampoCanalExtraMovil(canalVal = 'Instagram', contactoVal = '') {
         </div>
     `;
     contenedor.appendChild(div);
+
+    actualizarOpcionesCanales('');
+    const sel = $(`canalExtraMovil_${idNum}`);
+    if (sel) {
+        if (canalVal && Array.from(sel.options).some(opt => opt.value === canalVal)) {
+            sel.value = canalVal;
+        }
+        actualizarOpcionesCanales('');
+    }
 }
 
 function quitarCampoCanalExtraMovil(idNum) {
     const el = $(`bloqueCanalExtraMovil_${idNum}`);
     if (el) el.remove();
+    actualizarOpcionesCanales('');
 }
 
 function mostrarCanal() {
@@ -902,7 +999,6 @@ function mostrarCanal() {
         Facebook: 'Usuario Facebook',
         Telegram: 'Telegram'
     };
-
     let placeholders = {
         WhatsApp: 'Ej: 099 777 777',
         Instagram: 'Ej: @usuario',
@@ -926,15 +1022,14 @@ function mostrarCanal() {
             </div>
         </div>
         <input id="contacto" 
-               type="text"
-               placeholder="${placeholders[c] || 'Ingrese contacto'}"
+               type="text" 
+               placeholder="${placeholders[c] || 'Ingrese contacto'}" 
                oninput="buscarCoincidenciasPredictivas(this.value, 'contacto', 'dropContactoForm')" 
                autocomplete="off"
                ${estaBloqueado ? 'readonly style="width:100%; padding:10px; border-radius:8px; border:1px solid #d1d5db; background-color:#f3f4f6; color:#6b7280; font-weight:600;"' : 'style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc;"'}
         >
         <div id="dropContactoForm" class="coincidencias-drop"></div>
     `;
-
     if (typeof validarCampoEnTiempoReal === 'function') {
         validarCampoEnTiempoReal();
     }
@@ -952,7 +1047,6 @@ function mostrarCanalInicio() {
         Facebook: 'Usuario Facebook',
         Telegram: 'Telegram'
     };
-
     let placeholders = {
         WhatsApp: 'Ej: 099 777 777',
         Instagram: 'Ej: @usuario',
@@ -961,7 +1055,6 @@ function mostrarCanalInicio() {
         Facebook: 'Ej: nombre.usuario',
         Telegram: 'Ej: @usuario'
     };
-
     if ($('campoCanalInicio')) {
         let label = $('campoCanalInicio').querySelector('label');
         if (label) label.innerText = nombres[c] || 'Contacto';
@@ -969,7 +1062,6 @@ function mostrarCanalInicio() {
         let input = $('contactoInicio');
         if (input) input.placeholder = placeholders[c] || 'Ingrese contacto';
     }
-
     if (typeof validarCampoEnTiempoReal === 'function') {
         validarCampoEnTiempoReal('Inicio');
     }
@@ -1128,34 +1220,122 @@ function eliminarComentarioTemporalInicio(index) {
 }
 
 /* ==========================================================================
-   VALIDACIÓN PREVIA AL GUARDADO
+   VALIDACIÓN PREVIA REAL AL GUARDADO (v1.4.0)
    ========================================================================== */
 function validarFormularioAntesDeGuardar(sufijo = '') {
+    const focoEnInput = id => {
+        const el = $(id);
+        if (el) {
+            el.focus();
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    };
+
+    const nombreEl = $(`nombre${sufijo}`);
+    if (nombreEl) {
+        const val = nombreEl.value.trim();
+        if (val.length > 0 && (val.length < 3 || /[0-9]/.test(val))) {
+            mostrarErrorCampo(nombreEl.id, `err_${nombreEl.id}`, "Ingrese un nombre real (mínimo 3 letras, sin números).", true);
+            focoEnInput(nombreEl.id);
+            return false;
+        }
+    }
+
+    const canalEl = $(`canal${sufijo}`);
     const contactoEl = $(`contacto${sufijo}`);
-    if (!contactoEl) return true;
-    
-    const valor = contactoEl.value.trim();
-    if (!valor) {
-        mostrarErrorCampo(contactoEl.id, `err_${contactoEl.id}`, "El campo de contacto no puede quedar vacío.", true);
+    if (contactoEl) {
+        const canal = canalEl ? canalEl.value : 'WhatsApp';
+        const valor = contactoEl.value.trim();
+        if (!valor) {
+            mostrarErrorCampo(contactoEl.id, `err_${contactoEl.id}`, "El campo de contacto no puede quedar vacío.", true);
+            focoEnInput(contactoEl.id);
+            return false;
+        }
+
+        let esInvalido = false;
+        let mensaje = "";
+        if (canal === 'WhatsApp') {
+            const numLimpio = valor.replace(/\D/g, '');
+            esInvalido = numLimpio.length < 8 || numLimpio.length > 15 || /[a-zA-Z]/.test(valor);
+            mensaje = "Ingrese un número de celular válido (mínimo 8 dígitos).";
+        } else if (canal === 'Email') {
+            esInvalido = !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(valor);
+            mensaje = "Ingrese un correo electrónico válido.";
+        } else if (['Instagram', 'Telegram', 'LinkedIn', 'Facebook'].includes(canal)) {
+            esInvalido = valor.replace('@', '').length < 3;
+            mensaje = "Ingrese un usuario/perfil válido (mínimo 3 caracteres).";
+        }
+
+        if (esInvalido) {
+            mostrarErrorCampo(contactoEl.id, `err_${contactoEl.id}`, mensaje, true);
+            focoEnInput(contactoEl.id);
+            return false;
+        }
+    }
+
+    const contenedorId = sufijo ? `contenedorCanalesExtra${sufijo}` : 'contenedorCanalesExtraMovil';
+    const contenedor = $(contenedorId);
+    if (contenedor) {
+        let esInvalidoExtra = false;
+        contenedor.querySelectorAll('.sub-canal-block, .sub-canal-block-movil').forEach(bloque => {
+            const sel = bloque.querySelector('select');
+            const inp = bloque.querySelector('input');
+            if (sel && inp) {
+                const cVal = sel.value;
+                const vVal = inp.value.trim();
+                if (vVal) {
+                    if (cVal === 'WhatsApp' && (vVal.replace(/\D/g, '').length < 8 || /[a-zA-Z]/.test(vVal))) {
+                        esInvalidoExtra = true;
+                        mostrarErrorCampo(inp.id || 'extra_inp', `err_${inp.id}`, "Teléfono extra inválido.", true);
+                    } else if (cVal === 'Email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(vVal)) {
+                        esInvalidoExtra = true;
+                        mostrarErrorCampo(inp.id || 'extra_inp', `err_${inp.id}`, "Correo extra inválido.", true);
+                    }
+                }
+            }
+        });
+        if (esInvalidoExtra) return false;
+    }
+
+    const usados = obtenerCanalesUtilizadosEnFormulario(sufijo);
+    const duplicados = usados.filter((item, index) => usados.indexOf(item) !== index);
+    if (duplicados.length > 0) {
+        mostrarAvisoMemora(`No puedes repetir el mismo canal (${duplicados[0]}) más de una vez por cliente.`, "Canales Duplicados", "warning");
         return false;
     }
-    
-    // Verificar si hay algún mensaje de error visible activado por la validación en tiempo real
-    const msgError = $(`err_${contactoEl.id}`);
-    if (msgError && msgError.style.display === 'block') {
-        return false;
+
+    const asuntoEl = $(`asunto${sufijo}`);
+    if (asuntoEl) {
+        const val = asuntoEl.value.trim();
+        if (val.length > 0 && val.length < 3) {
+            mostrarErrorCampo(asuntoEl.id, `err_${asuntoEl.id}`, "Describe un asunto válido (mínimo 3 caracteres).", true);
+            focoEnInput(asuntoEl.id);
+            return false;
+        }
     }
-    
+
     return true;
 }
 
+function evaluarCambiosEnRegistro(original, nuevo) {
+    if (!original) return true;
+    const jsonOrig = JSON.stringify({
+        nombre: original.nombre || '', canal: original.canal || '', contacto: original.contacto || '',
+        canal2: original.canal2 || '', contacto2: original.contacto2 || '', canal3: original.canal3 || '', contacto3: original.contacto3 || '',
+        asunto: original.asunto || '', tipoIdentificador: original.tipoIdentificador || 'Ninguno', identificador: original.identificador || '',
+        estado: original.estado || '', comentarios: original.comentarios || []
+    });
+    const jsonNuevo = JSON.stringify({
+        nombre: nuevo.nombre || '', canal: nuevo.canal || '', contacto: nuevo.contacto || '',
+        canal2: nuevo.canal2 || '', contacto2: nuevo.contacto2 || '', canal3: nuevo.canal3 || '', contacto3: nuevo.contacto3 || '',
+        asunto: nuevo.asunto || '', tipoIdentificador: nuevo.tipoIdentificador || 'Ninguno', identificador: nuevo.identificador || '',
+        estado: nuevo.estado || '', comentarios: nuevo.comentarios || []
+    });
+    return jsonOrig !== jsonNuevo;
+}
 
 function guardarDesdeInicio() {
-    // CANDADO DE SEGURIDAD: Usa el sufijo 'Inicio' para los inputs de PC
-    if (!validarFormularioAntesDeGuardar('Inicio')) {
-        mostrarAvisoMemora("Por favor, corrige los campos marcados en rojo antes de guardar.", "Datos Incompletos", "warning");
-        return; 
-    }
+    if (!validarFormularioAntesDeGuardar('Inicio')) return;
 
     const contacto = $('contactoInicio')?.value.trim() || '';
     const contenedor = $('contenedorCanalesExtraInicio');
@@ -1163,7 +1343,6 @@ function guardarDesdeInicio() {
     
     let canal2 = '', contacto2 = '';
     let canal3 = '', contacto3 = '';
-
     if (bloques[0]) {
         canal2 = bloques[0].querySelector('select')?.value || '';
         contacto2 = bloques[0].querySelector('input')?.value.trim() || '';
@@ -1172,7 +1351,6 @@ function guardarDesdeInicio() {
         canal3 = bloques[1].querySelector('select')?.value || '';
         contacto3 = bloques[1].querySelector('input')?.value.trim() || '';
     }
-
     let textoUltimo = $('comentarioInicio')?.value.trim();
     if (textoUltimo) {
         comentariosTemporalesInicio.push({
@@ -1183,7 +1361,11 @@ function guardarDesdeInicio() {
         });
     }
 
-    let r = {
+    const registroOriginal = editando ? registros.find(x => x.id === editando) : null;
+    let tipoIdCapturado = $('tipoIdInicio')?.value || 'Ninguno';
+    let valIdCapturado = $('valorIdInicio')?.value.trim() || '';
+
+    let rProvisorio = {
         id: editando || Date.now(),
         nombre: $('nombreInicio')?.value.trim() || '',
         canal: $('canalInicio')?.value || 'WhatsApp',
@@ -1193,26 +1375,37 @@ function guardarDesdeInicio() {
         canal3: canal3,
         contacto3: contacto3,
         asunto: $('asuntoInicio')?.value.trim() || '',
-        identificador: $('valorIdInicio')?.value.trim() || '',
+        tipoIdentificador: tipoIdCapturado,
+        identificador: valIdCapturado,
         estado: $('estadoInicio')?.value || 'Consulta nueva',
-        comentarios: editando ? [...comentariosTemporalesInicio] : (comentariosTemporalesInicio.length > 0 ? [...comentariosTemporalesInicio] : []),
-        fecha: editando ? (registros.find(x => x.id === editando)?.fecha || ahoraMemora().toISOString()) : ahoraMemora().toISOString(),
-        ultimaModificacion: ahoraMemora().toISOString()
+        comentarios: editando ? [...comentariosTemporalesInicio] : [...comentariosTemporalesInicio],
+        fecha: registroOriginal ? registroOriginal.fecha : ahoraMemora().toISOString(),
+        ultimaModificacion: registroOriginal ? registroOriginal.ultimaModificacion : ahoraMemora().toISOString(),
+        ultimaRevision: registroOriginal ? obtenerUltimaRevisionEfectiva(registroOriginal) : ahoraMemora().toISOString()
     };
 
-    if (editando) {
-        registros = registros.map(x => x.id === editando ? r : x);
+    if (editando && registroOriginal) {
+        const hubocambios = evaluarCambiosEnRegistro(registroOriginal, rProvisorio);
+        if (!hubocambios) {
+            limpiarCamposFormularioInicio();
+            render();
+            mostrarAvisoMemora("Registro actualizado sin cambios. El seguimiento no fue modificado.", "MEMORA", "info");
+            return;
+        }
+        const ahoraISO = ahoraMemora().toISOString();
+        rProvisorio.ultimaModificacion = ahoraISO;
+        rProvisorio.ultimaRevision = ahoraISO;
+        registros = registros.map(x => x.id === editando ? rProvisorio : x);
     } else {
-        registros.unshift(r);
+        registros.unshift(rProvisorio);
     }
 
     guardarLocal();
-    sincronizarAutoNube(r);
+    sincronizarAutoNube(rProvisorio);
     limpiarCamposFormularioInicio();
     render();
     mostrarAvisoMemora(editando ? 'Registro actualizado exitosamente.' : 'Registro guardado exitosamente.', 'MEMORA', 'check_circle');
 }
-
 
 function limpiarCamposFormularioInicio() {
     ['nombreInicio', 'contactoInicio', 'asuntoInicio', 'valorIdInicio', 'comentarioInicio'].forEach(id => {
@@ -1220,16 +1413,14 @@ function limpiarCamposFormularioInicio() {
     });
     if ($('tipoIdInicio')) $('tipoIdInicio').value = 'Ninguno';
     if ($('canalInicio')) $('canalInicio').value = 'WhatsApp';
-    
     if ($('estadoInicio')) $('estadoInicio').value = 'Consulta nueva';
-    
     if ($('contenedorCanalesExtraInicio')) $('contenedorCanalesExtraInicio').innerHTML = '';
     editando = null;
     comentariosTemporalesInicio = [];
     renderComentariosTemporalesInicio();
     mostrarIdInicio();
+    actualizarOpcionesCanales('Inicio');
     mostrarCanalInicio();
-
     if ($('contactoInicio')) {
         $('contactoInicio').removeAttribute('readonly');
         $('contactoInicio').style.backgroundColor = '#ffffff';
@@ -1237,7 +1428,6 @@ function limpiarCamposFormularioInicio() {
         $('contactoInicio').style.border = '1px solid #ccc';
     }
     if ($('btnAccionContactoContainerInicio')) $('btnAccionContactoContainerInicio').innerHTML = '';
-
     if ($('tituloFormularioInicio')) {
         $('tituloFormularioInicio').innerText = 'Nuevo Registro / Carga Directa';
     }
@@ -1327,11 +1517,7 @@ function prepararNuevoRegistro() {
 }
 
 function guardar() {
-    // CANDADO DE SEGURIDAD: Frena el guardado si hay errores
-    if (!validarFormularioAntesDeGuardar('')) {
-        mostrarAvisoMemora("Por favor, corrige los campos marcados en rojo antes de guardar.", "Datos Incompletos", "warning");
-        return; 
-    }
+    if (!validarFormularioAntesDeGuardar('')) return;
 
     const contacto = $('contacto')?.value.trim() || '';
     const contenedor = $('contenedorCanalesExtraMovil');
@@ -1339,7 +1525,6 @@ function guardar() {
     
     let canal2 = '', contacto2 = '';
     let canal3 = '', contacto3 = '';
-
     if (bloques[0]) {
         canal2 = bloques[0].querySelector('select')?.value || '';
         contacto2 = bloques[0].querySelector('input')?.value.trim() || '';
@@ -1348,7 +1533,6 @@ function guardar() {
         canal3 = bloques[1].querySelector('select')?.value || '';
         contacto3 = bloques[1].querySelector('input')?.value.trim() || '';
     }
-
     let textoUltimo = $('comentario')?.value.trim();
     if (textoUltimo) {
         comentariosEdicionActual.push({
@@ -1359,10 +1543,11 @@ function guardar() {
         });
     }
 
-    let viejo = registros.find(r => r.id === editando);
-    let comentariosConsolidados = editando ? [...comentariosEdicionActual] : [...comentariosEdicionActual];
+    const registroOriginal = editando ? registros.find(x => x.id === editando) : null;
+    let tipoIdCapturado = $('tipoId')?.value || 'Ninguno';
+    let valIdCapturado = $('valorId')?.value.trim() || '';
 
-    let r = {
+    let rProvisorio = {
         id: editando || Date.now(),
         nombre: $('nombre')?.value ? $('nombre').value.trim() : '',
         canal: $('canal')?.value || 'WhatsApp',
@@ -1372,32 +1557,46 @@ function guardar() {
         canal3,
         contacto3,
         asunto: $('asunto')?.value.trim() || '',
-        identificador: $('valorId')?.value || '',
+        tipoIdentificador: tipoIdCapturado,
+        identificador: valIdCapturado,
         estado: $('estado')?.value || 'Consulta nueva',
-        comentarios: comentariosConsolidados,
-        fecha: viejo?.fecha || ahoraMemora().toISOString(),
-        ultimaModificacion: ahoraMemora().toISOString()
+        comentarios: [...comentariosEdicionActual],
+        fecha: registroOriginal ? registroOriginal.fecha : ahoraMemora().toISOString(),
+        ultimaModificacion: registroOriginal ? registroOriginal.ultimaModificacion : ahoraMemora().toISOString(),
+        ultimaRevision: registroOriginal ? obtenerUltimaRevisionEfectiva(registroOriginal) : ahoraMemora().toISOString()
     };
 
-    if (viejo) registros = registros.map(x => x.id === r.id ? r : x);
-    else registros.unshift(r);
+    if (editando && registroOriginal) {
+        const hubocambios = evaluarCambiosEnRegistro(registroOriginal, rProvisorio);
+        if (!hubocambios) {
+            limpiar();
+            navegarA('registros');
+            mostrarAvisoMemora("Registro actualizado sin cambios. El seguimiento no fue modificado.", "MEMORA", "info");
+            return;
+        }
+        const ahoraISO = ahoraMemora().toISOString();
+        rProvisorio.ultimaModificacion = ahoraISO;
+        rProvisorio.ultimaRevision = ahoraISO;
+        registros = registros.map(x => x.id === editando ? rProvisorio : x);
+    } else {
+        registros.unshift(rProvisorio);
+    }
 
     guardarLocal();
-    sincronizarAutoNube(r);
+    sincronizarAutoNube(rProvisorio);
     limpiar();
     navegarA('registros');
 }
-
 
 function editar(id) {
     let r = registros.find(x => x.id === id);
     if (!r) return;
     editando = id;
     const esPC = window.innerWidth >= 800;
-
     if (esPC) {
         if ($('nombreInicio')) $('nombreInicio').value = r.nombre || '';
         if ($('canalInicio')) $('canalInicio').value = r.canal || 'WhatsApp';
+        actualizarOpcionesCanales('Inicio');
         mostrarCanalInicio();
         if ($('contactoInicio')) {
             $('contactoInicio').value = r.contacto || '';
@@ -1414,20 +1613,18 @@ function editar(id) {
         if ($('contenedorCanalesExtraInicio')) $('contenedorCanalesExtraInicio').innerHTML = '';
         if (r.canal2 && r.contacto2) agregarCampoCanalExtraInicio(r.canal2, r.contacto2);
         if (r.canal3 && r.contacto3) agregarCampoCanalExtraInicio(r.canal3, r.contacto3);
-
         if ($('asuntoInicio')) $('asuntoInicio').value = r.asunto || '';
         if ($('estadoInicio')) $('estadoInicio').value = r.estado || 'Consulta nueva';
-        if ($('tipoIdInicio')) $('tipoIdInicio').value = r.identificador ? (r.identificador.startsWith('RUT') ? 'RUT' : 'N° de Cliente') : 'Ninguno';
+        
+        let tId = r.tipoIdentificador || (r.identificador ? (r.identificador.startsWith('RUT') ? 'RUT' : 'Nº de Cliente') : 'Ninguno');
+        if ($('tipoIdInicio')) $('tipoIdInicio').value = tId;
         mostrarIdInicio();
         if ($('valorIdInicio')) $('valorIdInicio').value = r.identificador || '';
-
         comentariosTemporalesInicio = JSON.parse(JSON.stringify(r.comentarios || []));
         renderComentariosTemporalesInicio();
-
         if ($('tituloFormularioInicio')) {
             $('tituloFormularioInicio').innerText = `Editando Registro: ${r.nombre || r.contacto}`;
         }
-
         let esArchivado = r.estado === 'Archivado';
         if ($('contenedorBotonesInicio')) {
             $('contenedorBotonesInicio').innerHTML = `
@@ -1449,19 +1646,19 @@ function editar(id) {
     } else {
         if ($('nombre')) $('nombre').value = r.nombre || '';
         if ($('canal')) $('canal').value = r.canal || 'WhatsApp';
+        actualizarOpcionesCanales('');
         mostrarCanal();
         if ($('contacto')) $('contacto').value = r.contacto || '';
         
         if ($('contenedorCanalesExtraMovil')) $('contenedorCanalesExtraMovil').innerHTML = '';
         if (r.canal2 && r.contacto2) agregarCampoCanalExtraMovil(r.canal2, r.contacto2);
         if (r.canal3 && r.contacto3) agregarCampoCanalExtraMovil(r.canal3, r.contacto3);
-
         if ($('asunto')) $('asunto').value = r.asunto || '';
         if ($('estado')) $('estado').value = r.estado || 'Consulta nueva';
-        if ($('tipoId')) $('tipoId').value = r.identificador ? (r.identificador.startsWith('RUT') ? 'RUT' : 'N° de Cliente') : 'Ninguno';
+        let tId = r.tipoIdentificador || (r.identificador ? (r.identificador.startsWith('RUT') ? 'RUT' : 'Nº de Cliente') : 'Ninguno');
+        if ($('tipoId')) $('tipoId').value = tId;
         mostrarId();
         if ($('valorId')) $('valorId').value = r.identificador || '';
-
         comentariosEdicionActual = JSON.parse(JSON.stringify(r.comentarios || []));
         renderListaComentariosEdicion();
         navegarA('formulario', 'Editar Cliente');
@@ -1476,12 +1673,10 @@ function abrirFicha(id) {
     }
     let r = registros.find(x => x.id === id);
     if (!r) return;
-
     let { avatarHTML, tituloHTML } = obtenerAvatarEIdentidad(r);
     let comentarios = r.comentarios || [];
     let ultimoComentario = comentarios.length > 0 ? comentarios[comentarios.length - 1] : null;
     let historialComentarios = comentarios.length > 1 ? comentarios.slice(0, comentarios.length - 1) : [];
-
     let html = `
         <div class="card" style="padding: 20px 16px;">
             <div style="display: flex; align-items: center; gap: 16px;">
@@ -1499,6 +1694,7 @@ function abrirFicha(id) {
         </div>
         <div style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
             <button onclick="editar(${r.id})" style="flex: 1; background-color: var(--primary-blue); color: white; border: none; padding: 12px; border-radius: 10px; font-weight: 600; cursor:pointer;">Editar</button>
+            <button onclick="marcarComoRevisado(${r.id})" style="flex: 1; background-color: #E0F2FE; color: #0284C7; border: none; padding: 12px; border-radius: 10px; font-weight: 600; cursor:pointer;">✔ Revisado</button>
             <button onclick="archivarCliente(${r.id})" style="flex: 1; background-color: #E5E7EB; color: #374151; border: none; padding: 12px; border-radius: 10px; font-weight: 600; cursor:pointer;">${r.estado === 'Archivado' ? 'Desarchivar' : 'Archivar'}</button>
             <button onclick="eliminar(${r.id})" style="flex: 1; background-color: #FEE2E2; color: #DC2626; border: none; padding: 12px; border-radius: 10px; font-weight: 600; cursor:pointer;">Eliminar</button>
         </div>
@@ -1512,10 +1708,15 @@ function abrirFicha(id) {
 }
 
 /* ==========================================================================
-   8. EXPORTACIÓN, MÉTRICAS Y AUXILIARES
+   8. EXPORTACIÓN, MÉTRICAS Y AUXILIARES (v1.4.0)
    ========================================================================== */
 function exportarCSVFiltrado() {
-    let datosAExportar = registrosUltimoFiltro.length > 0 ? registrosUltimoFiltro : registros;
+    let datosAExportar = registrosUltimoFiltro;
+    if (datosAExportar.length === 0) {
+        mostrarAvisoMemora("No hay registros para exportar en la vista o filtro actual.", "Exportación Excel", "warning");
+        return;
+    }
+
     let estadoFiltro = $('filtroEstado')?.value || $('screenTitle')?.innerText || 'Todos';
     let filtroLimpio = estadoFiltro.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_');
     if (!filtroLimpio || filtroLimpio === 'Inicio' || filtroLimpio === 'Perfil') filtroLimpio = 'Todos';
@@ -1538,9 +1739,9 @@ function exportarCSVFiltrado() {
     }
 
     let filas = [[
-        'Doc / RUT / N° Cliente', 'Nombre del Cliente', 'Asunto / Motivo', 'Canal Principal', 'Teléfono / WhatsApp',
+        'Tipo Doc / ID', 'Doc / RUT / Nº Cliente', 'Nombre del Cliente', 'Asunto / Motivo', 'Canal Principal', 'Teléfono / WhatsApp',
         'Usuario (@)', 'Correo Electrónico', 'Canal 2', 'Contacto 2', 'Canal 3', 'Contacto 3', 'Estado Actual', 'Último Comentario',
-        'Total Comentarios', 'Fecha de Registro'
+        'Total Comentarios', 'Fecha de Registro', 'Última Revisión'
     ]];
 
     datosAExportar.forEach(r => {
@@ -1549,13 +1750,15 @@ function exportarCSVFiltrado() {
             ? comentariosActivos[comentariosActivos.length - 1].texto.replace(/[\r\n]+/g, ' ') 
             : 'Sin comentarios';
         let d = new Date(r.fecha);
+        let dRev = new Date(obtenerUltimaRevisionEfectiva(r));
         let fechaCreacionTexto = isNaN(d.getTime()) ? r.fecha : `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+        let fechaRevTexto = isNaN(dRev.getTime()) ? '-' : `${String(dRev.getDate()).padStart(2, '0')}/${String(dRev.getMonth() + 1).padStart(2, '0')}/${dRev.getFullYear()} ${String(dRev.getHours()).padStart(2, '0')}:${String(dRev.getMinutes()).padStart(2, '0')}`;
         let clasif = clasificarContacto(r.canal, r.contacto);
         
         filas.push([
-            r.identificador || 'N/A', r.nombre || 'Sin registrar', r.asunto || 'Sin asunto', r.canal || 'Contacto',
+            r.tipoIdentificador || 'Ninguno', r.identificador || 'N/A', r.nombre || 'Sin registrar', r.asunto || 'Sin asunto', r.canal || 'Contacto',
             clasif.telefono, clasif.usuario, clasif.email, r.canal2 || '-', r.contacto2 || '-', r.canal3 || '-', r.contacto3 || '-', r.estado || 'Consulta nueva',
-            ultimoCom, (r.comentarios || []).length, fechaCreacionTexto
+            ultimoCom, (r.comentarios || []).length, fechaCreacionTexto, fechaRevTexto
         ]);
     });
 
@@ -1582,15 +1785,22 @@ function exportarCSVFiltrado() {
 }
 
 function exportarPDFFiltrado() {
-    let datosAExportar = registrosUltimoFiltro.length > 0 ? registrosUltimoFiltro : registros;
+    let datosAExportar = registrosUltimoFiltro;
+    if (datosAExportar.length === 0) {
+        mostrarAvisoMemora("No hay registros para exportar en la vista o filtro actual.", "Exportación PDF", "warning");
+        return;
+    }
+
     let ventana = window.open('', '_blank');
-    let contenido = `<html><head><title>Reporte MEMORA</title></head><body><h1>MEMORA - Reporte (${datosAExportar.length} Registros)</h1><p>Fecha: ${ahoraMemora().toLocaleString()}</p>`;
+    let contenido = `<html><head><title>Reporte MEMORA</title></head><body><h1>MEMORA - Reporte (${datosAExportar.length} Registros)</h1><p>Fecha de emisión: ${ahoraMemora().toLocaleString()}</p>`;
     
     datosAExportar.forEach(r => {
         contenido += `<hr><b>${r.nombre || r.contacto}</b><br>Asunto: ${r.asunto || 'N/A'}<br>Contacto Principal: ${r.canal} - ${r.contacto}<br>`;
         if (r.canal2 && r.contacto2) contenido += `Canal 2: ${r.canal2} - ${r.contacto2}<br>`;
         if (r.canal3 && r.contacto3) contenido += `Canal 3: ${r.canal3} - ${r.contacto3}<br>`;
+        if (r.identificador) contenido += `Identificador (${r.tipoIdentificador || 'ID'}): ${r.identificador}<br>`;
         contenido += `Estado: ${r.estado}<br>`;
+        contenido += `Última revisión: ${fechaHoraTextoFormateada(new Date(obtenerUltimaRevisionEfectiva(r)))}<br>`;
         contenido += `Comentarios:<br>${(r.comentarios || []).map(c => `- ${c.texto}`).join('<br>')}<br>`;
     });
     
@@ -1599,7 +1809,8 @@ function exportarPDFFiltrado() {
     ventana.print();
 }
 
-function exportarJSON() { descargar(JSON.stringify(registros, null, 2), 'memora.json', 'application/json'); }
+function exportarJSON() { descargar(JSON.stringify(registros, null, 2), 'memora_completo.json', 'application/json'); }
+
 function descargar(c, n, t) {
     let a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([c], { type: t }));
@@ -1622,7 +1833,8 @@ async function cargarDiagnosticoSistema() {
     else if (ua.includes("Safari") && !ua.includes("Chrome")) nav = "Apple Safari";
 
     const storageBytes = new Blob([localStorage.getItem('memora_registros') || '']).size;
-    if ($('sys-version')) $('sys-version').innerText = "v1.4.0";
+
+    if ($('sys-version')) $('sys-version').innerText = "v1.4.0 (0.4)";
     if ($('sys-device')) $('sys-device').innerText = dev;
     if ($('sys-browser')) $('sys-browser').innerText = nav;
     if ($('sys-storage')) $('sys-storage').innerText = `${(storageBytes / 1024).toFixed(2)} KB`;
@@ -1646,7 +1858,6 @@ function cargarDatosUsuarioPerfil() {
     
     if ($('perfilDatosLista')) $('perfilDatosLista').innerHTML = htmlLista || '<p style="font-size:0.8rem; color:var(--text-secondary);">Sin datos adicionales cargados.</p>';
     
-    // --- CONEXIÓN DE INPUTS (Resuelve los datos no cargados en foto 2) ---
     if ($('cfgAdminRol')) $('cfgAdminRol').value = datos.rolAdmin || 'Usuario Administrador';
     if ($('cfgAdminNombre')) $('cfgAdminNombre').value = datos.nombreAdmin || '';
     if ($('cfgAdminCedula')) $('cfgAdminCedula').value = datos.cedulaAdmin || '';
@@ -1659,7 +1870,6 @@ function cargarDatosUsuarioPerfil() {
     
     if ($('cfgModoCanales')) $('cfgModoCanales').value = obtenerConfigVisibilidadCanales();
 }
-
 
 function toggleModalConfigUser() {
     const modal = $('modalConfigAdmin');
@@ -1684,7 +1894,6 @@ function guardarDatosUsuarioAdmin() {
     mostrarAvisoMemora("Datos de perfil guardados.", "Configuración", "check_circle");
 }
 
-/* Función de eliminación inmediata con re-render instantáneo v1.4.0 */
 function eliminar(id) {
     mostrarConfirmMemora("¿Es seguro de eliminar este registro permanentemente?", "Eliminar Cliente", "delete", "#DC2626", (confirmado) => {
         if (confirmado) {
@@ -1702,9 +1911,12 @@ function eliminar(id) {
 function archivarCliente(id) {
     let r = registros.find(x => x.id === id);
     if (!r) return;
+    const ahoraISO = ahoraMemora().toISOString();
     r.estado = r.estado === 'Archivado' ? 'Consulta nueva' : 'Archivado';
-    r.ultimaModificacion = ahoraMemora().toISOString();
+    r.ultimaModificacion = ahoraISO;
+    r.ultimaRevision = ahoraISO;
     guardarLocal();
+    sincronizarAutoNube(r);
     limpiarCamposFormularioInicio();
     render();
     if ($('sec-ficha').style.display !== 'none') {
@@ -1727,16 +1939,13 @@ function limpiar() {
     if ($('contacto')) $('contacto').value = '';
     if ($('asunto')) $('asunto').value = '';
     if ($('canal')) $('canal').value = 'WhatsApp';
-    
     if ($('estado')) $('estado').value = 'Consulta nueva';
+    if ($('tipoId')) $('tipoId').value = 'Ninguno';
+    mostrarId();
     if ($('comentario')) $('comentario').value = '';
     if ($('listaComentariosEdicion')) $('listaComentariosEdicion').innerHTML = '<p style="font-size:0.75rem; color:var(--text-secondary);">No hay comentarios adjuntos.</p>';
-    
-    if ($('canal2')) $('canal2').value = '';
-    if ($('contacto2')) $('contacto2').value = '';
-    if ($('canal3')) $('canal3').value = '';
-    if ($('contacto3')) $('contacto3').value = '';
     if ($('contenedorCanalesExtraMovil')) $('contenedorCanalesExtraMovil').innerHTML = '';
+    actualizarOpcionesCanales('');
 }
 
 function actualizarKPIs() {
@@ -1756,12 +1965,14 @@ function actualizarMetricsInicio() {
         const d = new Date(r.fecha);
         return d.getMonth() === ahora.getMonth() && d.getFullYear() === ahora.getFullYear();
     }).length;
+
     let conteoCanales = {};
     registros.forEach(r => {
         if (r.canal) conteoCanales[r.canal] = (conteoCanales[r.canal] || 0) + 1;
         if (r.canal2) conteoCanales[r.canal2] = (conteoCanales[r.canal2] || 0) + 1;
         if (r.canal3) conteoCanales[r.canal3] = (conteoCanales[r.canal3] || 0) + 1;
     });
+
     let topCanal = '-';
     let max = 0;
     for (let c in conteoCanales) {
@@ -1799,9 +2010,12 @@ function procesarAutoArchivado() {
     let modificado = false;
     registros.forEach(r => {
         if (r.estado === 'Cerrado' || r.estado === 'Perdido') {
-            let dias = Math.floor((ahora - new Date(r.ultimaModificacion || r.fecha)) / (1000 * 60 * 60 * 24));
+            let refFecha = new Date(obtenerUltimaRevisionEfectiva(r));
+            let dias = Math.floor((ahora - refFecha) / (1000 * 60 * 60 * 24));
             if (dias >= 30) {
                 r.estado = 'Archivado';
+                r.ultimaModificacion = ahora.toISOString();
+                r.ultimaRevision = ahora.toISOString();
                 modificado = true;
             }
         }
@@ -1821,87 +2035,11 @@ function forzarLimpiezaCachePWA() {
 }
 
 /* ==========================================================================
-   MODO DEMO SANDBOX (INYECCIÓN AUTOMÁTICA POR SUBDOMINIO)
-   ========================================================================== */
-function cargarModoDemoSiAplica() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const esSubdominioDemo = window.location.hostname === 'demo.memoraapp.net';
-    const tieneParametroDemo = urlParams.get('demo') === 'true';
-
-    // Activa la demo si entra a demo.memoraapp.net/ O si trae ?demo=true
-    if (esSubdominioDemo || tieneParametroDemo) {
-        const datosLocales = localStorage.getItem('memora_registros');
-        if (!datosLocales || JSON.parse(datosLocales).length === 0) {
-            const registrosDemo = [
-                {
-                    id: 101,
-                    nombre: "Carlos López",
-                    canal: "WhatsApp",
-                    contacto: "099123456",
-                    canal2: "Instagram",
-                    contacto2: "@carloslopez_uy",
-                    asunto: "Consulta por kit de cámaras",
-                    identificador: "RUT 219998880011",
-                    estado: "Esperando cliente",
-                    comentarios: [{ texto: "Presupuesto enviado por WhatsApp.", fecha: "01/09/2026 10:30", editado: null, eliminado: false }],
-                    fecha: new Date(Date.now() - (4 * 24 * 60 * 60 * 1000)).toISOString(),
-                    ultimaModificacion: new Date(Date.now() - (4 * 24 * 60 * 60 * 1000)).toISOString()
-                },
-                {
-                    id: 102,
-                    nombre: "Mariana Gómez",
-                    canal: "Instagram",
-                    contacto: "@marianag_design",
-                    canal2: "Email",
-                    contacto2: "mariana@design.com",
-                    asunto: "Diseño de renders 3D",
-                    identificador: "N° Cliente 452",
-                    estado: "Cerrado",
-                    comentarios: [{ texto: "Pago recibido correctamente.", fecha: "02/09/2026 16:15", editado: null, eliminado: false }],
-                    fecha: new Date().toISOString(),
-                    ultimaModificacion: new Date().toISOString()
-                }
-            ];
-            localStorage.setItem('memora_registros', JSON.stringify(registrosDemo));
-            localStorage.setItem('memora_profile_completed', 'true');
-            localStorage.setItem('memora_admin_user_data', JSON.stringify({
-                rolAdmin: 'Tester Demo',
-                nombreAdmin: 'Usuario Demo',
-                empresaAdmin: 'Mi Empresa'
-            }));
-            registros = registrosDemo;
-        }
-        mostrarBannerDemoSuperior();
-    }
-}
-
-
-function mostrarBannerDemoSuperior() {
-    if (document.getElementById('bannerModoDemo')) return;
-    const banner = document.createElement('div');
-    banner.id = 'bannerModoDemo';
-    banner.style.cssText = 'background:#004F87; color:white; text-align:center; padding:8px 12px; font-size:0.8rem; font-weight:600; position:sticky; top:0; z-index:999; display:flex; justify-content:space-between; align-items:center; box-shadow: 0 2px 8px rgba(0,0,0,0.2);';
-        
-    banner.innerHTML = `
-        <span>Estás probando el Modo Demo Sandbox</span>
-        <button type="button" id="btnIrALandingDemo" style="background:#18a957; color:white; padding:5px 12px; border-radius:6px; border:none; text-decoration:none; font-size:0.75rem; font-weight:700; cursor:pointer;">
-            Solicitar Licencia
-        </button>
-    `;
-    document.body.prepend(banner);
-    document.getElementById('btnIrALandingDemo').addEventListener('click', function(e) {
-        e.preventDefault();
-        window.top.location.href = "https://memoraapp.net/";
-    });
-}
-
-/* ==========================================================================
-   VALIDACIÓN EN TIEMPO REAL CON MENSAJE EXPLICATIVO VISUAL
+   VALIDACIÓN EN TIEMPO REAL
    ========================================================================== */
 function mostrarErrorCampo(inputId, errorId, mensaje, esInvalido) {
     const input = $(inputId);
     if (!input) return;
-
     let msgEl = $(errorId);
     if (!msgEl) {
         msgEl = document.createElement('small');
@@ -1913,11 +2051,10 @@ function mostrarErrorCampo(inputId, errorId, mensaje, esInvalido) {
         msgEl.style.marginTop = '4px';
         input.parentNode.appendChild(msgEl);
     }
-
     if (esInvalido) {
         input.style.border = '1.5px solid #EF4444';
         input.style.backgroundColor = '#FEF2F2';
-        msgEl.innerText = `⚠️ ${mensaje}`;
+        msgEl.innerText = `  ${mensaje}`;
         msgEl.style.display = 'block';
     } else {
         input.style.border = '1px solid #ccc';
@@ -1926,20 +2063,15 @@ function mostrarErrorCampo(inputId, errorId, mensaje, esInvalido) {
     }
 }
 
-/* ==========================================================================
-   VALIDACIÓN EN TIEMPO REAL CON REGLA DE CAMPO VACÍO LIMPIO
-   ========================================================================== */
 function validarCampoEnTiempoReal(sufijo = '') {
     const nombreEl = $(`nombre${sufijo}`);
     const canalEl = $(`canal${sufijo}`);
     const contactoEl = $(`contacto${sufijo}`);
     const asuntoEl = $(`asunto${sufijo}`);
 
-    // --- 1. Nombre Completo (Opcional, pero si se llena exige mínimo 3 letras) ---
     if (nombreEl) {
         const validarNombre = () => {
             let val = nombreEl.value.trim();
-            // Si está vacío = OK. Si escribe = Mínimo 3 letras y sin números.
             let esInvalido = val.length > 0 && (val.length < 3 || /[0-9]/.test(val));
             mostrarErrorCampo(nombreEl.id, `err_${nombreEl.id}`, "Ingrese un nombre real (mínimo 3 letras, sin números).", esInvalido);
         };
@@ -1948,7 +2080,6 @@ function validarCampoEnTiempoReal(sufijo = '') {
         nombreEl.onblur = validarNombre;
     }
 
-    // --- 2. Contacto / WhatsApp (Obligatorio al guardar, pero limpio si está vacío) ---
     if (contactoEl) {
         const validarContacto = () => {
             let canal = canalEl ? canalEl.value : 'WhatsApp';
@@ -1956,17 +2087,15 @@ function validarCampoEnTiempoReal(sufijo = '') {
             let esInvalido = false;
             let mensajeError = "";
 
-            // SI ESTÁ VACÍO: No muestra cartel ni borde rojo en vivo
             if (valor.length === 0) {
                 mostrarErrorCampo(contactoEl.id, `err_${contactoEl.id}`, "", false);
                 return;
             }
 
-            // SI TIENE DATOS: Valida según el canal seleccionado
             if (canal === 'WhatsApp') {
                 const numLimpio = valor.replace(/\D/g, '');
                 esInvalido = numLimpio.length < 8 || numLimpio.length > 15 || /[a-zA-Z]/.test(valor);
-                mensajeError = "Ingrese un número de celular válido (mínimo 8 dígitos, solo números).";
+                mensajeError = "Ingrese un número de celular válido (mínimo 8 dígitos).";
             } else if (canal === 'Email') {
                 esInvalido = !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(valor);
                 mensajeError = "Ingrese un correo electrónico válido.";
@@ -1974,12 +2103,9 @@ function validarCampoEnTiempoReal(sufijo = '') {
                 esInvalido = valor.replace('@', '').length < 3;
                 mensajeError = "Ingrese un usuario válido (mínimo 3 caracteres).";
             }
-
             mostrarErrorCampo(contactoEl.id, `err_${contactoEl.id}`, mensajeError, esInvalido);
         };
-
         contactoEl.oninput = () => {
-            // Re-vincula el buscador predictivo para que NO se pierda la lista de números
             buscarCoincidenciasPredictivas(contactoEl.value, 'contacto', sufijo ? `dropContacto${sufijo}` : 'dropContactoForm');
             validarContacto();
         };
@@ -1987,7 +2113,6 @@ function validarCampoEnTiempoReal(sufijo = '') {
         contactoEl.onblur = validarContacto;
     }
 
-    // --- 3. Asunto (Opcional, pero si se llena exige mínimo 3 caracteres) ---
     if (asuntoEl) {
         const validarAsunto = () => {
             let val = asuntoEl.value.trim();
@@ -2000,36 +2125,54 @@ function validarCampoEnTiempoReal(sufijo = '') {
     }
 }
 
-
-
-/* Inicialización del sistema con EventListeners en tiempo real */
+/* ==========================================================================
+   INICIALIZACIÓN DEL SISTEMA
+   ========================================================================== */
 document.addEventListener('DOMContentLoaded', () => {
     iniciarRelojHeader();
-    cargarModoDemoSiAplica();
     if ($('estado')) $('estado').innerHTML = estados.map(e => `<option>${e}</option>`).join('');
     if ($('filtroEstado')) $('filtroEstado').innerHTML = '<option value="">Todos los estados</option>' + estados.map(e => `<option>${e}</option>`).join('');
     
-    // Escuchador dinámico para el canal móvil (v1.4.0)
+    actualizarOpcionesCanales('');
+    actualizarOpcionesCanales('Inicio');
+
     const selectCanalMovil = $('canal');
     if (selectCanalMovil) {
         selectCanalMovil.addEventListener('change', () => {
+            actualizarOpcionesCanales('');
             mostrarCanal();
         });
     }
 
-    // Escuchador dinámico para el canal PC (v1.4.0)
     const selectCanalPC = $('canalInicio');
     if (selectCanalPC) {
         selectCanalPC.addEventListener('change', () => {
+            actualizarOpcionesCanales('Inicio');
             mostrarCanalInicio();
         });
     }
-
     mostrarCanal();
     if (typeof mostrarCanalInicio === 'function') mostrarCanalInicio();
-
     comprobarEstadoAccesoEInicial();
     render();
-
     setTimeout(inicializarGoogleDriveAPI, 1000);
 });
+
+/* ==========================================================================
+   INSTRUCTIVO Y STORIES INTERACTIVAS
+   ========================================================================== */
+function toggleGuiaUsoMemora() {
+    const cont = document.getElementById('contenedorGuiaUso');
+    const arrow = document.getElementById('iconGuiaArrow');
+    if (!cont) return;
+    
+    const estaOculto = cont.style.display === 'none';
+    cont.style.display = estaOculto ? 'block' : 'none';
+    if (arrow) arrow.innerText = estaOculto ? 'expand_less' : 'expand_more';
+}
+
+function reproducirTourBienvenida() {
+    const datosRaw = localStorage.getItem('memora_admin_user_data');
+    const datos = datosRaw ? JSON.parse(datosRaw) : { nombreAdmin: 'Usuario' };
+    iniciarStoriesBienvenida(datos.nombreAdmin);
+}
