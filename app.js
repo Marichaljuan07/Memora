@@ -1694,7 +1694,6 @@ function abrirFicha(id) {
         </div>
         <div style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
             <button onclick="editar(${r.id})" style="flex: 1; background-color: var(--primary-blue); color: white; border: none; padding: 12px; border-radius: 10px; font-weight: 600; cursor:pointer;">Editar</button>
-            <button onclick="marcarComoRevisado(${r.id})" style="flex: 1; background-color: #E0F2FE; color: #0284C7; border: none; padding: 12px; border-radius: 10px; font-weight: 600; cursor:pointer;">✔ Revisado</button>
             <button onclick="archivarCliente(${r.id})" style="flex: 1; background-color: #E5E7EB; color: #374151; border: none; padding: 12px; border-radius: 10px; font-weight: 600; cursor:pointer;">${r.estado === 'Archivado' ? 'Desarchivar' : 'Archivar'}</button>
             <button onclick="eliminar(${r.id})" style="flex: 1; background-color: #FEE2E2; color: #DC2626; border: none; padding: 12px; border-radius: 10px; font-weight: 600; cursor:pointer;">Eliminar</button>
         </div>
