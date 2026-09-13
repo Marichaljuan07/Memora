@@ -4,22 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MEMORA - Seguimiento Inteligente de Clientes</title>
-         
+              
     <!-- Configuración PWA e Íconos para Lanzadores (Android/iOS/PC) -->
     <link rel="manifest" href="manifest.json">
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
     <link rel="apple-touch-icon" sizes="192x192" href="./icons/icon-192.png">
     <meta name="theme-color" content="#004F87">
-         
+              
     <!-- Estilos CSS (en la raíz) -->
     <link rel="stylesheet" href="styles.css">
-         
+              
     <!-- Fuentes e Íconos -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
-         
+              
     <!-- Librerías Externas -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -109,7 +109,7 @@
                 <div style="display:flex; gap:10px; align-items:flex-start;">
                     <span class="material-symbols-outlined" style="color:var(--primary-blue);">auto_awesome</span>
                     <div>
-                        <h4 style="font-size: 0.85rem; color: var(--primary-blue); font-weight:700;">Seguimiento Inteligente ✨</h4>
+                        <h4 style="font-size: 0.85rem; color: var(--primary-blue); font-weight:700;">Seguimiento Inteligente ⚡</h4>
                         <p style="font-size: 0.75rem; color: var(--text-primary); margin-top: 2px; line-height: 1.3;" id="textoBannerSeguimiento">
                             MEMORA administra automáticamente a los clientes inactivos según tus reglas.
                         </p>
@@ -154,14 +154,7 @@
                     </div>
                     <div>
                         <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px; color:var(--text-secondary);">Canal Principal</label>
-                        <select id="canalInicio" onchange="mostrarCanalInicio()" style="width:100%; padding:12px; border-radius:8px; border:1px solid #ccc;">
-                            <option value="WhatsApp">WhatsApp</option>
-                            <option value="Instagram">Instagram</option>
-                            <option value="Email">Email</option>
-                            <option value="LinkedIn">LinkedIn</option>
-                            <option value="Facebook">Facebook</option>
-                            <option value="Telegram">Telegram</option>
-                        </select>
+                        <select id="canalInicio" onchange="actualizarOpcionesCanales('Inicio'); mostrarCanalInicio();" style="width:100%; padding:12px; border-radius:8px; border:1px solid #ccc;"></select>
                     </div>
                     <div id="campoCanalInicio" style="position:relative;">
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
@@ -185,7 +178,7 @@
                         <select id="tipoIdInicio" onchange="mostrarIdInicio()" style="width:100%; padding:12px; border-radius:8px; border:1px solid #ccc;">
                             <option value="Ninguno">Ninguno</option>
                             <option value="RUT">RUT</option>
-                            <option value="N° de Cliente">N° de Cliente</option>
+                            <option value="Nº de Cliente">Nº de Cliente</option>
                         </select>
                     </div>
                     <div id="campoIdInicio"></div>
@@ -222,6 +215,7 @@
                 </div>
             </div>
         </section>
+
         <!-- SECCIÓN 2: REGISTROS -->
         <section id="sec-registros" class="app-section" style="display: none;">
             <div class="welcome-section" style="flex-direction: column; align-items: flex-start; gap: 4px;">
@@ -247,7 +241,7 @@
                 </select>
                 <input type="text" id="filtroDato" placeholder="Filtrar por contacto" oninput="render()" style="width:100%; margin-bottom:6px; padding:6px;">
                 <input type="text" id="filtroAsunto" placeholder="Filtrar por asunto" oninput="render()" style="width:100%; margin-bottom:6px; padding:6px;">
-                <input type="text" id="filtroId" placeholder="Filtrar por RUT / N° Cliente" oninput="render()" style="width:100%; margin-bottom:6px; padding:6px;">
+                <input type="text" id="filtroId" placeholder="Filtrar por RUT / Nº Cliente" oninput="render()" style="width:100%; margin-bottom:6px; padding:6px;">
                 <select id="filtroEstado" onchange="render()" style="width:100%; margin-bottom:6px; padding:6px;"></select>
                 <input type="text" id="filtroComentario" placeholder="Filtrar en comentarios" oninput="render()" style="width:100%; padding:6px;">
             </div>
@@ -264,10 +258,12 @@
             </div>
             <div id="listaRegistros" style="padding-bottom: 40px;"></div>
         </section>
+
         <!-- SECCIÓN 3: FICHA DETALLE DE CLIENTE -->
         <section id="sec-ficha" class="app-section" style="display: none;">
             <div id="contenidoFicha"></div>
         </section>
+
         <!-- SECCIÓN 4: FORMULARIO DE CLIENTE (MÓVIL / EDICIÓN) -->
         <section id="sec-formulario" class="app-section" style="display: none;">
             <div class="card" style="padding: 16px;">
@@ -280,17 +276,9 @@
                     </div>
                     <div>
                         <label style="font-size: 0.8rem; color: var(--text-secondary);">Canal Principal</label>
-                        <select id="canal" onchange="mostrarCanal()" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc;">
-                            <option value="WhatsApp">WhatsApp</option>
-                            <option value="Instagram">Instagram</option>
-                            <option value="Email">Email</option>
-                            <option value="LinkedIn">LinkedIn</option>
-                            <option value="Facebook">Facebook</option>
-                            <option value="Telegram">Telegram</option>
-                        </select>
+                        <select id="canal" onchange="actualizarOpcionesCanales(''); mostrarCanal();" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc;"></select>
                     </div>
                     <div id="campoCanal" style="position:relative;"></div>
-                    <!-- HASTA 3 CANALES EN MÓVIL -->
                     <div id="contenedorCanalesExtraMovil" style="display:flex; flex-direction:column; gap:8px;"></div>
                     <button type="button" onclick="agregarCampoCanalExtraMovil()" style="background:none; border:1px dashed var(--primary-blue); color:var(--primary-blue); padding:10px; border-radius:8px; font-weight:600; font-size:0.82rem; cursor:pointer; margin-top:2px; display:flex; align-items:center; justify-content:center; gap:6px;">
                         <span class="material-symbols-outlined" style="font-size:1.1rem;">add_circle</span>
@@ -305,7 +293,7 @@
                         <select id="tipoId" onchange="mostrarId()" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc;">
                             <option value="Ninguno">Ninguno</option>
                             <option value="RUT">RUT (Empresa)</option>
-                            <option value="N° de Cliente">N° de Cliente / Socio</option>
+                            <option value="Nº de Cliente">Nº de Cliente / Socio</option>
                         </select>
                     </div>
                     <div id="campoId"></div>
@@ -329,6 +317,7 @@
                 </div>
             </div>
         </section>
+
         <!-- SECCIÓN 5: PERFIL Y CONFIGURACIÓN -->
         <section id="sec-perfil" class="app-section" style="display: none;">
             <div class="welcome-section" style="flex-direction: column; align-items: flex-start; gap: 4px;">
@@ -441,7 +430,7 @@
                 <div class="tech-info-grid">
                     <div class="tech-info-item">
                         <span class="tech-label">Versión de App</span>
-                        <span class="tech-value" id="sys-version">v1.4.0</span>
+                        <span class="tech-value" id="sys-version">v1.4.0 (0.4)</span>
                     </div>
                     <div class="tech-info-item">
                         <span class="tech-label">Dispositivo</span>
@@ -489,18 +478,76 @@
                     <span class="material-symbols-outlined" style="color: var(--text-secondary);">chevron_right</span>
                 </div>
             </div>
+            
+            <!-- TARJETA DE AYUDA Y MANUAL -->
+            <h3 style="font-size: 0.95rem; margin: 16px 0 10px 0;">Ayuda</h3>
+            <div class="card" style="margin-bottom:24px; padding:16px;">
+                <div style="display:flex; flex-direction:column; gap:16px;">
+                    <div>
+                        <h4 style="font-size:0.9rem; color:var(--primary-blue); margin-bottom:6px;">¿Cómo empiezo?</h4>
+                        <ol style="padding-left:18px; font-size:0.8rem; color:var(--text-primary); line-height:1.5;">
+                            <li>Creá un registro cuando aparezca un nuevo cliente o consulta.</li>
+                            <li>Guardá por dónde hablás con esa persona y el motivo del contacto.</li>
+                            <li>Elegí el estado que mejor represente en qué quedó la conversación.</li>
+                            <li>Agregá comentarios cuando haya novedades.</li>
+                            <li>Memora te mostrará cuándo un registro necesita seguimiento.</li>
+                        </ol>
+                    </div>
+
+                    <div style="border-top:1px solid #F3F4F6; padding-top:12px;">
+                        <h4 style="font-size:0.9rem; color:var(--primary-blue); margin-bottom:4px;">¿Qué es Seguimiento Requerido?</h4>
+                        <p style="font-size:0.8rem; color:var(--text-secondary); line-height:1.4;">
+                            Es la lista de clientes o gestiones que llevan más tiempo sin actividad del que configuraste. Podés definir ese plazo desde Perfil, en horas o días.
+                        </p>
+                    </div>
+
+                    <div style="border-top:1px solid #F3F4F6; padding-top:12px;">
+                        <h4 style="font-size:0.9rem; color:var(--primary-blue); margin-bottom:4px;">¿Para qué sirve Revisado?</h4>
+                        <p style="font-size:0.8rem; color:var(--text-secondary); line-height:1.4;">
+                            Usalo cuando verificaste un registro pero no hay nada nuevo para modificar. Memora guarda la nueva revisión y vuelve a calcular cuándo debería aparecer en seguimiento.
+                        </p>
+                    </div>
+
+                    <div style="border-top:1px solid #F3F4F6; padding-top:12px;">
+                        <h4 style="font-size:0.9rem; color:var(--primary-blue); margin-bottom:4px;">¿Cómo funcionan los canales?</h4>
+                        <p style="font-size:0.8rem; color:var(--text-secondary); line-height:1.4;">
+                            Cada registro puede tener hasta 3 canales diferentes, por ejemplo WhatsApp, Instagram y LinkedIn. Desde la tarjeta podés abrir directamente el canal correspondiente para retomar la conversación.
+                        </p>
+                    </div>
+
+                    <div style="border-top:1px solid #F3F4F6; padding-top:12px;">
+                        <h4 style="font-size:0.9rem; color:var(--primary-blue); margin-bottom:4px;">¿Qué pasa con mis datos?</h4>
+                        <p style="font-size:0.8rem; color:var(--text-secondary); line-height:1.4;">
+                            Podés realizar respaldos en tu Google Drive y exportar información cuando la necesites. La vista activa puede exportarse a Excel o PDF, y la base completa puede descargarse en JSON.
+                        </p>
+                    </div>
+
+                    <!-- BOTONES DE ACCIÓN (DESCARGA DIRECTA) -->
+                    <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px; border-top:1px solid #E5E7EB; padding-top:14px;">
+                        <a href="./docs/Manual_Memora_v1.4.0.pdf" download="Manual_Memora_v1.4.0.pdf" style="width:100%; background:var(--primary-blue); color:white; border:none; padding:11px; border-radius:8px; font-weight:700; font-size:0.8rem; cursor:pointer; text-decoration:none; display:flex; align-items:center; justify-content:center; gap:6px;">
+                            <span class="material-symbols-outlined" style="font-size:1rem;">file_download</span> Descargar manual completo
+                        </a>
+                        <button type="button" onclick="reproducirTourBienvenida()" style="width:100%; background:#F3F4F6; color:#374151; border:1px solid #D1D5DB; padding:11px; border-radius:8px; font-weight:700; font-size:0.8rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
+                            <span class="material-symbols-outlined" style="font-size:1rem;">play_circle</span> Volver a ver bienvenida
+                        </button>
+                    </div>
+                </div>
+            </div>
         </section>
+
         <!-- BOTÓN FLOTANTE FAB -->
         <button id="btnNuevoRegistroFlotante" class="fab-button" onclick="prepararNuevoRegistro()">
             <span class="material-symbols-outlined">add</span>
             <span>Nuevo registro</span>
         </button>
     </main>
+
     <nav class="bottom-nav">
         <a href="#" id="nav-inicio" onclick="navegarA('inicio')" class="nav-item active"><span class="material-symbols-outlined">home</span><span>Inicio</span></a>
         <a href="#" id="nav-registros" onclick="navegarA('registros')" class="nav-item"><span class="material-symbols-outlined">assignment</span><span>Registros</span></a>
         <a href="#" id="nav-perfil" onclick="navegarA('perfil')" class="nav-item"><span class="material-symbols-outlined">person</span><span>Perfil</span></a>
     </nav>
+
     <!-- MODALES MEMORA -->
     <div id="modalPerfilMemora" class="memora-modal-overlay" style="display: none;">
         <div class="memora-modal-card">
@@ -527,11 +574,7 @@
     </div>
     <div id="modalStoriesMemora" class="memora-modal-overlay" style="display: none;">
         <div class="memora-modal-card stories-container">
-            <div class="stories-progress-bar">
-                <div class="story-segment"><div id="story-fill-0" class="story-segment-fill"></div></div>
-                <div class="story-segment"><div id="story-fill-1" class="story-segment-fill"></div></div>
-                <div class="story-segment"><div id="story-fill-2" class="story-segment-fill"></div></div>
-            </div>
+            <div class="stories-progress-bar"></div>
             <div class="story-content" id="storyContent"></div>
             <button class="memora-btn-primary" id="btnNextStory" onclick="siguienteStory()">Siguiente</button>
         </div>
@@ -551,7 +594,7 @@
             <div style="margin-bottom: 12px;">
                 <span id="confirmMemoraIcono" class="material-symbols-outlined" style="font-size: 44px; color: #DC2626;">help_outline</span>
             </div>
-            <h3 id="confirmMemoraTitulo" style="margin-bottom: 8px;">¿Es seguro?</h3>
+            <h3 id="confirmMemoraTitulo" style="margin-bottom: 8px;">¿Estás seguro?</h3>
             <p id="confirmMemoraTexto" style="margin-bottom: 20px; color: #6b7280; font-size: 0.9rem;"></p>
             <div style="display: flex; gap: 10px;">
                 <button class="memora-btn-primary" style="background: #E5E7EB; color: #374151; box-shadow: none;" onclick="responderConfirmMemora(false)">Cancelar</button>
@@ -572,11 +615,11 @@
             </div>
         </div>
     </div>
-    <script src="app.js?v=1.4.0"></script>
+    <script src="app.js?v=1.4.0-0.4"></script>
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('./sw.js?v=1.4.0');
+          navigator.serviceWorker.register('./sw.js?v=1.4.0-0.4');
         });
       }
     </script>
