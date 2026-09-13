@@ -1,5 +1,5 @@
 /* ==========================================================================
-   MEMORA CRM - CORE LOGIC (v1.4.0 - Build 0.4)
+   MEMORA CRM - CORE LOGIC (v1.4.1)
    ========================================================================== */
 const estados = [
     "Consulta nueva",
@@ -1833,7 +1833,7 @@ async function cargarDiagnosticoSistema() {
 
     const storageBytes = new Blob([localStorage.getItem('memora_registros') || '']).size;
 
-    if ($('sys-version')) $('sys-version').innerText = "v1.4.0 (0.4)";
+    if ($('sys-version')) $('sys-version').innerText = "v1.4.1";
     if ($('sys-device')) $('sys-device').innerText = dev;
     if ($('sys-browser')) $('sys-browser').innerText = nav;
     if ($('sys-storage')) $('sys-storage').innerText = `${(storageBytes / 1024).toFixed(2)} KB`;
