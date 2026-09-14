@@ -1,5 +1,5 @@
 /* ==========================================================================
-   MEMORA CRM - CORE LOGIC (v1.4.0)
+   MEMORA CRM - CORE LOGIC (v1.4.0 - Build 0.4)
    ========================================================================== */
 const estados = [
     "Consulta nueva",
@@ -12,6 +12,43 @@ const estados = [
 ];
 
 const CANALES_DISPONIBLES = ["WhatsApp", "Instagram", "Email", "LinkedIn", "Facebook", "Telegram"];
+
+// ==========================================
+// CONTROL DE LICENCIA / DEMO
+// ==========================================
+const MODO_DEMO = true; // Pasar a false en la versión PRO
+const LIMITE_REGISTROS_DEMO = 15;
+
+function validarCupoDemo() {
+    if (!MODO_DEMO) return true;
+
+    // Solo contamos los clientes activos (excluimos archivados)
+    const activos = registros.filter(r => r.estado !== 'Archivado').length;
+    
+    // Actualizamos el contador del banner visual
+    const elemContador = document.getElementById('contadorCupoDemo');
+    if (elemContador) elemContador.innerText = activos;
+
+    // Si ya alcanzó el límite de 15, frenamos y mostramos el modal
+    if (activos >= LIMITE_REGISTROS_DEMO) {
+        mostrarAvisoMemora(
+            `Has alcanzado el límite de ${LIMITE_REGISTROS_DEMO} registros activos de la versión Demo.\n\nPara gestionar clientes ilimitados, respaldar en la nube y exportar a Excel, adquiere MEMORA PRO.`,
+            "Límite Demo Alcanzado ⚡", 
+            "warning"
+        );
+        return false;
+    }
+    return true;
+}
+
+function solicitarLicenciaPro() {
+    mostrarAvisoMemora(
+        "Para adquirir la versión completa sin límites y activar el respaldo en la nube, ponte en contacto con soporte.",
+        "Obtener MEMORA PRO ⚡",
+        "star"
+    );
+}
+
 
 let registros = JSON.parse(localStorage.getItem('memora_registros') || '[]');
 let editando = null;
@@ -854,6 +891,9 @@ function tarjetaEstetica(r) {
 
 
 function render() {
+    // 1. Actualiza el contador de cupo del banner Demo (#contadorCupoDemo)
+    validarCupoDemo();
+    
     procesarAutoArchivado();
     actualizarKPIs();
     actualizarSeguimiento();
@@ -891,6 +931,7 @@ function render() {
         $('btnVerArchivados').style.background = mostrandoArchivados ? '#E5E7EB' : '#F3F4F6';
     }
 }
+
 
 /* ==========================================================================
    7. LÓGICA DINÁMICA MULTICANAL
@@ -1335,6 +1376,9 @@ function evaluarCambiosEnRegistro(original, nuevo) {
 }
 
 function guardarDesdeInicio() {
+    // 🛑 FRENO DE MANO PARA VERSIÓN DEMO
+    if (!validarCupoDemo()) return;
+
     if (!validarFormularioAntesDeGuardar('Inicio')) return;
 
     const contacto = $('contactoInicio')?.value.trim() || '';
@@ -1406,6 +1450,7 @@ function guardarDesdeInicio() {
     render();
     mostrarAvisoMemora(editando ? 'Registro actualizado exitosamente.' : 'Registro guardado exitosamente.', 'MEMORA', 'check_circle');
 }
+
 
 function limpiarCamposFormularioInicio() {
     ['nombreInicio', 'contactoInicio', 'asuntoInicio', 'valorIdInicio', 'comentarioInicio'].forEach(id => {
@@ -1517,6 +1562,9 @@ function prepararNuevoRegistro() {
 }
 
 function guardar() {
+    // 🛑 FRENO DE MANO PARA VERSIÓN DEMO
+    if (!validarCupoDemo()) return;
+
     if (!validarFormularioAntesDeGuardar('')) return;
 
     const contacto = $('contacto')?.value.trim() || '';
@@ -1587,6 +1635,7 @@ function guardar() {
     limpiar();
     navegarA('registros');
 }
+
 
 function editar(id) {
     let r = registros.find(x => x.id === id);
@@ -1833,7 +1882,7 @@ async function cargarDiagnosticoSistema() {
 
     const storageBytes = new Blob([localStorage.getItem('memora_registros') || '']).size;
 
-    if ($('sys-version')) $('sys-version').innerText = "v1.4.0";
+    if ($('sys-version')) $('sys-version').innerText = "v1.4.1";
     if ($('sys-device')) $('sys-device').innerText = dev;
     if ($('sys-browser')) $('sys-browser').innerText = nav;
     if ($('sys-storage')) $('sys-storage').innerText = `${(storageBytes / 1024).toFixed(2)} KB`;
