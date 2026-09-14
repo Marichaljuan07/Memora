@@ -17,7 +17,7 @@ const CANALES_DISPONIBLES = ["WhatsApp", "Instagram", "Email", "LinkedIn", "Face
 // ==========================================
 // CONTROL DE LICENCIA / DEMO
 // ==========================================
-const MODO_DEMO = true; // Pasar a false en la versión PRO
+const MODO_DEMO = false; // Pasar a false en la versión PRO
 const LIMITE_REGISTROS_DEMO = 15;
 
 function validarCupoDemo() {
