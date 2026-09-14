@@ -15,22 +15,30 @@ const estados = [
 const CANALES_DISPONIBLES = ["WhatsApp", "Instagram", "Email", "LinkedIn", "Facebook", "Telegram"];
 
 // ==========================================
-// CONTROL DE LICENCIA / DEMO
+// DETECCIÓN AUTOMÁTICA DE ENTORNO (DEMO vs PRO)
 // ==========================================
-const MODO_DEMO = false; // Pasar a false en la versión PRO
+// Si la URL contiene 'demo', activa el modo Demo. 
+// Si es 'app.memoraapp.net' o localhost/producción, se comporta como PRO.
+const MODO_DEMO = window.location.hostname.includes('demo');
 const LIMITE_REGISTROS_DEMO = 15;
 
-function validarCupoDemo() {
-    if (!MODO_DEMO) return true;
 
-    // Solo contamos los clientes activos (excluimos archivados)
-    const activos = registros.filter(r => r.estado !== 'Archivado').length;
+function validarCupoDemo() {
+    const banner = document.getElementById('bannerModoDemo');
     
-    // Actualizamos el contador del banner visual
+    // Si no es demo, ocultamos el banner completamente
+    if (!MODO_DEMO) {
+        if (banner) banner.style.display = 'none';
+        return true;
+    }
+
+    // Si es demo, mostramos el banner y aplicamos la lógica
+    if (banner) banner.style.display = 'block';
+
+    const activos = registros.filter(r => r.estado !== 'Archivado').length;
     const elemContador = document.getElementById('contadorCupoDemo');
     if (elemContador) elemContador.innerText = activos;
 
-    // Si ya alcanzó el límite de 15, frenamos y redirigimos a la landing
     if (activos >= LIMITE_REGISTROS_DEMO) {
         mostrarAvisoMemora(
             `Has alcanzado el límite de ${LIMITE_REGISTROS_DEMO} registros activos de la versión Demo.\n\nTe redirigiremos a la web para adquirir MEMORA PRO sin límites.`,
@@ -44,6 +52,7 @@ function validarCupoDemo() {
     }
     return true;
 }
+
 
 function solicitarLicenciaPro() {
     window.open('https://memoraapp.net', '_blank');
@@ -2178,15 +2187,35 @@ function procesarAutoArchivado() {
 }
 
 function forzarLimpiezaCachePWA() {
-    if ('caches' in wicondition ? true : falsendow) {
-        caches.keys().then(names => {
-            for (let name of names) caches.delete(name);
-        });
-        mostrarAvisoMemora("Caché borrada con éxito. Recargando aplicación...", "Caché PWA", "refresh", () => {
-            window.location.reload(true);
+    if ('serviceWorker' in navigator) {
+        // 1. Unregister todos los Service Workers activos
+        navigator.serviceWorker.getRegistrations().then(registrations => {
+            for (let registration of registrations) {
+                registration.unregister();
+            }
         });
     }
+
+    if ('caches' in window) {
+        // 2. Borrar todas las llaves de caché guardadas por la PWA
+        caches.keys().then(names => {
+            for (let name of names) {
+                caches.delete(name);
+            }
+        });
+    }
+
+    // 3. Notificar y recargar la aplicación desde el servidor (no la caché)
+    mostrarAvisoMemora(
+        "Caché borrada y Service Worker reiniciado. Recargando aplicación...", 
+        "Caché PWA", 
+        "refresh", 
+        () => {
+            window.location.reload(true);
+        }
+    );
 }
+
 
 /* ==========================================================================
    VALIDACIÓN EN TIEMPO REAL
