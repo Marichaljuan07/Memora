@@ -1,4 +1,4 @@
-const CACHE_NAME = 'memora-v1.4.0.0.5';
+const CACHE_NAME = 'memora-v1.4.0.0.6';
 const ASSETS = [
   './',
   './index.html',
