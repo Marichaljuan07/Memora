@@ -22,19 +22,19 @@ const LIMITE_REGISTROS_DEMO = 15;
 function validarCupoDemo() {
     if (!MODO_DEMO) return true;
 
-    // Solo contamos los clientes activos (excluimos archivados)
     const activos = registros.filter(r => r.estado !== 'Archivado').length;
     
-    // Actualizamos el contador del banner visual
     const elemContador = document.getElementById('contadorCupoDemo');
     if (elemContador) elemContador.innerText = activos;
 
-    // Si ya alcanzó el límite de 15, frenamos y mostramos el modal
     if (activos >= LIMITE_REGISTROS_DEMO) {
         mostrarAvisoMemora(
-            `Has alcanzado el límite de ${LIMITE_REGISTROS_DEMO} registros activos de la versión Demo.\n\nPara gestionar clientes ilimitados, respaldar en la nube y exportar a Excel, adquiere MEMORA PRO.`,
+            `Has alcanzado el límite de ${LIMITE_REGISTROS_DEMO} registros activos de la versión Demo.\n\nTe redirigiremos a la web para adquirir MEMORA PRO sin límites.`,
             "Límite Demo Alcanzado ⚡", 
-            "warning"
+            "warning",
+            () => {
+                window.open('https://memoraapp.net', '_blank');
+            }
         );
         return false;
     }
@@ -42,11 +42,7 @@ function validarCupoDemo() {
 }
 
 function solicitarLicenciaPro() {
-    mostrarAvisoMemora(
-        "Para adquirir la versión completa sin límites y activar el respaldo en la nube, ponte en contacto con soporte.",
-        "Obtener MEMORA PRO ⚡",
-        "star"
-    );
+    window.open('https://memoraapp.net', '_blank');
 }
 
 
@@ -199,6 +195,18 @@ function inicializarGoogleDriveAPI() {
 }
 
 function conectarServicioNube() {
+    if (MODO_DEMO) {
+        mostrarAvisoMemora(
+            "El respaldo automático en la nube (Google Drive) es una función exclusiva de MEMORA PRO.\n\nObtén la versión completa para sincronizar tus datos.",
+            "Función PRO 🔒",
+            "warning",
+            () => {
+                window.open('https://memoraapp.net', '_blank');
+            }
+        );
+        return;
+    }
+
     const estadoActual = localStorage.getItem('memora_nube_conectado') === 'true';
     if (estadoActual) {
         mostrarConfirmMemora("¿Deseas desconectar la cuenta de Google Drive?", "Google Drive", "cloud_off", "#004F87", (confirmado) => {
@@ -219,6 +227,7 @@ function conectarServicioNube() {
         }
     }
 }
+
 
 async function subirRespaldoADrive() {
     if (localStorage.getItem('memora_nube_conectado') !== 'true' || !googleAccessToken) {
@@ -2210,7 +2219,7 @@ document.addEventListener('DOMContentLoaded', () => {
    INSTRUCTIVO Y STORIES INTERACTIVAS
    ========================================================================== */
 function toggleGuiaUsoMemora() {
-    const cont = document.getElementById('contenedorGuiaUso');
+    const cont = document.getEl:ementById('contenedorGuiaUso');
     const arrow = document.getElementById('iconGuiaArrow');
     if (!cont) return;
     
