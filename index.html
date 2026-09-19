@@ -10,6 +10,9 @@
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
     <link rel="apple-touch-icon" sizes="192x192" href="./icons/icon-192.png">
     <meta name="theme-color" content="#004F87">
+    <script>
+      try { document.documentElement.setAttribute('data-theme', localStorage.getItem('memora_tema') || 'light'); } catch (e) {}
+    </script>
     
     <!-- Estilos CSS (en la raíz) -->
     <link rel="stylesheet" href="styles.css">
@@ -21,7 +24,6 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
     
     <!-- Librerías Externas -->
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
@@ -123,15 +125,15 @@
             </div>
 
             <!-- BANNER SEGUIMIENTO INTELIGENTE -->
-            <div id="bannerSeguimientoAviso" class="card banner-info-card" style="background: linear-gradient(135deg, #E3F2FD 0%, #FFFFFF 100%); border-left: 4px solid var(--primary-blue); margin-bottom: 16px; position: relative;">
+            <div id="bannerSeguimientoAviso" class="card banner-info-card" style="margin-bottom: 16px; position: relative;">
                 <button onclick="cerrarBannerAviso()" style="position: absolute; top: 8px; right: 8px; background: none; border: none; color: #6B7280; cursor: pointer;">
                     <span class="material-symbols-outlined" style="font-size: 1.1rem;">close</span>
                 </button>
                 <div style="display:flex; gap:10px; align-items:flex-start;">
                     <span class="material-symbols-outlined" style="color:var(--primary-blue);">auto_awesome</span>
                     <div>
-                        <h4 style="font-size: 0.85rem; color: var(--primary-blue); font-weight:700;">Seguimiento Inteligente ⚡</h4>
-                        <p style="font-size: 0.75rem; color: var(--text-primary); margin-top: 2px; line-height: 1.3;" id="textoBannerSeguimiento">
+                        <h4 class="banner-info-card-title">Seguimiento Inteligente ⚡</h4>
+                        <p class="banner-info-card-text" id="textoBannerSeguimiento">
                             MEMORA administra automáticamente a los clientes inactivos según tus reglas.
                         </p>
                     </div>
@@ -185,7 +187,10 @@
                             <label style="font-size:0.85rem; font-weight:600; color:var(--text-secondary);">Teléfono / WhatsApp</label>
                             <div id="btnAccionContactoContainerInicio"></div>
                         </div>
-                        <input id="contactoInicio" type="text" oninput="buscarCoincidenciasPredictivas(this.value, 'contacto', 'dropContactoInicio')" placeholder="099 777 677" style="width:100%; padding:12px; border-radius:8px; border:1px solid #ccc;">
+                        <div class="whatsapp-phone-row">
+                            <select id="prefijoWhatsappInicio" class="wa-prefix-select" aria-label="Prefijo de WhatsApp"></select>
+                            <input id="contactoInicio" type="text" inputmode="tel" oninput="buscarCoincidenciasPredictivas(this.value, 'contacto', 'dropContactoInicio')" placeholder="99 777 677" style="width:100%; padding:12px; border-radius:8px; border:1px solid #ccc;">
+                        </div>
                         <div id="dropContactoInicio" class="coincidencias-drop"></div>
                     </div>
                     <div id="contenedorCanalesExtraInicio" style="display:flex; flex-direction:column; gap:8px;"></div>
@@ -275,8 +280,8 @@
                     <button id="btnVerArchivados" onclick="alternarVistaArchivados()" style="background:#F3F4F6; border:none; color:var(--text-primary); font-size:0.75rem; font-weight:600; padding:6px 12px; border-radius:8px; cursor:pointer;">
                         Ver Archivados
                     </button>
-                    <button onclick="exportarCSVFiltrado()" style="background:none; border:none; color:var(--primary-blue); font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:2px;">
-                        <span class="material-symbols-outlined" style="font-size:1rem;">download</span> Exportar (.xlsx)
+                    <button onclick="exportarExcelFiltrado()" style="background:none; border:none; color:var(--primary-blue); font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:2px;">
+                        <span class="material-symbols-outlined" style="font-size:1rem;">download</span> Exportar (.xls)
                     </button>
                 </div>
             </div>
@@ -421,6 +426,21 @@
                 </select>
             </div>
 
+            <!-- Apariencia -->
+            <h3 style="font-size: 0.95rem; margin: 16px 0 10px 0;">Apariencia</h3>
+            <div class="card" style="margin-bottom:16px; padding:16px; display:flex; align-items:center; justify-content:space-between; gap:12px;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span class="material-symbols-outlined" id="temaMemoraIcono" style="color:var(--primary-blue);">dark_mode</span>
+                    <div>
+                        <h4 style="font-size:0.85rem;">Tema de Memora</h4>
+                        <p id="temaMemoraEstado" style="font-size:0.75rem; color:var(--text-secondary); margin-top:2px;">Modo claro activo</p>
+                    </div>
+                </div>
+                <button id="btnTemaMemora" type="button" onclick="alternarModoOscuro()" class="theme-toggle-btn">
+                    <span id="temaMemoraTexto">Usar modo oscuro</span>
+                </button>
+            </div>
+
             <!-- Respaldo en Google Drive -->
             <h3 style="font-size: 0.95rem; margin: 16px 0 10px 0;">Respaldo en la Nube (Google Drive)</h3>
             <div class="card" style="margin-bottom:16px; padding:16px;">
@@ -459,7 +479,7 @@
                 <div class="tech-info-grid">
                     <div class="tech-info-item">
                         <span class="tech-label">Versión de App</span>
-                        <span class="tech-value" id="sys-version">v1.4.1</span>
+                        <span class="tech-value" id="sys-version">v1.4.3</span>
                     </div>
                     <div class="tech-info-item">
                         <span class="tech-label">Dispositivo</span>
@@ -487,10 +507,10 @@
 
             <h3 style="font-size: 0.95rem; margin: 16px 0 10px 0;">Exportación Inteligente</h3>
             <div class="card" style="padding: 0;">
-                <div onclick="exportarCSVFiltrado()" style="display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid #F3F4F6; cursor:pointer;">
+                <div onclick="exportarExcelFiltrado()" style="display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid #F3F4F6; cursor:pointer;">
                     <div style="display: flex; align-items: center; gap: 12px; font-size: 0.9rem;">
                         <span class="material-symbols-outlined" style="color: #10B981;">table_chart</span>
-                        <span>Exportar Excel (.xlsx nativo)</span>
+                        <span>Exportar Excel (.xls)</span>
                     </div>
                     <span class="material-symbols-outlined" style="color: var(--text-secondary);">chevron_right</span>
                 </div>
@@ -550,7 +570,7 @@
                     </div>
                     <!-- BOTONES DE ACCIÓN (DESCARGA DIRECTA) -->
                     <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px; border-top:1px solid #E5E7EB; padding-top:14px;">
-                        <a href="./docs/Manual_Memora_v1.4.1.pdf" download="Manual_Memora_v1.4.1.pdf" style="width:100%; background:var(--primary-blue); color:white; border:none; padding:11px; border-radius:8px; font-weight:700; font-size:0.8rem; cursor:pointer; text-decoration:none; display:flex; align-items:center; justify-content:center; gap:6px;">
+                        <a href="./docs/Manual_Memora_v1.4.3.pdf" download="Manual_Memora_v1.4.0.pdf" style="width:100%; background:var(--primary-blue); color:white; border:none; padding:11px; border-radius:8px; font-weight:700; font-size:0.8rem; cursor:pointer; text-decoration:none; display:flex; align-items:center; justify-content:center; gap:6px;">
                             <span class="material-symbols-outlined" style="font-size:1rem;">file_download</span> Descargar manual completo
                         </a>
                         <button type="button" onclick="reproducirTourBienvenida()" style="width:100%; background:#F3F4F6; color:#374151; border:1px solid #D1D5DB; padding:11px; border-radius:8px; font-weight:700; font-size:0.8rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
@@ -646,11 +666,11 @@
         </div>
     </div>
 
-    <script src="app.js?v=1.4.1"></script>
+    <script src="app.js?v=1.4.3"></script>
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('./sw.js?v=1.4.1');
+          navigator.serviceWorker.register('./sw.js?v=1.4.3');
         });
       }
     </script>
