@@ -6,7 +6,10 @@ const ASSETS = [
   './app.js',
   './manifest.json',
   './icons/icon-192.png',
-  './icons/icon-512.png'
+  './icons/icon-512.png',
+  './docs/Manual_Memora_v1.5.0_ES.pdf',
+  './docs/Manual_Memora_v1.5.0_EN.pdf',
+  './docs/Manual_Memora_v1.5.0_PT.pdf'
 ];
 
 self.addEventListener('install', (e) => {
