@@ -441,6 +441,24 @@
                 </button>
             </div>
 
+            <!-- Idioma - NUEVO 1.5.0 -->
+            <h3 style="font-size: 0.95rem; margin: 16px 0 10px 0;">Idioma</h3>
+            <div class="card" style="margin-bottom:16px; padding:16px;">
+                <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+                    <span class="material-symbols-outlined" style="color:var(--primary-blue);">translate</span>
+                    <div>
+                        <h4 style="font-size:0.85rem;">Idioma de Memora</h4>
+                        <p style="font-size:0.75rem; color:var(--text-secondary); margin-top:2px;">Automático usa el idioma del dispositivo; también podés elegir uno manualmente sin modificar tus datos guardados.</p>
+                    </div>
+                </div>
+                <select id="cfgIdiomaMemora" onchange="guardarIdiomaMemora()" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc; font-weight:600; background:var(--bg-card, #fff); color:var(--text-primary);">
+                    <option value="auto">Automático (idioma del dispositivo)</option>
+                    <option value="es">Español</option>
+                    <option value="en">Inglés</option>
+                    <option value="pt">Portugués</option>
+                </select>
+            </div>
+
             <!-- Respaldo en Google Drive -->
             <h3 style="font-size: 0.95rem; margin: 16px 0 10px 0;">Respaldo en la Nube (Google Drive)</h3>
             <div class="card" style="margin-bottom:16px; padding:16px;">
@@ -479,7 +497,7 @@
                 <div class="tech-info-grid">
                     <div class="tech-info-item">
                         <span class="tech-label">Versión de App</span>
-                        <span class="tech-value" id="sys-version">v1.4.3</span>
+                        <span class="tech-value" id="sys-version">v1.5.0 Preview 3</span>
                     </div>
                     <div class="tech-info-item">
                         <span class="tech-label">Dispositivo</span>
@@ -530,6 +548,21 @@
                 </div>
             </div>
             
+            <!-- Zona de seguridad - NUEVO 1.5.0 -->
+            <h3 style="font-size: 0.95rem; margin: 16px 0 10px 0; color:#B91C1C;">Zona de seguridad</h3>
+            <div class="card" style="margin-bottom:16px; padding:16px; border:1px solid #FECACA;">
+                <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px;">
+                    <div style="display:flex; gap:10px; align-items:flex-start;">
+                        <span class="material-symbols-outlined" style="color:#DC2626;">warning</span>
+                        <div>
+                            <h4 style="font-size:0.85rem; color:#B91C1C;">Restablecer Memora</h4>
+                            <p style="font-size:0.75rem; color:var(--text-secondary); margin-top:3px; line-height:1.4;">Borra todos los datos locales y configuraciones de este dispositivo. Requiere una confirmación escrita.</p>
+                        </div>
+                    </div>
+                    <button type="button" onclick="solicitarHardResetMemora()" style="background:#FEE2E2; color:#B91C1C; border:1px solid #FCA5A5; padding:8px 11px; border-radius:8px; font-size:0.75rem; font-weight:700; cursor:pointer; white-space:nowrap;">Borrar todos los datos</button>
+                </div>
+            </div>
+
             <!-- TARJETA DE AYUDA Y MANUAL -->
             <h3 style="font-size: 0.95rem; margin: 16px 0 10px 0;">Ayuda</h3>
             <div class="card" style="margin-bottom:24px; padding:16px;">
@@ -570,7 +603,7 @@
                     </div>
                     <!-- BOTONES DE ACCIÓN (DESCARGA DIRECTA) -->
                     <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px; border-top:1px solid #E5E7EB; padding-top:14px;">
-                        <a href="./docs/Manual_Memora_v1.4.3.pdf" download="Manual_Memora_v1.4.0.pdf" style="width:100%; background:var(--primary-blue); color:white; border:none; padding:11px; border-radius:8px; font-weight:700; font-size:0.8rem; cursor:pointer; text-decoration:none; display:flex; align-items:center; justify-content:center; gap:6px;">
+                        <a id="linkManualCompletoMemora" href="./docs/Manual_Memora_v1.5.0_ES.pdf" download="Manual_Memora_v1.5.0_ES.pdf" style="width:100%; background:var(--primary-blue); color:white; border:none; padding:11px; border-radius:8px; font-weight:700; font-size:0.8rem; cursor:pointer; text-decoration:none; display:flex; align-items:center; justify-content:center; gap:6px;">
                             <span class="material-symbols-outlined" style="font-size:1rem;">file_download</span> Descargar manual completo
                         </a>
                         <button type="button" onclick="reproducirTourBienvenida()" style="width:100%; background:#F3F4F6; color:#374151; border:1px solid #D1D5DB; padding:11px; border-radius:8px; font-weight:700; font-size:0.8rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
@@ -666,11 +699,11 @@
         </div>
     </div>
 
-    <script src="app.js?v=1.4.3"></script>
+    <script src="app.js?v=1.5.0-preview3"></script>
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('./sw.js?v=1.4.3');
+          navigator.serviceWorker.register('./sw.js?v=1.5.0-preview3');
         });
       }
     </script>
