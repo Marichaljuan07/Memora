@@ -1,5 +1,5 @@
 /* ==========================================================================
-   MEMORA CRM - CORE LOGIC (v1.5.0 Preview Funcional 3)
+   MEMORA CRM - CORE LOGIC (v1.5.0 ESTABLE)
    ========================================================================== */
 
 const estados = [
@@ -632,7 +632,7 @@ function actualizarSeguimiento() {
                         <div class="client-sub">${r.canal} • ${r.contacto}</div>
                     </div>
                 </div>
-                <div>${r.asunto ? `<span style="font-size:0.8rem; font-weight:600; color:var(--primary-blue);">Asunto: ${r.asunto}</span>` : '-'}</div>
+                <div>${r.asunto ? `<span style="font-size:0.8rem; font-weight:600; color:var(--primary-blue);">${traducirCadenaMemora('Asunto:')} ${r.asunto}</span>` : '-'}</div>
                 <div class="tag-row" style="margin-top:4px; margin-bottom:4px;"><span class="tag ${obtenerClaseEstado(r.estado)}">${r.estado}</span></div>
                 <div style="margin-top: 4px; display:flex; justify-content:space-between; align-items:center;">
                     <span style="display:inline-block; background:${colorChipBg}; color:${colorChipText}; font-size:0.72rem; font-weight:700; padding:2px 6px; border-radius:6px;">
@@ -652,7 +652,7 @@ function actualizarSeguimiento() {
                     </div>
                 </div>
             </div>`;
-        }).join('') || '<p style="font-size:0.8rem; color:var(--text-secondary);">Sin seguimientos pendientes.</p>';
+        }).join('') || `<p style="font-size:0.8rem; color:var(--text-secondary);">${traducirCadenaMemora('Sin seguimientos pendientes.')}</p>`;
     }
 }
 
@@ -720,16 +720,18 @@ function buscarCoincidenciasPredictivas(valor, campo, contenedorDropId) {
     }
 
     drop.innerHTML = encontrados.map(r => {
-        let datoCoincidente = campo === 'nombre' ? (r.nombre || 'Sin nombre') : (r.contacto || 'Sin contacto');
-        let asuntoTexto = r.asunto ? `Último registro: ${r.asunto}` : 'Sin asunto registrado';
+        let datoCoincidente = campo === 'nombre' ? (r.nombre || traducirCadenaMemora('Sin nombre')) : (r.contacto || traducirCadenaMemora('Sin contacto'));
+        let asuntoTexto = r.asunto
+            ? `${textoIdiomaMemora150('Último registro:','Latest record:','Último registro:')} ${r.asunto}`
+            : traducirCadenaMemora('Sin asunto registrado');
 
         return `
             <div class="drop-item-card" onclick="seleccionarCoincidencia(${r.id}, '${contenedorDropId}')">
                 <div class="drop-item-header">
-                    <strong>${campo === 'nombre' ? 'Cliente' : r.canal}: ${datoCoincidente}</strong>
+                    <strong>${campo === 'nombre' ? traducirCadenaMemora('Cliente') : r.canal}: ${datoCoincidente}</strong>
                 </div>
-                <div class="drop-item-sub">Ya existe • ${asuntoTexto}</div>
-                <div class="drop-item-badge ${obtenerClaseEstado(r.estado)}">${r.estado}</div>
+                <div class="drop-item-sub">${textoIdiomaMemora150('Ya existe','Already exists','Já existe')} • ${asuntoTexto}</div>
+                <div class="drop-item-badge ${obtenerClaseEstado(r.estado)}">${traducirCadenaMemora(r.estado)}</div>
             </div>
         `;
     }).join('');
@@ -895,7 +897,7 @@ function renderStoryStep(nombre) {
         {
             icon: "cloud_done",
             title: "Tus datos siguen siendo tuyos",
-            text: "Podés respaldar tu información en Google Drive y exportar tus registros a CSV, PDF o JSON cuando lo necesites."
+            text: "Podés respaldar tu información en Google Drive y exportar tus registros a Excel, PDF o JSON cuando lo necesites."
         }
     ];
 
@@ -1096,8 +1098,8 @@ function tarjetaEstetica(r) {
         </div>
         
         <div>
-            ${r.asunto ? `<div style="font-size: 0.8rem; font-weight:600; color:var(--primary-blue);">Asunto: ${r.asunto}</div>` : ''}
-            ${ultimoComentario ? `<div style="font-size: 0.73rem; color:#4B5563; margin-top:3px; background:#F3F4F6; padding:3px 6px; border-radius:6px; display:inline-block; max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Último comentario: ${ultimoComentario}</div>` : ''}
+            ${r.asunto ? `<div style="font-size: 0.8rem; font-weight:600; color:var(--primary-blue);">${traducirCadenaMemora('Asunto:')} ${r.asunto}</div>` : ''}
+            ${ultimoComentario ? `<div style="font-size: 0.73rem; color:#4B5563; margin-top:3px; background:#F3F4F6; padding:3px 6px; border-radius:6px; display:inline-block; max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${textoIdiomaMemora150('Último comentario:','Latest comment:','Último comentário:')} ${ultimoComentario}</div>` : ''}
         </div>
         
         <div class="tag-row"><span class="tag ${obtenerClaseEstado(r.estado)}">${r.estado}</span></div>
@@ -1494,13 +1496,13 @@ function renderComentariosTemporalesInicio() {
     let cont = $('listaComentariosTemporalesInicio');
     if (!cont) return;
     if (comentariosTemporalesInicio.length === 0) {
-        cont.innerHTML = '<p style="font-size:0.75rem; color:var(--text-secondary);">No hay comentarios adjuntos.</p>';
+        cont.innerHTML = `<p style="font-size:0.75rem; color:var(--text-secondary);">${traducirCadenaMemora('No hay comentarios adjuntos.')}</p>`;
         return;
     }
     cont.innerHTML = comentariosTemporalesInicio.map((c, i) => `
         <div class="card" style="padding:10px; margin-top:6px; font-size:0.8rem; background:#F9FAFB; border:1px solid #E5E7EB; border-radius:8px;">
             <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:0.7rem; color:var(--text-secondary);">
-                <span>Comentario del ${c.fecha} ${c.editado ? `<strong style="color:#D97706;">(Editado el ${c.editado})</strong>` : ''}</span>
+                <span>${traducirCadenaMemora('Comentario del')} ${c.fecha} ${c.editado ? `<strong style="color:#D97706;">(${traducirCadenaMemora('Editado el')} ${c.editado})</strong>` : ''}</span>
                 ${!c.eliminado ? `
                 <div>
                     <a href="#" onclick="editarComentarioTemporalInicio(${i}); return false;" style="color:var(--primary-blue); font-weight:600; margin-right:8px; text-decoration:none;">Editar</a>
@@ -1799,13 +1801,13 @@ function renderListaComentariosEdicion() {
     let container = $('listaComentariosEdicion');
     if (!container) return;
     if (comentariosEdicionActual.length === 0) {
-        container.innerHTML = '<p style="font-size:0.75rem; color:var(--text-secondary);">No hay comentarios adjuntos.</p>';
+        container.innerHTML = `<p style="font-size:0.75rem; color:var(--text-secondary);">${traducirCadenaMemora('No hay comentarios adjuntos.')}</p>`;
         return;
     }
     container.innerHTML = comentariosEdicionActual.map((c, i) => `
         <div class="card" style="padding:10px; margin-top:6px; font-size:0.8rem; background:#F9FAFB; border:1px solid #E5E7EB; border-radius:8px;">
             <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:0.7rem; color:var(--text-secondary);">
-                <span>Comentario del ${c.fecha} ${c.editado ? `<strong style="color:#D97706;">(Editado el ${c.editado})</strong>` : ''}</span>
+                <span>${traducirCadenaMemora('Comentario del')} ${c.fecha} ${c.editado ? `<strong style="color:#D97706;">(${traducirCadenaMemora('Editado el')} ${c.editado})</strong>` : ''}</span>
                 ${!c.eliminado ? `
                 <div>
                     <a href="#" onclick="editarComentarioTexto(${i}); return false;" style="color:var(--primary-blue); margin-right:8px; text-decoration:none;">Editar</a>
@@ -2047,7 +2049,7 @@ function abrirFicha(id) {
                     <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px;">${r.canal} • ${r.contacto}</p>
                     ${r.canal2 && r.contacto2 ? `<p style="font-size: 0.75rem; color: var(--text-secondary);">${r.canal2} • ${r.contacto2}</p>` : ''}
                     ${r.canal3 && r.contacto3 ? `<p style="font-size: 0.75rem; color: var(--text-secondary);">${r.canal3} • ${r.contacto3}</p>` : ''}
-                    ${r.asunto ? `<p style="font-size: 0.8rem; font-weight:600; color:var(--primary-blue); margin-top:2px;">Asunto: ${r.asunto}</p>` : ''}
+                    ${r.asunto ? `<p style="font-size: 0.8rem; font-weight:600; color:var(--primary-blue); margin-top:2px;">${traducirCadenaMemora('Asunto:')} ${r.asunto}</p>` : ''}
                     ${r.identificador ? `<p style="font-size: 0.75rem; color: var(--text-secondary);">${obtenerTextoIdentificador(r)}</p>` : ''}
                     <div style="margin-top: 6px;"><span class="tag ${obtenerClaseEstado(r.estado)}">${r.estado}</span></div>
                 </div>
@@ -2060,8 +2062,8 @@ function abrirFicha(id) {
             <button onclick="eliminar(${r.id})" style="flex: 1; background-color: #FEE2E2; color: #DC2626; border: none; padding: 12px; border-radius: 10px; font-weight: 600; cursor:pointer;">Eliminar</button>
         </div>
         
-        <div class="section-header"><h3>Comentarios</h3></div>
-        ${ultimoComentario ? `<div class="card" style="padding: 14px; margin-bottom: 12px; border-left: 4px solid var(--primary-blue);"><p style="font-size:0.9rem;">${ultimoComentario.texto}</p></div>` : '<p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom: 16px;">Sin comentarios.</p>'}
+        <div class="section-header"><h3>${traducirCadenaMemora('Comentarios')}</h3></div>
+        ${ultimoComentario ? `<div class="card" style="padding: 14px; margin-bottom: 12px; border-left: 4px solid var(--primary-blue);"><p style="font-size:0.9rem;">${ultimoComentario.texto}</p></div>` : `<p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom: 16px;">${traducirCadenaMemora('Sin comentarios.')}</p>`}
         ${historialComentarios.length > 0 ? historialComentarios.map(c => `<div class="card" style="padding:10px; margin-bottom:8px; background:#FAFAFA;"><p style="font-size:0.85rem;">${c.texto}</p></div>`).join('') : ''}
     `;
 
@@ -2866,12 +2868,12 @@ function cargarDatosUsuarioPerfil() {
     if ($('perfilRolAdmin')) $('perfilRolAdmin').innerText = datos.rolAdmin || 'Usuario Administrador';
 
     let htmlLista = '';
-    if (datos.nombreAdmin) htmlLista += `<div class="perfil-campo-linea"><span class="perfil-label">Nombre:</span> <span class="perfil-valor">${datos.nombreAdmin}</span></div>`;
-    if (datos.cedulaAdmin) htmlLista += `<div class="perfil-campo-linea"><span class="perfil-label">Documento / C.I.:</span> <span class="perfil-valor">${datos.cedulaAdmin}</span></div>`;
-    if (datos.empresaAdmin) htmlLista += `<div class="perfil-campo-linea"><span class="perfil-label">Empresa:</span> <span class="perfil-valor">${datos.empresaAdmin}</span></div>`;
-    if (datos.whatsappAdmin) htmlLista += `<div class="perfil-campo-linea"><span class="perfil-label">Contacto / WA:</span> <span class="perfil-valor">${datos.whatsappAdmin}</span></div>`;
+    if (datos.nombreAdmin) htmlLista += `<div class="perfil-campo-linea"><span class="perfil-label">${traducirCadenaMemora('Nombre:')}</span> <span class="perfil-valor">${datos.nombreAdmin}</span></div>`;
+    if (datos.cedulaAdmin) htmlLista += `<div class="perfil-campo-linea"><span class="perfil-label">${traducirCadenaMemora('Documento / C.I.:')}</span> <span class="perfil-valor">${datos.cedulaAdmin}</span></div>`;
+    if (datos.empresaAdmin) htmlLista += `<div class="perfil-campo-linea"><span class="perfil-label">${traducirCadenaMemora('Empresa:')}</span> <span class="perfil-valor">${datos.empresaAdmin}</span></div>`;
+    if (datos.whatsappAdmin) htmlLista += `<div class="perfil-campo-linea"><span class="perfil-label">${traducirCadenaMemora('Contacto / WA:')}</span> <span class="perfil-valor">${datos.whatsappAdmin}</span></div>`;
 
-    if ($('perfilDatosLista')) $('perfilDatosLista').innerHTML = htmlLista || '<p style="font-size:0.8rem; color:var(--text-secondary);">Sin datos adicionales cargados.</p>';
+    if ($('perfilDatosLista')) $('perfilDatosLista').innerHTML = htmlLista || `<p style="font-size:0.8rem; color:var(--text-secondary);">${traducirCadenaMemora('Sin datos adicionales cargados.')}</p>`;
 
     if ($('cfgAdminRol')) $('cfgAdminRol').value = datos.rolAdmin || 'Usuario Administrador';
     if ($('cfgAdminNombre')) $('cfgAdminNombre').value = datos.nombreAdmin || '';
@@ -2968,7 +2970,7 @@ function limpiar() {
     if ($('comentario')) $('comentario').value = '';
 
     if ($('listaComentariosEdicion')) {
-        $('listaComentariosEdicion').innerHTML = '<p style="font-size:0.75rem; color:var(--text-secondary);">No hay comentarios adjuntos.</p>';
+        $('listaComentariosEdicion').innerHTML = `<p style="font-size:0.75rem; color:var(--text-secondary);">${traducirCadenaMemora('No hay comentarios adjuntos.')}</p>`;
     }
 
     if ($('contenedorCanalesExtraMovil')) {
@@ -3261,7 +3263,7 @@ function reproducirTourBienvenida() {
 
 
 /* ==========================================================================
-   1.5.0 PREVIEW 1 — CAPA ADITIVA
+   1.5.0 — CAPA ADITIVA
    Idiomas + validación reforzada + detección de duplicados + Hard Reset.
    Esta sección se apoya sobre la lógica 1.4.3 sin cambiar su diseño ni
    sustituir sus funciones de registros, seguimiento, exportación o Drive.
@@ -3352,7 +3354,7 @@ const MEMORA_TRADUCCIONES = {
         'Auto-archivar clientes inactivos': 'Auto-archive inactive customers',
         "Archivar clientes en 'Cerrado' o 'Perdido' tras 30 días.": "Archive customers in 'Closed' or 'Lost' after 30 days.",
         'Exportación Inteligente': 'Smart Export',
-        'Exportar Excel (.xls)': 'Export Excel (.xls)',
+        'Exportar Excel (.xlsx)': 'Export Excel (.xlsx)',
         'Exportar PDF (Vista activa)': 'Export PDF (Active view)',
         'Exportar JSON Completo': 'Export Full JSON',
         'Ayuda': 'Help',
@@ -3472,7 +3474,7 @@ const MEMORA_TRADUCCIONES = {
         'Auto-archivar clientes inactivos': 'Arquivar automaticamente clientes inativos',
         "Archivar clientes en 'Cerrado' o 'Perdido' tras 30 días.": "Arquivar clientes em 'Fechado' ou 'Perdido' após 30 dias.",
         'Exportación Inteligente': 'Exportação Inteligente',
-        'Exportar Excel (.xls)': 'Exportar Excel (.xls)',
+        'Exportar Excel (.xlsx)': 'Exportar Excel (.xlsx)',
         'Exportar PDF (Vista activa)': 'Exportar PDF (Vista ativa)',
         'Exportar JSON Completo': 'Exportar JSON Completo',
         'Ayuda': 'Ajuda',
@@ -3542,6 +3544,13 @@ const MEMORA_ATRIBUTOS_ORIGINALES = new WeakMap();
 let observadorIdiomaMemora = null;
 let aplicandoIdiomaMemora = false;
 
+// Cola de traducción: agrupa mutaciones DOM en un único frame para evitar
+// trabajo repetido cuando render() agrega muchas tarjetas a la vez.
+const MEMORA_I18N_ARBOLES_PENDIENTES = new Set();
+const MEMORA_I18N_TEXTOS_PENDIENTES = new Set();
+const MEMORA_I18N_ATRIBUTOS_PENDIENTES = new Set();
+let frameIdiomaMemora = null;
+
 function idiomaMemora() {
     return MEMORA_IDIOMAS_SOPORTADOS.includes(idiomaMemoraActual) ? idiomaMemoraActual : 'es';
 }
@@ -3582,41 +3591,79 @@ function traducirCadenaMemora(texto) {
     return directo !== texto ? directo : traducirPatronesMemora(texto);
 }
 
+function esTextoInterfazSeguroMemora(parent) {
+    return !!parent?.closest('.tag, button, a, .time-ago, .perfil-label, [data-memora-i18n]');
+}
+
 function procesarNodoTextoIdiomaMemora(nodo) {
     if (!nodo || nodo.nodeType !== Node.TEXT_NODE) return;
     const parent = nodo.parentElement;
     if (!parent || ['SCRIPT', 'STYLE', 'NOSCRIPT'].includes(parent.tagName)) return;
 
-    // No traducimos datos aportados por el usuario. Dentro de las zonas dinámicas
-    // solo se traducen controles/estados de interfaz, nunca nombres, contactos o notas.
+    // Las zonas con datos del usuario se protegen. Solo se permite traducir
+    // controles o etiquetas marcadas explícitamente como interfaz.
     const zonaDatos = parent.closest('#listaRegistros, #contenedorSeguimiento, #contenidoFicha, #listaComentariosEdicion, #listaComentariosTemporalesInicio, #perfilDatosLista, .coincidencias-drop');
-    if (zonaDatos && !parent.closest('.tag, button, a, .time-ago')) return;
+    if (zonaDatos && !esTextoInterfazSeguroMemora(parent)) return;
 
     const actual = nodo.nodeValue || '';
     const limpio = actual.trim();
     if (!limpio) return;
-    if (!MEMORA_TEXTO_ORIGINAL.has(nodo)) MEMORA_TEXTO_ORIGINAL.set(nodo, limpio);
-    const original = MEMORA_TEXTO_ORIGINAL.get(nodo);
-    const traducido = traducirCadenaMemora(original);
+
+    let estado = MEMORA_TEXTO_ORIGINAL.get(nodo);
+    if (!estado) {
+        estado = { source: limpio, lastApplied: null };
+        MEMORA_TEXTO_ORIGINAL.set(nodo, estado);
+    } else if (
+        estado.lastApplied !== null &&
+        limpio !== estado.lastApplied &&
+        limpio !== estado.source
+    ) {
+        // El propio sistema cambió el texto dinámicamente (contador, estado,
+        // placeholder textual, etc.). Ese nuevo texto pasa a ser la fuente.
+        estado.source = limpio;
+    }
+
+    const traducido = traducirCadenaMemora(estado.source);
     const prefijo = actual.match(/^\s*/)?.[0] || '';
     const sufijo = actual.match(/\s*$/)?.[0] || '';
     const nuevo = `${prefijo}${traducido}${sufijo}`;
+
+    estado.lastApplied = traducido;
     if (actual !== nuevo) nodo.nodeValue = nuevo;
 }
 
 function procesarAtributosIdiomaMemora(el) {
     if (!el || el.nodeType !== Node.ELEMENT_NODE) return;
-    let originals = MEMORA_ATRIBUTOS_ORIGINALES.get(el);
-    if (!originals) {
-        originals = {};
-        MEMORA_ATRIBUTOS_ORIGINALES.set(el, originals);
+
+    let estados = MEMORA_ATRIBUTOS_ORIGINALES.get(el);
+    if (!estados) {
+        estados = {};
+        MEMORA_ATRIBUTOS_ORIGINALES.set(el, estados);
     }
+
     for (const attr of ['placeholder', 'title', 'aria-label']) {
         if (!el.hasAttribute(attr)) continue;
-        if (!(attr in originals)) originals[attr] = el.getAttribute(attr);
-        const base = originals[attr];
-        const tr = traducirCadenaMemora(base);
-        if (el.getAttribute(attr) !== tr) el.setAttribute(attr, tr);
+
+        const actual = el.getAttribute(attr) ?? '';
+        let estado = estados[attr];
+
+        if (!estado) {
+            estado = { source: actual, lastApplied: null };
+            estados[attr] = estado;
+        } else if (
+            estado.lastApplied !== null &&
+            actual !== estado.lastApplied &&
+            actual !== estado.source
+        ) {
+            // Si la app cambia legítimamente un atributo (por ejemplo al pasar
+            // de WhatsApp a Instagram), actualizamos la fuente y no revivimos
+            // el placeholder anterior almacenado en el WeakMap.
+            estado.source = actual;
+        }
+
+        const traducido = traducirCadenaMemora(estado.source);
+        estado.lastApplied = traducido;
+        if (actual !== traducido) el.setAttribute(attr, traducido);
     }
 }
 
@@ -3630,7 +3677,7 @@ function procesarArbolIdiomaMemora(root = document.body) {
         }
         if (root.nodeType === Node.ELEMENT_NODE) procesarAtributosIdiomaMemora(root);
         const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT);
-        let node = walker.currentNode;
+        let node = walker.nextNode();
         while (node) {
             if (node.nodeType === Node.TEXT_NODE) procesarNodoTextoIdiomaMemora(node);
             else procesarAtributosIdiomaMemora(node);
@@ -3639,6 +3686,57 @@ function procesarArbolIdiomaMemora(root = document.body) {
     } finally {
         aplicandoIdiomaMemora = false;
     }
+}
+
+function raizYaCubiertaPorOtraMemora(nodo, conjuntoRaices) {
+    if (!nodo) return false;
+    let padre = nodo.parentNode;
+    while (padre) {
+        if (conjuntoRaices.has(padre)) return true;
+        padre = padre.parentNode;
+    }
+    return false;
+}
+
+function procesarColaIdiomaMemora() {
+    frameIdiomaMemora = null;
+
+    const arboles = Array.from(MEMORA_I18N_ARBOLES_PENDIENTES).filter(Boolean);
+    const textos = Array.from(MEMORA_I18N_TEXTOS_PENDIENTES).filter(Boolean);
+    const atributos = Array.from(MEMORA_I18N_ATRIBUTOS_PENDIENTES).filter(Boolean);
+
+    MEMORA_I18N_ARBOLES_PENDIENTES.clear();
+    MEMORA_I18N_TEXTOS_PENDIENTES.clear();
+    MEMORA_I18N_ATRIBUTOS_PENDIENTES.clear();
+
+    const conjuntoRaices = new Set(arboles);
+    const raices = arboles.filter(n => !raizYaCubiertaPorOtraMemora(n, conjuntoRaices));
+    raices.forEach(n => {
+        if (n.isConnected !== false) procesarArbolIdiomaMemora(n);
+    });
+
+    textos.forEach(n => {
+        const cubierto = n.parentElement && raices.some(r => r.nodeType === Node.ELEMENT_NODE && r.contains(n.parentElement));
+        if (!cubierto && n.isConnected !== false) procesarNodoTextoIdiomaMemora(n);
+    });
+
+    atributos.forEach(el => {
+        const cubierto = raices.some(r => r.nodeType === Node.ELEMENT_NODE && r.contains(el));
+        if (!cubierto && el.isConnected !== false) procesarAtributosIdiomaMemora(el);
+    });
+}
+
+function programarProcesamientoIdiomaMemora(tipo, nodo) {
+    if (!nodo) return;
+
+    if (tipo === 'arbol') MEMORA_I18N_ARBOLES_PENDIENTES.add(nodo);
+    else if (tipo === 'texto') MEMORA_I18N_TEXTOS_PENDIENTES.add(nodo);
+    else if (tipo === 'atributo') MEMORA_I18N_ATRIBUTOS_PENDIENTES.add(nodo);
+
+    if (frameIdiomaMemora !== null) return;
+
+    const raf = window.requestAnimationFrame || (cb => window.setTimeout(cb, 16));
+    frameIdiomaMemora = raf(procesarColaIdiomaMemora);
 }
 
 function asegurarValoresEstadoMemora() {
@@ -3690,12 +3788,15 @@ function inicializarIdiomaMemora() {
     procesarArbolIdiomaMemora(document.body);
     observadorIdiomaMemora = new MutationObserver(mutations => {
         if (aplicandoIdiomaMemora) return;
+
         for (const m of mutations) {
-            if (m.type === 'characterData') procesarNodoTextoIdiomaMemora(m.target);
-            if (m.type === 'childList') {
-                m.addedNodes.forEach(n => procesarArbolIdiomaMemora(n));
+            if (m.type === 'characterData') {
+                programarProcesamientoIdiomaMemora('texto', m.target);
+            } else if (m.type === 'childList') {
+                m.addedNodes.forEach(n => programarProcesamientoIdiomaMemora('arbol', n));
+            } else if (m.type === 'attributes') {
+                programarProcesamientoIdiomaMemora('atributo', m.target);
             }
-            if (m.type === 'attributes') procesarAtributosIdiomaMemora(m.target);
         }
     });
     observadorIdiomaMemora.observe(document.body, {
@@ -4153,7 +4254,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 /* ==========================================================================
-   1.5.0 PREVIEW 2 - INTERNACIONALIZACION COMPLETA DE INTERFAZ Y EXPORTES
+   1.5.0 - INTERNACIONALIZACION COMPLETA DE INTERFAZ Y EXPORTES
    No modifica los datos guardados ni la logica funcional existente.
    ========================================================================== */
 
@@ -4170,7 +4271,7 @@ Object.assign(MEMORA_TRADUCCIONES.en, {
     'MEMORA administra automáticamente a los clientes inactivos según tus reglas.': 'MEMORA automatically manages inactive customers according to your rules.',
     'Ver Archivados': 'View Archived',
     'Ver Activos': 'View Active',
-    'Exportar (.xls)': 'Export (.xls)',
+    'Exportar (.xlsx)': 'Export (.xlsx)',
     'Nuevo Registro': 'New Record',
     'Nuevo Cliente': 'New Customer',
     'Editar Cliente': 'Edit Customer',
@@ -4198,7 +4299,7 @@ Object.assign(MEMORA_TRADUCCIONES.en, {
     'Volvé a la conversación en un toque': 'Return to the conversation in one tap',
     'Usá los botones de cada canal para retomar el contacto directamente. En WhatsApp, Memora puede dejar preparado el mensaje para continuar la conversación.': 'Use each channel button to resume the conversation directly. In WhatsApp, Memora can prepare the message so you can continue the conversation.',
     'Tus datos siguen siendo tuyos': 'Your data remains yours',
-    'Podés respaldar tu información en Google Drive y exportar tus registros a CSV, PDF o JSON cuando lo necesites.': 'You can back up your information to Google Drive and export your records to Excel, PDF or JSON whenever you need them.',
+    'Podés respaldar tu información en Google Drive y exportar tus registros a Excel, PDF o JSON cuando lo necesites.': 'You can back up your information to Google Drive and export your records to Excel, PDF or JSON whenever you need them.',
     'Canal Extra': 'Extra Channel',
     'Contacto / Usuario': 'Contact / Username',
     'Quitar': 'Remove',
@@ -4328,7 +4429,7 @@ Object.assign(MEMORA_TRADUCCIONES.pt, {
     'MEMORA administra automáticamente a los clientes inactivos según tus reglas.': 'O MEMORA gerencia automaticamente clientes inativos conforme suas regras.',
     'Ver Archivados': 'Ver Arquivados',
     'Ver Activos': 'Ver Ativos',
-    'Exportar (.xls)': 'Exportar (.xls)',
+    'Exportar (.xlsx)': 'Exportar (.xlsx)',
     'Nuevo Registro': 'Novo Registro',
     'Nuevo Cliente': 'Novo Cliente',
     'Editar Cliente': 'Editar Cliente',
@@ -4356,7 +4457,7 @@ Object.assign(MEMORA_TRADUCCIONES.pt, {
     'Volvé a la conversación en un toque': 'Volte à conversa com um toque',
     'Usá los botones de cada canal para retomar el contacto directamente. En WhatsApp, Memora puede dejar preparado el mensaje para continuar la conversación.': 'Use os botões de cada canal para retomar o contato diretamente. No WhatsApp, o Memora pode deixar a mensagem preparada para continuar a conversa.',
     'Tus datos siguen siendo tuyos': 'Seus dados continuam sendo seus',
-    'Podés respaldar tu información en Google Drive y exportar tus registros a CSV, PDF o JSON cuando lo necesites.': 'Você pode fazer backup das informações no Google Drive e exportar seus registros para Excel, PDF ou JSON quando precisar.',
+    'Podés respaldar tu información en Google Drive y exportar tus registros a Excel, PDF o JSON cuando lo necesites.': 'Você pode fazer backup das informações no Google Drive e exportar seus registros para Excel, PDF ou JSON quando precisar.',
     'Canal Extra': 'Canal Extra',
     'Contacto / Usuario': 'Contato / Usuário',
     'Quitar': 'Remover',
@@ -4802,11 +4903,13 @@ traducirPatronesMemora = function(texto) {
         salida = salida.replace(/^¡Restauración exitosa! Se recuperaron (\d+) registros\.$/, 'Restore successful! $1 records were recovered.');
         salida = salida.replace(/^No puedes repetir el mismo canal \((.+)\) más de una vez por cliente\.$/, 'You cannot use the same channel ($1) more than once per customer.');
         salida = salida.replace(/^Datos cargados en Inicio\. Ve a Inicio para modificar\.$/, 'Data loaded on Home. Go to Home to edit it.');
+        salida = salida.replace(/^Ingrese\s+(.+)$/i, 'Enter $1');
     } else if (idiomaMemora() === 'pt') {
         salida = salida.replace(/^Has alcanzado el límite de (\d+) registros activos de la versión Demo\.\s*Te redirigiremos a la web para adquirir MEMORA PRO sin límites\.$/s, 'Você atingiu o limite de $1 registros ativos da versão Demo. Você será redirecionado ao site para obter o MEMORA PRO sem limites.');
         salida = salida.replace(/^¡Restauración exitosa! Se recuperaron (\d+) registros\.$/, 'Restauração concluída! $1 registros foram recuperados.');
         salida = salida.replace(/^No puedes repetir el mismo canal \((.+)\) más de una vez por cliente\.$/, 'Você não pode usar o mesmo canal ($1) mais de uma vez por cliente.');
         salida = salida.replace(/^Datos cargados en Inicio\. Ve a Inicio para modificar\.$/, 'Dados carregados na tela Início. Vá para Início para editá-los.');
+        salida = salida.replace(/^Ingrese\s+(.+)$/i, 'Digite $1');
     }
     return salida;
 };
