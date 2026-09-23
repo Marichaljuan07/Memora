@@ -281,7 +281,7 @@
                         Ver Archivados
                     </button>
                     <button onclick="exportarExcelFiltrado()" style="background:none; border:none; color:var(--primary-blue); font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:2px;">
-                        <span class="material-symbols-outlined" style="font-size:1rem;">download</span> Exportar (.xls)
+                        <span class="material-symbols-outlined" style="font-size:1rem;">download</span> Exportar (.xlsx)
                     </button>
                 </div>
             </div>
@@ -497,7 +497,7 @@
                 <div class="tech-info-grid">
                     <div class="tech-info-item">
                         <span class="tech-label">Versión de App</span>
-                        <span class="tech-value" id="sys-version">v1.5.0 Preview 3</span>
+                        <span class="tech-value" id="sys-version">v1.5.0</span>
                     </div>
                     <div class="tech-info-item">
                         <span class="tech-label">Dispositivo</span>
@@ -528,7 +528,7 @@
                 <div onclick="exportarExcelFiltrado()" style="display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid #F3F4F6; cursor:pointer;">
                     <div style="display: flex; align-items: center; gap: 12px; font-size: 0.9rem;">
                         <span class="material-symbols-outlined" style="color: #10B981;">table_chart</span>
-                        <span>Exportar Excel (.xls)</span>
+                        <span>Exportar Excel (.xlsx)</span>
                     </div>
                     <span class="material-symbols-outlined" style="color: var(--text-secondary);">chevron_right</span>
                 </div>
@@ -699,11 +699,11 @@
         </div>
     </div>
 
-    <script src="app.js?v=1.5.0-preview3"></script>
+    <script src="app.js?v=1.5.0"></script>
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('./sw.js?v=1.5.0-preview3');
+          navigator.serviceWorker.register('./sw.js?v=1.5.0');
         });
       }
     </script>
