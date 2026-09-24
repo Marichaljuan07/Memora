@@ -551,62 +551,125 @@
                 </div>
             </div>
             
-            <!-- AYUDA DESPLEGABLE -->
-            <h3 style="font-size: 0.95rem; margin: 16px 0 10px 0;">Ayuda</h3>
-            <div class="card" style="margin-bottom:16px; padding:16px;">
-                <button id="botonAyudaMemora" type="button" onclick="toggleAyudaMemora()" aria-expanded="false" style="width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; background:transparent; border:none; padding:0; color:var(--text-primary); cursor:pointer; text-align:left;">
-                    <span style="font-size:0.9rem; font-weight:700; color:var(--primary-blue);">Ayuda</span>
-                    <span id="iconoAyudaMemora" class="material-symbols-outlined" style="color:var(--text-secondary);">expand_more</span>
-                </button>
-                <div id="contenidoAyudaMemora" style="display:none; margin-top:16px;">
+      <!-- AYUDA DESPLEGABLE -->
+<div class="card" style="margin-bottom:16px; padding:16px;">
 
-                <div style="display:flex; flex-direction:column; gap:16px;">
-                    <div>
-                        <h4 style="font-size:0.9rem; color:var(--primary-blue); margin-bottom:6px;">¿Cómo empiezo?</h4>
-                        <ol style="padding-left:18px; font-size:0.8rem; color:var(--text-primary); line-height:1.5;">
-                            <li>Creá un registro cuando aparezca un nuevo cliente o consulta.</li>
-                            <li>Guardá por dónde hablás con esa persona y el motivo del contacto.</li>
-                            <li>Elegí el estado que mejor represente en qué quedó la conversación.</li>
-                            <li>Agregá comentarios cuando haya novedades.</li>
-                            <li>Memora te mostrará cuándo un registro necesita seguimiento.</li>
-                        </ol>
-                    </div>
-                    <div style="border-top:1px solid #F3F4F6; padding-top:12px;">
-                        <h4 style="font-size:0.9rem; color:var(--primary-blue); margin-bottom:4px;">¿Qué es Seguimiento Requerido?</h4>
-                        <p style="font-size:0.8rem; color:var(--text-secondary); line-height:1.4;">
-                            Es la lista de clientes o gestiones que llevan más tiempo sin actividad del que configuraste. Podés definir ese plazo desde Perfil, en horas o días.
-                        </p>
-                    </div>
-                    <div style="border-top:1px solid #F3F4F6; padding-top:12px;">
-                        <h4 style="font-size:0.9rem; color:var(--primary-blue); margin-bottom:4px;">¿Para qué sirve Revisado?</h4>
-                        <p style="font-size:0.8rem; color:var(--text-secondary); line-height:1.4;">
-                            Usalo cuando verificaste un registro pero no hay nada nuevo para modificar. Memora guarda la nueva revisión y vuelve a calcular cuándo debería aparecer en seguimiento.
-                        </p>
-                    </div>
-                    <div style="border-top:1px solid #F3F4F6; padding-top:12px;">
-                        <h4 style="font-size:0.9rem; color:var(--primary-blue); margin-bottom:4px;">¿Cómo funcionan los canales?</h4>
-                        <p style="font-size:0.8rem; color:var(--text-secondary); line-height:1.4;">
-                            Cada registro puede tener hasta 3 canales diferentes, por ejemplo WhatsApp, Instagram y LinkedIn. Desde la tarjeta podés abrir directamente el canal correspondiente para retomar la conversación.
-                        </p>
-                    </div>
-                    <div style="border-top:1px solid #F3F4F6; padding-top:12px;">
-                        <h4 style="font-size:0.9rem; color:var(--primary-blue); margin-bottom:4px;">¿Qué pasa con mis datos?</h4>
-                        <p style="font-size:0.8rem; color:var(--text-secondary); line-height:1.4;">
-                            Podés realizar respaldos en tu Google Drive y exportar información cuando la necesites. La vista activa puede exportarse a Excel o PDF, y la base completa puede descargarse en JSON.
-                        </p>
-                    </div>
-                    <!-- BOTONES DE ACCIÓN (DESCARGA DIRECTA) -->
-                    <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px; border-top:1px solid #E5E7EB; padding-top:14px;">
-                        <a id="linkManualCompletoMemora" href="./docs/Manual_Memora_v1.5.0_ES.pdf" download="Manual_Memora_v1.5.0_ES.pdf" style="width:100%; background:var(--primary-blue); color:white; border:none; padding:11px; border-radius:8px; font-weight:700; font-size:0.8rem; cursor:pointer; text-decoration:none; display:flex; align-items:center; justify-content:center; gap:6px;">
-                            <span class="material-symbols-outlined" style="font-size:1rem;">file_download</span> Descargar manual completo
-                        </a>
-                        <button type="button" onclick="reproducirTourBienvenida()" style="width:100%; background:#F3F4F6; color:#374151; border:1px solid #D1D5DB; padding:11px; border-radius:8px; font-weight:700; font-size:0.8rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
-                            <span class="material-symbols-outlined" style="font-size:1rem;">play_circle</span> Volver a ver bienvenida
-                        </button>
-                    </div>
-                </div>
-                </div>
+    <button id="botonAyudaMemora"
+            type="button"
+            onclick="toggleAyudaMemora()"
+            aria-expanded="false"
+            style="width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; background:transparent; border:none; padding:0; color:var(--text-primary); cursor:pointer; text-align:left;">
+
+        <span style="font-size:0.9rem; font-weight:700; color:var(--primary-blue);">
+            Ayuda
+        </span>
+
+        <span id="iconoAyudaMemora"
+              class="material-symbols-outlined"
+              style="color:var(--text-secondary);">
+            expand_more
+        </span>
+    </button>
+
+
+    <!-- SOLO EL CONTENIDO DE AYUDA SE DESPLIEGA -->
+    <div id="contenidoAyudaMemora"
+         style="display:none; margin-top:16px;">
+
+        <div style="display:flex; flex-direction:column; gap:16px;">
+
+            <div>
+                <h4 style="font-size:0.9rem; color:var(--primary-blue); margin-bottom:6px;">
+                    ¿Cómo empiezo?
+                </h4>
+
+                <ol style="padding-left:18px; font-size:0.8rem; color:var(--text-primary); line-height:1.5;">
+                    <li>Creá un registro cuando aparezca un nuevo cliente o consulta.</li>
+                    <li>Guardá por dónde hablás con esa persona y el motivo del contacto.</li>
+                    <li>Elegí el estado que mejor represente en qué quedó la conversación.</li>
+                    <li>Agregá comentarios cuando haya novedades.</li>
+                    <li>Memora te mostrará cuándo un registro necesita seguimiento.</li>
+                </ol>
             </div>
+
+
+            <div style="border-top:1px solid #F3F4F6; padding-top:12px;">
+                <h4 style="font-size:0.9rem; color:var(--primary-blue); margin-bottom:4px;">
+                    ¿Qué es Seguimiento Requerido?
+                </h4>
+
+                <p style="font-size:0.8rem; color:var(--text-secondary); line-height:1.4;">
+                    Es la lista de clientes o gestiones que llevan más tiempo sin actividad del que configuraste. Podés definir ese plazo desde Perfil, en horas o días.
+                </p>
+            </div>
+
+
+            <div style="border-top:1px solid #F3F4F6; padding-top:12px;">
+                <h4 style="font-size:0.9rem; color:var(--primary-blue); margin-bottom:4px;">
+                    ¿Para qué sirve Revisado?
+                </h4>
+
+                <p style="font-size:0.8rem; color:var(--text-secondary); line-height:1.4;">
+                    Usalo cuando verificaste un registro pero no hay nada nuevo para modificar. Memora guarda la nueva revisión y vuelve a calcular cuándo debería aparecer en seguimiento.
+                </p>
+            </div>
+
+
+            <div style="border-top:1px solid #F3F4F6; padding-top:12px;">
+                <h4 style="font-size:0.9rem; color:var(--primary-blue); margin-bottom:4px;">
+                    ¿Cómo funcionan los canales?
+                </h4>
+
+                <p style="font-size:0.8rem; color:var(--text-secondary); line-height:1.4;">
+                    Cada registro puede tener hasta 3 canales diferentes, por ejemplo WhatsApp, Instagram y LinkedIn. Desde la tarjeta podés abrir directamente el canal correspondiente para retomar la conversación.
+                </p>
+            </div>
+
+
+            <div style="border-top:1px solid #F3F4F6; padding-top:12px;">
+                <h4 style="font-size:0.9rem; color:var(--primary-blue); margin-bottom:4px;">
+                    ¿Qué pasa con mis datos?
+                </h4>
+
+                <p style="font-size:0.8rem; color:var(--text-secondary); line-height:1.4;">
+                    Podés realizar respaldos en tu Google Drive y exportar información cuando la necesites. La vista activa puede exportarse a Excel o PDF, y la base completa puede descargarse en JSON.
+                </p>
+            </div>
+
+        </div>
+
+    </div>
+</div>
+
+
+<!-- ESTOS QUEDAN SIEMPRE VISIBLES, FUERA DE AYUDA -->
+<div style="display:flex; flex-direction:column; gap:8px; margin-bottom:16px;">
+
+    <a id="linkManualCompletoMemora"
+       href="./docs/Manual_Memora_v1.5.0_ES.pdf"
+       download="Manual_Memora_v1.5.0_ES.pdf"
+       style="width:100%; background:var(--primary-blue); color:white; border:none; padding:11px; border-radius:8px; font-weight:700; font-size:0.8rem; cursor:pointer; text-decoration:none; display:flex; align-items:center; justify-content:center; gap:6px;">
+
+        <span class="material-symbols-outlined" style="font-size:1rem;">
+            file_download
+        </span>
+
+        Descargar manual completo
+    </a>
+
+
+    <button type="button"
+            onclick="reproducirTourBienvenida()"
+            style="width:100%; background:#F3F4F6; color:#374151; border:1px solid #D1D5DB; padding:11px; border-radius:8px; font-weight:700; font-size:0.8rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
+
+        <span class="material-symbols-outlined" style="font-size:1rem;">
+            play_circle
+        </span>
+
+        Volver a ver bienvenida
+    </button>
+
+</div>
 
             <!-- ELIMINACIÓN DE DATOS -->
             <h3 style="font-size: 0.95rem; margin: 16px 0 10px 0; color:#B91C1C;">Eliminación de datos</h3>
