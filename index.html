@@ -16,6 +16,7 @@
     
     <!-- Estilos CSS (en la raíz) -->
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="biblioteca151.css">
     
     <!-- Fuentes e Íconos -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -57,6 +58,30 @@
                     <p>Resumen y métricas de tu gestión.</p>
                 </div>
             </div>
+
+            <!-- PANEL DE MENSAJES Y RESUMENES DE MEMORA 1.5.1 -->
+            <section class="biblioteca151-home" aria-labelledby="biblioteca151HomeTitle">
+                <div class="biblioteca151-home-heading">
+                    <span class="biblioteca151-home-hero-icon" aria-hidden="true"><span class="material-symbols-outlined">edit_note</span><span class="material-symbols-outlined biblioteca151-home-spark">auto_awesome</span></span>
+                    <div class="biblioteca151-home-heading-text">
+                        <h3 id="biblioteca151HomeTitle">Administrar mensajes y resúmenes</h3>
+                        <p id="biblioteca151HomeDesc">Creá, editá y organizá mensajes y resúmenes para reutilizarlos cuando los necesites.</p>
+                    </div>
+                    <button class="biblioteca151-home-open-icon" type="button" onclick="abrirBiblioteca151('mensajes')" id="biblioteca151HomeOpenIcon" aria-label="Abrir biblioteca" title="Abrir biblioteca"><span class="material-symbols-outlined" aria-hidden="true">chevron_right</span></button>
+                </div>
+                <div class="biblioteca151-home-actions">
+                    <button class="biblioteca151-home-tile" type="button" onclick="abrirBiblioteca151('mensajes')">
+                        <span class="material-symbols-outlined biblioteca151-home-tile-icon" aria-hidden="true">chat</span>
+                        <span class="biblioteca151-home-tile-text"><strong id="biblioteca151HomeMessages">Mis mensajes</strong><small id="biblioteca151HomeMessagesDesc">Plantillas para WhatsApp, Instagram, Mail y más.</small></span>
+                        <span class="material-symbols-outlined biblioteca151-tile-arrow" aria-hidden="true">chevron_right</span>
+                    </button>
+                    <button class="biblioteca151-home-tile biblioteca151-home-summary" type="button" onclick="abrirBiblioteca151('resumenes')">
+                        <span class="material-symbols-outlined biblioteca151-home-tile-icon" aria-hidden="true">description</span>
+                        <span class="biblioteca151-home-tile-text"><strong id="biblioteca151HomeSummary">Mis resúmenes</strong><small id="biblioteca151HomeSummaryDesc">Textos listos para copiar y compartir.</small></span>
+                        <span class="material-symbols-outlined biblioteca151-tile-arrow" aria-hidden="true">chevron_right</span>
+                    </button>
+                </div>
+            </section>
 
             <!-- BANNER DISTINTIVO DEMO CON REDIRECCIÓN A LANDING -->
             <div id="bannerModoDemo" class="card" style="background: linear-gradient(135deg, #FEF3C7 0%, #FFFBEB 100%); border-left: 4px solid #F59E0B; margin-bottom: 16px; padding: 12px 16px;">
@@ -226,6 +251,41 @@
                             <option>Archivado</option>
                         </select>
                     </div>
+                    <div class="memora151-form-extras">
+                        <div>
+                            <label for="prioridadInicio" class="memora151-field-label">Prioridad</label>
+                            <select id="prioridadInicio" class="memora151-field-control">
+                                <option value="Normal">Normal</option><option value="Alta">Alta</option><option value="Urgente">Urgente</option>
+                            </select>
+                        </div>
+                        <div class="biblioteca151-follow-panel">
+                            <h4 class="biblioteca151-follow-title" id="reglaSegTitleInicio">Seguimiento de esta gestión</h4>
+                            <div class="biblioteca151-rule-switch" role="group" aria-labelledby="reglaSegTitleInicio">
+                                <button id="reglaSegGeneralBtnInicio" type="button" class="biblioteca151-rule-active" aria-pressed="true" onclick="elegirReglaVisual151('Inicio','general')">Usar configuración general</button>
+                                <button id="reglaSegPropiaBtnInicio" type="button" aria-pressed="false" onclick="elegirReglaVisual151('Inicio','propia')">Personalizar</button>
+                            </div>
+                            <!-- Select oculto: conserva la lógica y compatibilidad de seguimiento existente. -->
+                            <select id="reglaSegInicio" hidden style="display:none" onchange="cambiarReglaSeguimientoMemora151('Inicio')" aria-label="Regla seleccionada">
+                                <option value="general">Usar configuración general</option>
+                                <option value="propia">Personalizar para esta gestión</option>
+                            </select>
+                            <p id="reglaSegGeneralHintInicio" class="biblioteca151-general-hint">Se utilizará el plazo general configurado en Perfil.</p>
+                            <div id="reglaSegCamposInicio" class="memora151-follow-fields biblioteca151-follow-config" style="display:none;">
+                                <label for="reglaSegValorInicio" id="reglaSegPlazoLabelInicio" class="biblioteca151-follow-label">Plazo sin actividad</label>
+                                <div class="biblioteca151-follow-controls">
+                                    <input type="number" min="1" max="365" step="1" inputmode="numeric" id="reglaSegValorInicio" value="2" aria-label="Plazo sin actividad" class="memora151-field-control" oninput="actualizarResumenSeguimiento151('Inicio')" onchange="actualizarResumenSeguimiento151('Inicio')">
+                                    <div class="biblioteca151-unit-switch" role="group" id="reglaSegUnidadesInicio" aria-label="Unidad de seguimiento">
+                                        <button id="reglaSegHorasBtnInicio" type="button" onclick="elegirUnidadSeguimiento151('Inicio','horas')" aria-pressed="false">Horas</button>
+                                        <button id="reglaSegDiasBtnInicio" type="button" onclick="elegirUnidadSeguimiento151('Inicio','dias')" aria-pressed="true" class="biblioteca151-unit-active">Días</button>
+                                    </div>
+                                </div>
+                                <select id="reglaSegUnidadInicio" hidden style="display:none" onchange="actualizarResumenSeguimiento151('Inicio')" aria-label="Unidad de seguimiento">
+                                    <option value="horas">Horas</option><option value="dias" selected>Días</option>
+                                </select>
+                                <p id="reglaSegResumenInicio" class="biblioteca151-follow-result" role="status"><span class="material-symbols-outlined" aria-hidden="true">info</span><span>Este registro aparecerá en seguimiento después de 2 días sin actividad.</span></p>
+                            </div>
+                        </div>
+                    </div>
                     <div>
                         <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px; color:var(--text-secondary);">Comentarios / Notas</label>
                         <div style="display: flex; gap: 8px;">
@@ -258,6 +318,17 @@
                 <span class="material-symbols-outlined">search</span>
                 <input type="text" id="busquedaRapida" placeholder="Buscar por nombre, teléfono, asunto, RUT..." oninput="render()">
                 <span class="material-symbols-outlined filter-icon" onclick="toggleFiltroAvanzado()" style="cursor:pointer;">tune</span>
+            </div>
+            <div class="memora151-sort-row">
+                <label for="ordenRegistrosMemora151">Ordenar por</label>
+                <select id="ordenRegistrosMemora151" onchange="guardarOrdenRegistrosMemora151(this.value)" aria-label="Ordenar registros">
+                    <option value="reciente">Más recientes primero</option>
+                    <option value="antiguo">Más antiguos primero</option>
+                    <option value="nombreAZ">Nombre A–Z</option>
+                    <option value="nombreZA">Nombre Z–A</option>
+                    <option value="clienteAsc">N.º de cliente: menor a mayor</option>
+                    <option value="clienteDesc">N.º de cliente: mayor a menor</option>
+                </select>
             </div>
             <div id="filtroAvanzado" class="card" style="display: none; margin-bottom: 16px;">
                 <h4 style="margin-bottom:8px; font-size:0.85rem;">Filtros detallados:</h4>
@@ -333,12 +404,47 @@
                         <label style="font-size: 0.8rem; color: var(--text-secondary);">Estado</label>
                         <select id="estado" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc;"></select>
                     </div>
+                    <div class="memora151-form-extras">
+                        <div>
+                            <label for="prioridad" class="memora151-field-label">Prioridad</label>
+                            <select id="prioridad" class="memora151-field-control">
+                                <option value="Normal">Normal</option><option value="Alta">Alta</option><option value="Urgente">Urgente</option>
+                            </select>
+                        </div>
+                        <div class="biblioteca151-follow-panel">
+                            <h4 class="biblioteca151-follow-title" id="reglaSegTitle">Seguimiento de esta gestión</h4>
+                            <div class="biblioteca151-rule-switch" role="group" aria-labelledby="reglaSegTitle">
+                                <button id="reglaSegGeneralBtn" type="button" class="biblioteca151-rule-active" aria-pressed="true" onclick="elegirReglaVisual151('','general')">Usar configuración general</button>
+                                <button id="reglaSegPropiaBtn" type="button" aria-pressed="false" onclick="elegirReglaVisual151('','propia')">Personalizar</button>
+                            </div>
+                            <!-- Select oculto: conserva la lógica y compatibilidad de seguimiento existente. -->
+                            <select id="reglaSeg" hidden style="display:none" onchange="cambiarReglaSeguimientoMemora151('')" aria-label="Regla seleccionada">
+                                <option value="general">Usar configuración general</option>
+                                <option value="propia">Personalizar para esta gestión</option>
+                            </select>
+                            <p id="reglaSegGeneralHint" class="biblioteca151-general-hint">Se utilizará el plazo general configurado en Perfil.</p>
+                            <div id="reglaSegCampos" class="memora151-follow-fields biblioteca151-follow-config" style="display:none;">
+                                <label for="reglaSegValor" id="reglaSegPlazoLabel" class="biblioteca151-follow-label">Plazo sin actividad</label>
+                                <div class="biblioteca151-follow-controls">
+                                    <input type="number" min="1" max="365" step="1" inputmode="numeric" id="reglaSegValor" value="2" aria-label="Plazo sin actividad" class="memora151-field-control" oninput="actualizarResumenSeguimiento151('')" onchange="actualizarResumenSeguimiento151('')">
+                                    <div class="biblioteca151-unit-switch" role="group" id="reglaSegUnidades" aria-label="Unidad de seguimiento">
+                                        <button id="reglaSegHorasBtn" type="button" onclick="elegirUnidadSeguimiento151('','horas')" aria-pressed="false">Horas</button>
+                                        <button id="reglaSegDiasBtn" type="button" onclick="elegirUnidadSeguimiento151('','dias')" aria-pressed="true" class="biblioteca151-unit-active">Días</button>
+                                    </div>
+                                </div>
+                                <select id="reglaSegUnidad" hidden style="display:none" onchange="actualizarResumenSeguimiento151('')" aria-label="Unidad de seguimiento">
+                                    <option value="horas">Horas</option><option value="dias" selected>Días</option>
+                                </select>
+                                <p id="reglaSegResumen" class="biblioteca151-follow-result" role="status"><span class="material-symbols-outlined" aria-hidden="true">info</span><span>Este registro aparecerá en seguimiento después de 2 días sin actividad.</span></p>
+                            </div>
+                        </div>
+                    </div>
                     <hr style="border:0; border-top:1px solid #E5E7EB; margin:10px 0;">
                     <div>
                         <label id="labelComentariosMovil" style="font-size: 0.85rem; font-weight:600; color: var(--text-primary);">Comentarios</label>
-                        <div style="display:flex; gap:6px; margin-top:6px;">
-                            <textarea id="comentario" rows="2" placeholder="Escribe un comentario..." style="flex:1; padding:8px; border-radius:8px; border:1px solid #ccc; font-size:0.85rem;"></textarea>
-                            <button type="button" onclick="agregarComentarioFormulario()" style="background:var(--primary-blue); color:white; border:none; padding:0 14px; border-radius:8px; font-weight:600; cursor:pointer;">+ Añadir</button>
+                        <div style="display:flex; align-items:stretch; gap:10px; margin-top:8px; width:100%;">
+                            <textarea id="comentario" rows="3" placeholder="Escribe un comentario..." style="flex:1 1 0; min-width:0; height:96px; min-height:96px; padding:12px; border-radius:12px; border:1px solid #D1D5DB; font-size:0.9rem; line-height:1.45; box-sizing:border-box; resize:vertical;"></textarea>
+                            <button type="button" onclick="agregarComentarioFormulario()" style="flex:0 0 auto; align-self:stretch; background:var(--primary-blue); color:white; border:none; min-width:94px; padding:0 12px; border-radius:12px; font-weight:700; font-size:0.85rem; cursor:pointer; white-space:nowrap;">+ Añadir</button>
                         </div>
                     </div>
                     <div id="listaComentariosEdicion" style="margin-top: 10px;"></div>
@@ -351,6 +457,31 @@
         </section>
 
         <!-- SECCIÓN 5: PERFIL Y CONFIGURACIÓN -->
+        <!-- BIBLIOTECA: MENSAJES Y RESÚMENES -->
+        <section id="sec-biblioteca151" class="app-section biblioteca151-page" style="display:none;">
+            <h2 id="biblioteca151PageTitle">Mensajes y resúmenes</h2>
+            <p id="biblioteca151PageDesc" class="biblioteca151-subheading">Creá, editá y organizá contenido reutilizable. Solo vos elegís cuándo copiarlo y compartirlo.</p>
+            <div class="biblioteca151-tabs" role="tablist">
+                <button type="button" id="biblioteca151TabMensajes" role="tab" aria-selected="true" onclick="cambiarBiblioteca151('mensajes')"><span class="material-symbols-outlined">chat</span><span id="biblioteca151TabMensajesLabel">Mensajes</span></button>
+                <button type="button" id="biblioteca151TabResumenes" role="tab" aria-selected="false" onclick="cambiarBiblioteca151('resumenes')"><span class="material-symbols-outlined">content_copy</span><span id="biblioteca151TabResumenesLabel">Resúmenes</span></button>
+            </div>
+            <div class="biblioteca151-promo" id="biblioteca151Promo"></div>
+            <div class="biblioteca151-title-row">
+                <h3 id="biblioteca151LibraryTitle">Biblioteca</h3>
+                <div class="biblioteca151-title-buttons"><button type="button" class="biblioteca151-ghost biblioteca151-from-record" id="biblioteca151FromRecord" style="display:none" onclick="nuevoItemBiblioteca151(true)"><span class="material-symbols-outlined">assignment</span><span id="biblioteca151FromRecordLabel">Desde un registro</span></button><button type="button" class="biblioteca151-primary" id="biblioteca151New" onclick="nuevoItemBiblioteca151()"><span class="material-symbols-outlined">add</span><span id="biblioteca151NewLabel">Nuevo mensaje</span></button></div>
+            </div>
+            <label class="biblioteca151-search"><span class="material-symbols-outlined">search</span><input id="biblioteca151Search" type="search" autocomplete="off" oninput="renderBiblioteca151()" placeholder="Buscar mensajes..."></label>
+            <div id="biblioteca151Filters" class="biblioteca151-chips" aria-label="Filtrar biblioteca"></div>
+            <div id="biblioteca151Items" class="biblioteca151-items" aria-live="polite"></div>
+            <div id="biblioteca151SummaryRecent" class="biblioteca151-recent"></div>
+            <div class="biblioteca151-portability">
+                <span id="biblioteca151BackupHint">Guardá una copia de tus mensajes y resúmenes.</span>
+                <div><button type="button" id="biblioteca151Export" onclick="exportarBiblioteca151()">Exportar biblioteca</button>
+                <label class="biblioteca151-import" for="biblioteca151ImportFile" id="biblioteca151ImportLabel">Importar biblioteca</label>
+                <input id="biblioteca151ImportFile" type="file" accept=".json,application/json" onchange="importarBiblioteca151(event)" hidden></div>
+            </div>
+        </section>
+
         <section id="sec-perfil" class="app-section" style="display: none;">
             <div class="welcome-section" style="flex-direction: column; align-items: flex-start; gap: 4px;">
                 <h2>Perfil y Configuración</h2>
@@ -500,7 +631,7 @@
                 <div class="tech-info-grid">
                     <div class="tech-info-item">
                         <span class="tech-label">Versión de App</span>
-                        <span class="tech-value" id="sys-version">v1.5.0</span>
+                        <span class="tech-value" id="sys-version">v1.5.1</span>
                     </div>
                     <div class="tech-info-item">
                         <span class="tech-label">Dispositivo</span>
@@ -542,6 +673,13 @@
                     </div>
                     <span class="material-symbols-outlined" style="color: var(--text-secondary);">chevron_right</span>
                 </div>
+                <div onclick="exportarRespaldoConManifiestoMemora151()" role="button" tabindex="0" onkeydown="if(event.key==='Enter')exportarRespaldoConManifiestoMemora151()" style="display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid #F3F4F6; cursor:pointer;">
+                    <div style="display:flex; align-items:center; gap:12px; font-size:0.9rem;">
+                        <span class="material-symbols-outlined" style="color:#0284C7;">folder_zip</span>
+                        <span>Respaldo completo + manifiesto (.zip)</span>
+                    </div>
+                    <span class="material-symbols-outlined" style="color:var(--text-secondary);">chevron_right</span>
+                </div>
                 <div onclick="exportarJSON()" style="display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; cursor:pointer;">
                     <div style="display: flex; align-items: center; gap: 12px; font-size: 0.9rem;">
                         <span class="material-symbols-outlined" style="color: #8B5CF6;">code</span>
@@ -551,62 +689,125 @@
                 </div>
             </div>
             
-            <!-- AYUDA DESPLEGABLE -->
-            <h3 style="font-size: 0.95rem; margin: 16px 0 10px 0;">Ayuda</h3>
-            <div class="card" style="margin-bottom:16px; padding:16px;">
-                <button id="botonAyudaMemora" type="button" onclick="toggleAyudaMemora()" aria-expanded="false" style="width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; background:transparent; border:none; padding:0; color:var(--text-primary); cursor:pointer; text-align:left;">
-                    <span style="font-size:0.9rem; font-weight:700; color:var(--primary-blue);">Ayuda</span>
-                    <span id="iconoAyudaMemora" class="material-symbols-outlined" style="color:var(--text-secondary);">expand_more</span>
-                </button>
-                <div id="contenidoAyudaMemora" style="display:none; margin-top:16px;">
+      <!-- AYUDA DESPLEGABLE -->
+<div class="card" style="margin-bottom:16px; padding:16px;">
 
-                <div style="display:flex; flex-direction:column; gap:16px;">
-                    <div>
-                        <h4 style="font-size:0.9rem; color:var(--primary-blue); margin-bottom:6px;">¿Cómo empiezo?</h4>
-                        <ol style="padding-left:18px; font-size:0.8rem; color:var(--text-primary); line-height:1.5;">
-                            <li>Creá un registro cuando aparezca un nuevo cliente o consulta.</li>
-                            <li>Guardá por dónde hablás con esa persona y el motivo del contacto.</li>
-                            <li>Elegí el estado que mejor represente en qué quedó la conversación.</li>
-                            <li>Agregá comentarios cuando haya novedades.</li>
-                            <li>Memora te mostrará cuándo un registro necesita seguimiento.</li>
-                        </ol>
-                    </div>
-                    <div style="border-top:1px solid #F3F4F6; padding-top:12px;">
-                        <h4 style="font-size:0.9rem; color:var(--primary-blue); margin-bottom:4px;">¿Qué es Seguimiento Requerido?</h4>
-                        <p style="font-size:0.8rem; color:var(--text-secondary); line-height:1.4;">
-                            Es la lista de clientes o gestiones que llevan más tiempo sin actividad del que configuraste. Podés definir ese plazo desde Perfil, en horas o días.
-                        </p>
-                    </div>
-                    <div style="border-top:1px solid #F3F4F6; padding-top:12px;">
-                        <h4 style="font-size:0.9rem; color:var(--primary-blue); margin-bottom:4px;">¿Para qué sirve Revisado?</h4>
-                        <p style="font-size:0.8rem; color:var(--text-secondary); line-height:1.4;">
-                            Usalo cuando verificaste un registro pero no hay nada nuevo para modificar. Memora guarda la nueva revisión y vuelve a calcular cuándo debería aparecer en seguimiento.
-                        </p>
-                    </div>
-                    <div style="border-top:1px solid #F3F4F6; padding-top:12px;">
-                        <h4 style="font-size:0.9rem; color:var(--primary-blue); margin-bottom:4px;">¿Cómo funcionan los canales?</h4>
-                        <p style="font-size:0.8rem; color:var(--text-secondary); line-height:1.4;">
-                            Cada registro puede tener hasta 3 canales diferentes, por ejemplo WhatsApp, Instagram y LinkedIn. Desde la tarjeta podés abrir directamente el canal correspondiente para retomar la conversación.
-                        </p>
-                    </div>
-                    <div style="border-top:1px solid #F3F4F6; padding-top:12px;">
-                        <h4 style="font-size:0.9rem; color:var(--primary-blue); margin-bottom:4px;">¿Qué pasa con mis datos?</h4>
-                        <p style="font-size:0.8rem; color:var(--text-secondary); line-height:1.4;">
-                            Podés realizar respaldos en tu Google Drive y exportar información cuando la necesites. La vista activa puede exportarse a Excel o PDF, y la base completa puede descargarse en JSON.
-                        </p>
-                    </div>
-                    <!-- BOTONES DE ACCIÓN (DESCARGA DIRECTA) -->
-                    <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px; border-top:1px solid #E5E7EB; padding-top:14px;">
-                        <a id="linkManualCompletoMemora" href="./docs/Manual_Memora_v1.5.0_ES.pdf" download="Manual_Memora_v1.5.0_ES.pdf" style="width:100%; background:var(--primary-blue); color:white; border:none; padding:11px; border-radius:8px; font-weight:700; font-size:0.8rem; cursor:pointer; text-decoration:none; display:flex; align-items:center; justify-content:center; gap:6px;">
-                            <span class="material-symbols-outlined" style="font-size:1rem;">file_download</span> Descargar manual completo
-                        </a>
-                        <button type="button" onclick="reproducirTourBienvenida()" style="width:100%; background:#F3F4F6; color:#374151; border:1px solid #D1D5DB; padding:11px; border-radius:8px; font-weight:700; font-size:0.8rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
-                            <span class="material-symbols-outlined" style="font-size:1rem;">play_circle</span> Volver a ver bienvenida
-                        </button>
-                    </div>
-                </div>
-                </div>
+    <button id="botonAyudaMemora"
+            type="button"
+            onclick="toggleAyudaMemora()"
+            aria-expanded="false"
+            style="width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; background:transparent; border:none; padding:0; color:var(--text-primary); cursor:pointer; text-align:left;">
+
+        <span style="font-size:0.9rem; font-weight:700; color:var(--primary-blue);">
+            Ayuda
+        </span>
+
+        <span id="iconoAyudaMemora"
+              class="material-symbols-outlined"
+              style="color:var(--text-secondary);">
+            expand_more
+        </span>
+    </button>
+
+
+    <!-- SOLO EL CONTENIDO DE AYUDA SE DESPLIEGA -->
+    <div id="contenidoAyudaMemora"
+         style="display:none; margin-top:16px;">
+
+        <div style="display:flex; flex-direction:column; gap:16px;">
+
+            <div>
+                <h4 style="font-size:0.9rem; color:var(--primary-blue); margin-bottom:6px;">
+                    ¿Cómo empiezo?
+                </h4>
+
+                <ol style="padding-left:18px; font-size:0.8rem; color:var(--text-primary); line-height:1.5;">
+                    <li>Creá un registro cuando aparezca un nuevo cliente o consulta.</li>
+                    <li>Guardá por dónde hablás con esa persona y el motivo del contacto.</li>
+                    <li>Elegí el estado que mejor represente en qué quedó la conversación.</li>
+                    <li>Agregá comentarios cuando haya novedades.</li>
+                    <li>Memora te mostrará cuándo un registro necesita seguimiento.</li>
+                </ol>
             </div>
+
+
+            <div style="border-top:1px solid #F3F4F6; padding-top:12px;">
+                <h4 style="font-size:0.9rem; color:var(--primary-blue); margin-bottom:4px;">
+                    ¿Qué es Seguimiento Requerido?
+                </h4>
+
+                <p style="font-size:0.8rem; color:var(--text-secondary); line-height:1.4;">
+                    Es la lista de clientes o gestiones que llevan más tiempo sin actividad del que configuraste. Podés definir ese plazo desde Perfil, en horas o días.
+                </p>
+            </div>
+
+
+            <div style="border-top:1px solid #F3F4F6; padding-top:12px;">
+                <h4 style="font-size:0.9rem; color:var(--primary-blue); margin-bottom:4px;">
+                    ¿Para qué sirve Revisado?
+                </h4>
+
+                <p style="font-size:0.8rem; color:var(--text-secondary); line-height:1.4;">
+                    Usalo cuando verificaste un registro pero no hay nada nuevo para modificar. Memora guarda la nueva revisión y vuelve a calcular cuándo debería aparecer en seguimiento.
+                </p>
+            </div>
+
+
+            <div style="border-top:1px solid #F3F4F6; padding-top:12px;">
+                <h4 style="font-size:0.9rem; color:var(--primary-blue); margin-bottom:4px;">
+                    ¿Cómo funcionan los canales?
+                </h4>
+
+                <p style="font-size:0.8rem; color:var(--text-secondary); line-height:1.4;">
+                    Cada registro puede tener hasta 3 canales diferentes, por ejemplo WhatsApp, Instagram y LinkedIn. Desde la tarjeta podés abrir directamente el canal correspondiente para retomar la conversación.
+                </p>
+            </div>
+
+
+            <div style="border-top:1px solid #F3F4F6; padding-top:12px;">
+                <h4 style="font-size:0.9rem; color:var(--primary-blue); margin-bottom:4px;">
+                    ¿Qué pasa con mis datos?
+                </h4>
+
+                <p style="font-size:0.8rem; color:var(--text-secondary); line-height:1.4;">
+                    Podés realizar respaldos en tu Google Drive y exportar información cuando la necesites. La vista activa puede exportarse a Excel o PDF, y la base completa puede descargarse en JSON.
+                </p>
+            </div>
+
+        </div>
+
+    </div>
+</div>
+
+
+<!-- ESTOS QUEDAN SIEMPRE VISIBLES, FUERA DE AYUDA -->
+<div style="display:flex; flex-direction:column; gap:8px; margin-bottom:16px;">
+
+    <a id="linkManualCompletoMemora"
+       href="./docs/Manual_Memora_v1.5.1_ES.pdf"
+       download="Manual_Memora_v1.5.1_ES.pdf"
+       style="width:100%; background:var(--primary-blue); color:white; border:none; padding:11px; border-radius:8px; font-weight:700; font-size:0.8rem; cursor:pointer; text-decoration:none; display:flex; align-items:center; justify-content:center; gap:6px;">
+
+        <span class="material-symbols-outlined" style="font-size:1rem;">
+            file_download
+        </span>
+
+        Descargar manual completo
+    </a>
+
+
+    <button type="button"
+            onclick="reproducirTourBienvenida()"
+            style="width:100%; background:#F3F4F6; color:#374151; border:1px solid #D1D5DB; padding:11px; border-radius:8px; font-weight:700; font-size:0.8rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
+
+        <span class="material-symbols-outlined" style="font-size:1rem;">
+            play_circle
+        </span>
+
+        Volver a ver bienvenida
+    </button>
+
+</div>
 
             <!-- ELIMINACIÓN DE DATOS -->
             <h3 style="font-size: 0.95rem; margin: 16px 0 10px 0; color:#B91C1C;">Eliminación de datos</h3>
@@ -636,6 +837,32 @@
         <a href="#" id="nav-registros" onclick="navegarA('registros')" class="nav-item"><span class="material-symbols-outlined">assignment</span><span>Registros</span></a>
         <a href="#" id="nav-perfil" onclick="navegarA('perfil')" class="nav-item"><span class="material-symbols-outlined">person</span><span>Perfil</span></a>
     </nav>
+
+    <!-- FORMULARIO DE MENSAJES Y RESÚMENES -->
+    <div id="biblioteca151EditorBackdrop" class="biblioteca151-modal" style="display:none" role="dialog" aria-modal="true" aria-labelledby="biblioteca151EditorTitle" onclick="if(event.target===this) cerrarEditorBiblioteca151()">
+        <form id="biblioteca151EditorForm" class="biblioteca151-dialog" onsubmit="guardarItemBiblioteca151(event)">
+            <div class="biblioteca151-dialog-head"><h3 id="biblioteca151EditorTitle">Nuevo mensaje</h3><button type="button" onclick="cerrarEditorBiblioteca151()" aria-label="Cerrar">✕</button></div>
+            <label><span id="biblioteca151EditorNameLabel">Nombre</span><input id="biblioteca151EditorName" type="text" maxlength="90" required></label>
+            <label><span id="biblioteca151EditorMetaLabel">Canal</span><select id="biblioteca151EditorMeta" onchange="actualizarCanalPersonalizadoBiblioteca151()"></select></label>
+            <label id="biblioteca151EditorOtherWrap" style="display:none"><span id="biblioteca151EditorOtherLabel">Nombre del canal</span><input id="biblioteca151EditorOther" type="text" maxlength="40" placeholder="Discord, TikTok..."></label>
+            <label id="biblioteca151EditorChannelWrap" style="display:none"><span id="biblioteca151EditorChannelLabel">Canal de referencia (opcional)</span><select id="biblioteca151EditorChannel" onchange="actualizarCanalPersonalizadoBiblioteca151()"></select></label>
+            <label id="biblioteca151EditorRecordWrap" style="display:none"><span id="biblioteca151EditorRecordLabel">Generar a partir de un registro (opcional)</span><select id="biblioteca151EditorRecord" onchange="seleccionarRegistroEditorBiblioteca151()"></select></label>
+            <label><span id="biblioteca151EditorBodyLabel">Texto</span><textarea id="biblioteca151EditorBody" rows="7" maxlength="12000" required></textarea></label>
+            <p class="biblioteca151-hint" id="biblioteca151EditorHint">Podés incluir {nombre}, {asunto}, {canal}, {empresa}, {telefono} o {numeroCliente}. Los datos se completan cuando elegís un registro.</p>
+            <div class="biblioteca151-dialog-actions"><button type="button" class="biblioteca151-ghost" id="biblioteca151CancelEditor" onclick="cerrarEditorBiblioteca151()">Cancelar</button><button class="biblioteca151-primary" id="biblioteca151SaveEditor" type="submit">Guardar</button></div>
+        </form>
+    </div>
+    <!-- VISUALIZAR / COMPLETAR / COPIAR SIN ENVÍO AUTOMÁTICO -->
+    <div id="biblioteca151UseBackdrop" class="biblioteca151-modal" style="display:none" role="dialog" aria-modal="true" aria-labelledby="biblioteca151UseTitle" onclick="if(event.target===this) cerrarUsoBiblioteca151()">
+        <div class="biblioteca151-dialog">
+            <div class="biblioteca151-dialog-head"><h3 id="biblioteca151UseTitle">Usar mensaje</h3><button type="button" onclick="cerrarUsoBiblioteca151()" aria-label="Cerrar">✕</button></div>
+            <label><span id="biblioteca151PickLabel">Completar con un registro (opcional)</span><select id="biblioteca151PickRecord" onchange="cambiarRegistroUsoBiblioteca151()"></select></label>
+            <p class="biblioteca151-hint" id="biblioteca151UseHint">Revisá el texto antes de copiarlo. Memora no envía nada.</p>
+            <label><span id="biblioteca151UseBodyLabel">Texto editable</span><textarea id="biblioteca151UseBody" rows="9" maxlength="14000"></textarea></label>
+            <p id="biblioteca151CopyState" class="biblioteca151-hint" role="status"></p>
+            <div class="biblioteca151-dialog-actions"><button type="button" class="biblioteca151-ghost" id="biblioteca151CancelUse" onclick="cerrarUsoBiblioteca151()">Cancelar</button><button type="button" class="biblioteca151-primary" id="biblioteca151CopyUse" onclick="copiarUsoBiblioteca151()"><span class="material-symbols-outlined">content_copy</span><span id="biblioteca151CopyUseLabel">Copiar texto</span></button></div>
+        </div>
+    </div>
 
     <!-- MODALES MEMORA -->
     <div id="modalPerfilMemora" class="memora-modal-overlay" style="display: none;">
@@ -695,6 +922,21 @@
         </div>
     </div>
 
+    <div id="modalClienteExistente151" class="memora-modal-overlay" style="display:none; z-index:13001;" role="dialog" aria-modal="true" aria-labelledby="tituloClienteExistente151">
+        <div class="memora-modal-card memora151-client-modal" style="max-height:85vh; overflow-y:auto; text-align:left;">
+            <div class="memora151-modal-heading">
+                <h3 id="tituloClienteExistente151">Cliente encontrado</h3>
+                <button type="button" onclick="cerrarModalClienteMemora151()" aria-label="Cerrar" class="memora151-close">✕</button>
+            </div>
+            <p id="detalleClienteExistente151" class="memora151-client-note"></p>
+            <div id="gestionesClienteExistente151" class="memora151-matches"></div>
+            <div class="memora151-modal-actions">
+                <button type="button" class="memora151-secondary-btn" onclick="cerrarModalClienteMemora151()">Cancelar</button>
+                <button id="btnReusarClienteMemora151" type="button" class="memora151-primary-btn" onclick="elegirNuevaGestionMemora151()">Crear nueva gestión con sus datos</button>
+            </div>
+        </div>
+    </div>
+
     <div id="modalPromptMemora" class="memora-modal-overlay" style="display: none;">
         <div class="memora-modal-card">
             <h3 id="promptMemoraTitulo" style="margin-bottom: 8px; color: #004F87;">Editar dato</h3>
@@ -709,11 +951,12 @@
         </div>
     </div>
 
-    <script src="app.js?v=1.5.0-stable-v3-final"></script>
+    <script src="app.js?v=1.5.1-manuales-final"></script>
+    <script src="biblioteca151.js?v=1.5.1-manuales-final"></script>
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('./sw.js?v=1.5.0-stable-v2');
+          navigator.serviceWorker.register('./sw.js?v=1.5.1-manuales-final');
         });
       }
     </script>

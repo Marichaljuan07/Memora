@@ -1,5 +1,5 @@
 /* ==========================================================================
-   MEMORA CRM - CORE LOGIC (v1.5.0 ESTABLE V2)
+   MEMORA CRM - CORE LOGIC (v1.5.1 PREVIEW 3)
    ========================================================================== */
 
 const estados = [
@@ -13,7 +13,7 @@ const estados = [
 ];
 
 const CANALES_DISPONIBLES = ["WhatsApp", "Instagram", "Email", "LinkedIn", "Facebook", "Telegram"];
-const MEMORA_VERSION = "1.5.0";
+const MEMORA_VERSION = "1.5.1";
 const MEMORA_THEME_KEY = "memora_tema";
 const PREFIJOS_WHATSAPP = [
     { codigo: "+598", etiqueta: "UY +598" },
@@ -428,11 +428,12 @@ async function subirRespaldoADrive() {
             if (tokenClient) tokenClient.requestAccessToken({ prompt: '' });
             return;
         }
+        if (!searchResp.ok) throw new Error(`Google Drive search failed: ${searchResp.status}`);
         const searchData = await searchResp.json();
         let fileId = (searchData.files && searchData.files.length > 0) ? searchData.files[0].id : null;
         
         if (fileId) {
-            await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
+            const uploadResp = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
                 method: 'PATCH',
                 headers: {
                     'Authorization': `Bearer ${googleAccessToken}`,
@@ -440,6 +441,8 @@ async function subirRespaldoADrive() {
                 },
                 body: datosBackup
             });
+            if (!uploadResp.ok) throw new Error(`Google Drive update failed: ${uploadResp.status}`);
+            await guardarManifiestoDriveSinInterrumpirMemora151();
             mostrarAvisoMemora("Respaldo guardado correctamente en tu Google Drive.", "Google Drive", "cloud_done");
         } else {
             const metadata = { name: 'memora_backup.json', mimeType: 'application/json' };
@@ -447,11 +450,13 @@ async function subirRespaldoADrive() {
             form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
             form.append('file', new Blob([datosBackup], { type: 'application/json' }));
 
-            await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+            const uploadResp = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${googleAccessToken}` },
                 body: form
             });
+            if (!uploadResp.ok) throw new Error(`Google Drive upload failed: ${uploadResp.status}`);
+            await guardarManifiestoDriveSinInterrumpirMemora151();
             mostrarAvisoMemora("Primer respaldo creado con éxito en tu Google Drive.", "Google Drive", "cloud_done");
         }
     } catch (err) {
@@ -484,6 +489,7 @@ async function restaurarDesdeDrive() {
             if (tokenClient) tokenClient.requestAccessToken({ prompt: '' });
             return;
         }
+        if (!searchResp.ok) throw new Error(`Google Drive restore search failed: ${searchResp.status}`);
         const searchData = await searchResp.json();
         let fileId = (searchData.files && searchData.files.length > 0) ? searchData.files[0].id : null;
 
@@ -494,9 +500,11 @@ async function restaurarDesdeDrive() {
 
         mostrarConfirmMemora("¿Es seguro de reemplazar tus registros locales con la copia respaldada en Drive?", "Restaurar Copia", "cloud_download", "#004F87", async (confirmado) => {
             if (confirmado) {
+                try {
                 const downloadResp = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
                     headers: { 'Authorization': `Bearer ${googleAccessToken}` }
                 });
+                if (!downloadResp.ok) throw new Error(`Google Drive download failed: ${downloadResp.status}`);
                 const datosRestaurados = await downloadResp.json();
 
                 if (Array.isArray(datosRestaurados)) {
@@ -506,6 +514,10 @@ async function restaurarDesdeDrive() {
                     mostrarAvisoMemora(`¡Restauración exitosa! Se recuperaron ${registros.length} registros.`, "Google Drive", "check_circle");
                 } else {
                     mostrarAvisoMemora("El archivo respaldado no tiene un formato válido.", "Google Drive", "error");
+                }
+                } catch (err) {
+                    console.error('Error al recuperar el contenido de Drive:', err);
+                    mostrarAvisoMemora('Ocurrió un error al descargar o leer el respaldo.', 'Google Drive', 'error');
                 }
             }
         });
@@ -611,7 +623,7 @@ function actualizarSeguimiento() {
     let lista = registros.filter(r => {
         let refFecha = new Date(obtenerUltimaRevisionEfectiva(r));
         let horasTranscurridas = (ahora - refFecha) / (1000 * 60 * 60);
-        return horasTranscurridas >= horasLimite && r.estado !== "Cerrado" && r.estado !== "Perdido" && r.estado !== "Archivado";
+        return horasTranscurridas >= obtenerLimiteSeguimientoMemora151(r) && r.estado !== "Cerrado" && r.estado !== "Perdido" && r.estado !== "Archivado";
     });
     
     if ($('contadorSeguimiento')) $('contadorSeguimiento').innerText = lista.length;
@@ -622,7 +634,7 @@ function actualizarSeguimiento() {
             let horasTranscurridas = (ahora - refFecha) / (1000 * 60 * 60);
             let textoAtraso = formatearTiempoAtraso(horasTranscurridas);
             
-            let esUrgenciaCritica = horasTranscurridas >= (horasLimite * 2);
+            let esUrgenciaCritica = horasTranscurridas >= (obtenerLimiteSeguimientoMemora151(r) * 2);
             let colorChipBg = esUrgenciaCritica ? '#FEE2E2' : '#FEF3C7';
             let colorChipText = esUrgenciaCritica ? '#991B1B' : '#92400E';
 
@@ -661,7 +673,7 @@ function actualizarSeguimiento() {
                         <div style="font-size:0.76rem; color:var(--text-primary); line-height:1.35; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden;">${ultimoComentarioSeguimiento}</div>
                         ${botonTraducirTextoMemora(ultimoComentarioSeguimiento)}
                     </div>` : ''}
-                <div class="tag-row" style="margin-top:4px; margin-bottom:4px;"><span class="tag ${obtenerClaseEstado(r.estado)}">${r.estado}</span></div>
+                <div class="tag-row" style="margin-top:4px; margin-bottom:4px;"><span class="tag ${obtenerClaseEstado(r.estado)}">${r.estado}</span>${chipPrioridadMemora151(r)}</div>
                 <div style="margin-top: 4px; display:flex; justify-content:space-between; align-items:center;">
                     <span style="display:inline-block; background:${colorChipBg}; color:${colorChipText}; font-size:0.72rem; font-weight:700; padding:2px 6px; border-radius:6px;">
                         ${textoAtraso}
@@ -673,6 +685,7 @@ function actualizarSeguimiento() {
                 <div class="card-footer-row" style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:6px;">
                     <div class="channel-action-area" style="display:flex; gap:6px; align-items:center;">
                         ${btnCanal}
+                        <!-- Extra actions moved into Mis mensajes y resúmenes -->
                     </div>
                     <div class="time-ago" style="font-size:0.70rem; color:var(--text-secondary); text-align:right; line-height:1.2;">
                         <span>Creado: <strong>${fechaCreacionTexto}</strong></span><br>
@@ -827,11 +840,17 @@ function navegarA(pantalla, customTitle = null) {
     };
 
     if ($('screenTitle')) $('screenTitle').innerText = customTitle || titleMap[pantalla] || 'MEMORA';
+    if ($('btnHeaderBack')) $('btnHeaderBack').setAttribute('onclick', pantalla === 'biblioteca151' ? "navegarA('inicio')" : "navegarA('registros')");
 
     if (pantalla === 'inicio') {
         if ($('sec-inicio')) $('sec-inicio').style.display = 'block';
         if ($('nav-inicio')) $('nav-inicio').classList.add('active');
         if ($('btnHeaderBack')) $('btnHeaderBack').style.display = 'none';
+    } else if (pantalla === 'biblioteca151') {
+        if ($('sec-biblioteca151')) $('sec-biblioteca151').style.display = 'block';
+        if ($('nav-inicio')) $('nav-inicio').classList.add('active');
+        if ($('btnHeaderBack')) $('btnHeaderBack').style.display = 'block';
+        if (typeof renderBiblioteca151 === 'function') renderBiblioteca151();
     } else if (pantalla === 'registros') {
         if ($('sec-registros')) $('sec-registros').style.display = 'block';
         if ($('nav-registros')) $('nav-registros').classList.add('active');
@@ -852,8 +871,10 @@ function navegarA(pantalla, customTitle = null) {
 
     // En móvil el FAB no debe tapar una ficha ni un formulario que ya está abierto.
     const fabNuevo = $('btnNuevoRegistroFlotante');
-    if (fabNuevo && !esPC) {
-        fabNuevo.style.display = (pantalla === 'formulario' || pantalla === 'ficha') ? 'none' : 'flex';
+    if (fabNuevo) {
+        if (pantalla === 'biblioteca151') fabNuevo.style.display = 'none';
+        else if (!esPC) fabNuevo.style.display = (pantalla === 'formulario' || pantalla === 'ficha') ? 'none' : 'flex';
+        else fabNuevo.style.display = '';
     }
 
     render();
@@ -1131,7 +1152,7 @@ function tarjetaEstetica(r) {
             <div class="avatar avatar-blue">${avatarHTML}</div>
             <div class="client-details">
                 <h4>${tituloHTML}</h4>
-                <div class="client-sub">${r.canal} • ${r.contacto}${textoId}</div>
+                <div class="client-sub">${r.canal} • ${r.contacto}<span class="memora151-identifier">${textoId}</span></div>
             </div>
         </div>
         
@@ -1140,11 +1161,12 @@ function tarjetaEstetica(r) {
             ${ultimoComentario ? `<div style="font-size: 0.73rem; color:#4B5563; margin-top:3px; background:#F3F4F6; padding:4px 6px; border-radius:6px; display:-webkit-box; max-width:100%; white-space:normal; overflow:hidden; line-height:1.3; -webkit-box-orient:vertical; -webkit-line-clamp:2;">${textoIdiomaMemora150('Último comentario:','Latest comment:','Último comentário:')} ${ultimoComentario}</div>` : ''}
         </div>
         
-        <div class="tag-row"><span class="tag ${obtenerClaseEstado(r.estado)}">${r.estado}</span></div>
+        <div class="tag-row"><span class="tag ${obtenerClaseEstado(r.estado)}">${r.estado}</span>${chipPrioridadMemora151(r)}</div>
         
         <div class="card-footer-row" style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:6px;">
             <div class="channel-action-area" style="display:flex; gap:6px; align-items:center;">
                 ${contenidoBotonera}
+                <!-- Extra actions moved into Mis mensajes y resúmenes -->
             </div>
             <div class="time-ago" style="font-size:0.72rem; color:var(--text-secondary); text-align:right; line-height:1.2;">
                 <span>Creado: <strong>${fechaCreacionTexto}</strong></span><br>
@@ -1185,9 +1207,10 @@ function render() {
 
         return matchBusqueda && matchNombre && matchCanal && matchDato && matchAsunto && matchIdent && matchEstado && matchCom;
     });
+    registrosUltimoFiltro = ordenarRegistrosMemora151(registrosUltimoFiltro);
 
     if ($('listaRegistros')) $('listaRegistros').innerHTML = registrosUltimoFiltro.map(tarjetaEstetica).join('') || '<p style="text-align:center; padding:20px; color:var(--text-secondary);">No se encontraron registros.</p>';
-    if ($('totalRegistrosTexto')) $('totalRegistrosTexto').innerText = `${registrosUltimoFiltro.length} registros ${mostrandoArchivados ? '(Archivados)' : ''}`;
+    if ($('totalRegistrosTexto')) $('totalRegistrosTexto').innerText = `${registrosUltimoFiltro.length} ${registrosUltimoFiltro.length===1?'registro':'registros'} ${mostrandoArchivados ? '(Archivados)' : ''}`;
 
     if ($('btnVerArchivados')) {
         $('btnVerArchivados').innerText = mostrandoArchivados ? 'Ver Activos' : 'Ver Archivados';
@@ -1498,9 +1521,11 @@ function bloquearInputContacto(input, containerId, fnNombre) {
 function mostrarId() {
     let t = $('tipoId')?.value;
     if ($('campoId')) {
+        $('campoId').style.position = 'relative';
         $('campoId').innerHTML = (t === 'Ninguno' || !t) ? '' : `
             <label style="display:block; font-size:0.8rem; margin-bottom:4px; color:var(--text-secondary);">${t}</label>
-            <input id="valorId" type="text" placeholder="Ingrese ${t}" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc;">
+            <input id="valorId" type="text" placeholder="Ingrese ${t}" oninput="buscarCoincidenciasPredictivas(this.value,'id','dropIdForm')" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc;">
+            <div id="dropIdForm" class="coincidencias-drop"></div>
         `;
     }
 }
@@ -1508,9 +1533,11 @@ function mostrarId() {
 function mostrarIdInicio() {
     let t = $('tipoIdInicio')?.value;
     if ($('campoIdInicio')) {
+        $('campoIdInicio').style.position = 'relative';
         $('campoIdInicio').innerHTML = (t === 'Ninguno' || !t) ? '' : `
             <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px; color:var(--text-secondary);">${t}</label>
-            <input id="valorIdInicio" type="text" placeholder="Ingrese ${t}" style="width:100%; padding:12px; border-radius:8px; border:1px solid #ccc;">
+            <input id="valorIdInicio" type="text" placeholder="Ingrese ${t}" oninput="buscarCoincidenciasPredictivas(this.value,'id','dropIdInicio')" style="width:100%; padding:12px; border-radius:8px; border:1px solid #ccc;">
+            <div id="dropIdInicio" class="coincidencias-drop"></div>
         `;
     }
 }
@@ -1679,13 +1706,15 @@ function evaluarCambiosEnRegistro(original, nuevo) {
         nombre: original.nombre || '', canal: original.canal || '', contacto: original.contacto || '',
         canal2: original.canal2 || '', contacto2: original.contacto2 || '', canal3: original.canal3 || '', contacto3: original.contacto3 || '',
         asunto: original.asunto || '', tipoIdentificador: original.tipoIdentificador || 'Ninguno', identificador: original.identificador || '',
-        estado: original.estado || '', comentarios: original.comentarios || []
+        estado: original.estado || '', comentarios: original.comentarios || [],
+        prioridad: original.prioridad || 'Normal', seguimientoPropio: original.seguimientoPropio || null
     });
     const jsonNuevo = JSON.stringify({
         nombre: nuevo.nombre || '', canal: nuevo.canal || '', contacto: nuevo.contacto || '',
         canal2: nuevo.canal2 || '', contacto2: nuevo.contacto2 || '', canal3: nuevo.canal3 || '', contacto3: nuevo.contacto3 || '',
         asunto: nuevo.asunto || '', tipoIdentificador: nuevo.tipoIdentificador || 'Ninguno', identificador: nuevo.identificador || '',
-        estado: nuevo.estado || '', comentarios: nuevo.comentarios || []
+        estado: nuevo.estado || '', comentarios: nuevo.comentarios || [],
+        prioridad: nuevo.prioridad || 'Normal', seguimientoPropio: nuevo.seguimientoPropio || null
     });
     return jsonOrig !== jsonNuevo;
 }
@@ -1738,6 +1767,9 @@ function guardarDesdeInicio() {
         tipoIdentificador: tipoIdCapturado,
         identificador: valIdCapturado,
         estado: $('estadoInicio')?.value || 'Consulta nueva',
+        prioridad: $('prioridadInicio')?.value || 'Normal',
+        seguimientoPropio: leerReglaSeguimientoMemora151('Inicio'),
+        clienteRef: registroOriginal?.clienteRef || memora151ClienteReferenciaTemp || null,
         comentarios: editando ? [...comentariosTemporalesInicio] : [...comentariosTemporalesInicio],
         fecha: registroOriginal ? registroOriginal.fecha : ahoraMemora().toISOString(),
         ultimaModificacion: registroOriginal ? registroOriginal.ultimaModificacion : ahoraMemora().toISOString(),
@@ -1775,6 +1807,10 @@ function limpiarCamposFormularioInicio() {
     if ($('tipoIdInicio')) $('tipoIdInicio').value = 'Ninguno';
     if ($('canalInicio')) $('canalInicio').value = 'WhatsApp';
     if ($('estadoInicio')) $('estadoInicio').value = 'Consulta nueva';
+    resetearExtrasRegistroMemora151('Inicio');
+    memora151ClienteReferenciaTemp = null;
+    memora151ClavesAutorizadas.clear();
+    document.getElementById('memora151HintReuse')?.remove();
     if ($('contenedorCanalesExtraInicio')) $('contenedorCanalesExtraInicio').innerHTML = '';
 
     editando = null;
@@ -1940,6 +1976,9 @@ function guardar() {
         tipoIdentificador: tipoIdCapturado,
         identificador: valIdCapturado,
         estado: $('estado')?.value || 'Consulta nueva',
+        prioridad: $('prioridad')?.value || 'Normal',
+        seguimientoPropio: leerReglaSeguimientoMemora151(''),
+        clienteRef: registroOriginal?.clienteRef || memora151ClienteReferenciaTemp || null,
         comentarios: [...comentariosEdicionActual],
         fecha: registroOriginal ? registroOriginal.fecha : ahoraMemora().toISOString(),
         ultimaModificacion: registroOriginal ? registroOriginal.ultimaModificacion : ahoraMemora().toISOString(),
@@ -2001,6 +2040,7 @@ function editar(id) {
 
         if ($('asuntoInicio')) $('asuntoInicio').value = r.asunto || '';
         if ($('estadoInicio')) $('estadoInicio').value = r.estado || 'Consulta nueva';
+        cargarExtrasRegistroMemora151(r,'Inicio');
         
         let tId = r.tipoIdentificador || (r.identificador ? (r.identificador.startsWith('RUT') ? 'RUT' : 'Nº de Cliente') : 'Ninguno');
         if ($('tipoIdInicio')) $('tipoIdInicio').value = tId;
@@ -2050,6 +2090,7 @@ function editar(id) {
 
         if ($('asunto')) $('asunto').value = r.asunto || '';
         if ($('estado')) $('estado').value = r.estado || 'Consulta nueva';
+        cargarExtrasRegistroMemora151(r,'');
 
         let tId = r.tipoIdentificador || (r.identificador ? (r.identificador.startsWith('RUT') ? 'RUT' : 'Nº de Cliente') : 'Ninguno');
         if ($('tipoId')) $('tipoId').value = tId;
@@ -2090,7 +2131,8 @@ function abrirFicha(id) {
                     ${r.canal3 && r.contacto3 ? `<p style="font-size: 0.75rem; color: var(--text-secondary);">${r.canal3} • ${r.contacto3}</p>` : ''}
                     ${r.asunto ? `<p style="font-size: 0.8rem; font-weight:600; color:var(--primary-blue); margin-top:2px;">${traducirCadenaMemora('Asunto:')} ${r.asunto}</p>` : ''}
                     ${r.identificador ? `<p style="font-size: 0.75rem; color: var(--text-secondary);">${obtenerTextoIdentificador(r)}</p>` : ''}
-                    <div style="margin-top: 6px;"><span class="tag ${obtenerClaseEstado(r.estado)}">${r.estado}</span></div>
+                    <div style="margin-top: 6px;"><span class="tag ${obtenerClaseEstado(r.estado)}">${r.estado}</span>${chipPrioridadMemora151(r)}</div>
+                    ${r.seguimientoPropio?.valor > 0 ? `<p class="memora151-hint">${textoMemora151('Seguimiento personalizado','Custom follow-up','Acompanhamento personalizado')}: ${r.seguimientoPropio.valor} ${r.seguimientoPropio.unidad==='horas' ? textoMemora151('hora(s)','hour(s)','hora(s)') : textoMemora151('día(s)','day(s)','dia(s)')}</p>` : ''}
                 </div>
             </div>
         </div>
@@ -3052,6 +3094,10 @@ function limpiar() {
     if ($('asunto')) $('asunto').value = '';
     if ($('canal')) $('canal').value = 'WhatsApp';
     if ($('estado')) $('estado').value = 'Consulta nueva';
+    resetearExtrasRegistroMemora151('');
+    memora151ClienteReferenciaTemp = null;
+    memora151ClavesAutorizadas.clear();
+    document.getElementById('memora151HintReuse')?.remove();
     if ($('tipoId')) $('tipoId').value = 'Ninguno';
     if ($('comentario')) $('comentario').value = '';
 
@@ -3672,6 +3718,7 @@ function traducirPatronesMemora(texto) {
         salida = salida.replace(new RegExp(`^${es}\\b`, 'i'), tr);
     }
     if (idiomaMemora() === 'en') {
+        salida = salida.replace(/^1 registro\b/i, '1 record');
         salida = salida.replace(/^(\d+) registros?\b/i, '$1 records');
         salida = salida.replace(/^(\d+) registro\b/i, '$1 record');
         salida = salida.replace(/(\d+) día\(s\)/gi, '$1 day(s)');
@@ -3704,7 +3751,7 @@ function procesarNodoTextoIdiomaMemora(nodo) {
 
     // Las zonas con datos del usuario se protegen. Solo se permite traducir
     // controles o etiquetas marcadas explícitamente como interfaz.
-    const zonaDatos = parent.closest('#listaRegistros, #contenedorSeguimiento, #contenidoFicha, #listaComentariosEdicion, #listaComentariosTemporalesInicio, #perfilDatosLista, .coincidencias-drop');
+    const zonaDatos = parent.closest('#listaRegistros, #contenedorSeguimiento, #contenidoFicha, #listaComentariosEdicion, #listaComentariosTemporalesInicio, #perfilDatosLista, .coincidencias-drop, #sec-biblioteca151, #biblioteca151EditorBackdrop, #biblioteca151UseBackdrop');
     if (zonaDatos && !esTextoInterfazSeguroMemora(parent)) return;
 
     const actual = nodo.nodeValue || '';
@@ -3857,7 +3904,7 @@ function actualizarManualIdiomaMemora() {
     if (!link) return;
 
     const lang = idiomaMemora().toUpperCase();
-    const archivo = `Manual_Memora_v1.5.0_${lang}.pdf`;
+    const archivo = `Manual_Memora_v1.5.1_${lang}.pdf`;
     link.href = `./docs/${archivo}`;
     link.setAttribute('download', archivo);
 }
@@ -3870,6 +3917,11 @@ function aplicarIdiomaMemora() {
     if ($('formTitulo')) $('formTitulo').innerText = traducirCadenaMemora(editando ? 'Editar Registro' : 'Nuevo Registro');
     if ($('cloudStatusText')) $('cloudStatusText').innerText = traducirCadenaMemora(localStorage.getItem('memora_nube_conectado') === 'true' ? 'Conectado a Google Drive' : 'Sin vincular');
     procesarArbolIdiomaMemora(document.body);
+    if (typeof actualizarIdiomaBiblioteca151 === 'function') actualizarIdiomaBiblioteca151();
+    if (typeof actualizarResumenSeguimiento151 === 'function') {
+        actualizarResumenSeguimiento151('');
+        actualizarResumenSeguimiento151('Inicio');
+    }
     actualizarManualIdiomaMemora();
     actualizarSaludoDinamico();
     if (typeof actualizarSeguimiento === 'function') actualizarSeguimiento();
@@ -4326,8 +4378,10 @@ function solicitarHardResetMemora() {
 }
 
 async function ejecutarHardResetMemora() {
+    // Incluye la biblioteca de la 1.5.1, cuyo prefijo historico no lleva guion bajo.
+    // No borrar claves ajenas a Memora que compartan el origen.
     Object.keys(localStorage).forEach(k => {
-        if (k.startsWith('memora_')) localStorage.removeItem(k);
+        if (k.startsWith('memora_') || k.startsWith('memora151_')) localStorage.removeItem(k);
     });
     try {
         if ('caches' in window) {
@@ -5022,3 +5076,527 @@ traducirPatronesMemora = function(texto) {
     }
     return salida;
 };
+
+/* ========================================================================
+   MEMORA 1.5.1 PREVIEW 1
+   Additive release: persistent ordering, returning clients/new case, priority,
+   per-case follow-up, WhatsApp templates, deterministic summary and manifests.
+   Saved fields keep the 1.5.0 JSON array compatible with existing backups.
+   ======================================================================== */
+const MEMORA151_ORDEN_KEY = 'memora_orden_registros';
+const MEMORA151_ORDENES = ['reciente','antiguo','nombreAZ','nombreZA','clienteAsc','clienteDesc'];
+let memora151ClienteReferenciaTemp = null;
+let memora151ClavesAutorizadas = new Set();
+let memora151ModalContext = null;
+let memora151WARegistroId = null;
+
+function textoMemora151(es, en, pt) {
+    return (typeof idiomaMemora === 'function' && idiomaMemora() === 'en') ? en :
+           (typeof idiomaMemora === 'function' && idiomaMemora() === 'pt') ? pt : es;
+}
+function escaparHTMLMemora151(valor) {
+    return String(valor ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function claveIdMemora151(r) {
+    const id = String(r?.identificador || '').replace(/[\s.-]/g,'').toLocaleUpperCase();
+    const tipo = String(r?.tipoIdentificador || 'Ninguno');
+    return id && tipo !== 'Ninguno' ? `${tipo}:${id}` : '';
+}
+function claveClientePrincipalMemora151(r) {
+    // Only the explicit customer number counts for customer-number sorting.
+    if (r?.tipoIdentificador !== 'Nº de Cliente' && !( !r?.tipoIdentificador && /^\d+$/.test(String(r?.identificador||'').trim()) )) return '';
+    return String(r.identificador || '').replace(/^(n[ºo°]\.?\s*de\s*cliente|cliente|socio)\s*:?\s*/i,'').trim();
+}
+function fechaOrdenMemora151(r) {
+    const fecha = r?.fecha;
+    const t = fecha instanceof Date ? fecha.getTime() :
+        (typeof fecha === 'string' && fecha.trim() ? new Date(fecha).getTime() :
+        (typeof fecha === 'number' ? fecha : NaN));
+    if (Number.isFinite(t) && t > 0) return t;
+    // Las versiones anteriores suelen usar Date.now() como ID. Un UUID no es una fecha.
+    const id = r?.id;
+    const idNumerico = (typeof id === 'number' || (typeof id === 'string' && /^\d{13}$/.test(id)))
+        ? Number(id) : NaN;
+    return Number.isFinite(idNumerico) && idNumerico >= 946684800000 &&
+        idNumerico <= Date.now() + 86400000 ? idNumerico : null;
+}
+function obtenerOrdenMemora151() {
+    const x = localStorage.getItem(MEMORA151_ORDEN_KEY);
+    return MEMORA151_ORDENES.includes(x) ? x : 'reciente';
+}
+function ordenarRegistrosMemora151(datos) {
+    const orden = obtenerOrdenMemora151();
+    const locale = textoMemora151('es','en','pt');
+    const nombres = new Intl.Collator(locale,{numeric:true,sensitivity:'base'});
+    // Fechas desconocidas siempre al final, tanto ascendente como descendente.
+    const compararFecha = (a,b,ascendente=false) => {
+        const aFecha = fechaOrdenMemora151(a), bFecha = fechaOrdenMemora151(b);
+        if (aFecha === null) return bFecha === null ? 0 : 1;
+        if (bFecha === null) return -1;
+        return ascendente ? aFecha-bFecha : bFecha-aFecha;
+    };
+    return [...datos].sort((a,b)=> {
+        let dif = 0;
+        if (orden === 'reciente') dif = compararFecha(a,b);
+        if (orden === 'antiguo') dif = compararFecha(a,b,true);
+        if (orden === 'nombreAZ' || orden === 'nombreZA') {
+            const nA=String(a.nombre||a.contacto||'').trim(), nB=String(b.nombre||b.contacto||'').trim();
+            dif = nombres.compare(nA,nB)*(orden === 'nombreZA'?-1:1);
+        }
+        if (orden === 'clienteAsc' || orden === 'clienteDesc') {
+            const kA=claveClientePrincipalMemora151(a), kB=claveClientePrincipalMemora151(b);
+            if (!kA && !kB) dif=0;
+            else if (!kA) return 1; // records with no customer number always last
+            else if (!kB) return -1;
+            else dif = nombres.compare(kA,kB)*(orden === 'clienteDesc'?-1:1);
+        }
+        return dif || compararFecha(a,b) || String(a.id ?? '').localeCompare(String(b.id ?? ''));
+    });
+}
+function guardarOrdenRegistrosMemora151(valor) {
+    if (!MEMORA151_ORDENES.includes(valor)) return;
+    localStorage.setItem(MEMORA151_ORDEN_KEY,valor);
+    render();
+}
+
+function leerReglaSeguimientoMemora151(sufijo='') {
+    if ($(`reglaSeg${sufijo}`)?.value !== 'propia') return null;
+    const valor=Number($(`reglaSegValor${sufijo}`)?.value);
+    const unidad=$(`reglaSegUnidad${sufijo}`)?.value;
+    return Number.isInteger(valor) && valor>=1 && valor<=365 && ['horas','dias'].includes(unidad)
+        ? {valor,unidad} : {valor:0,unidad:'invalida'};
+}
+// Preview 4: los controles visuales mantienen los selects de datos anteriores para
+// no cambiar el esquema de registro ni las reglas ya configuradas.
+function actualizarResumenSeguimiento151(sufijo='') {
+    const propia=$(`reglaSeg${sufijo}`)?.value==='propia';
+    const n=Number($(`reglaSegValor${sufijo}`)?.value);
+    const unidad=$(`reglaSegUnidad${sufijo}`)?.value === 'horas' ? 'horas' : 'dias';
+    const horas=$(`reglaSegHorasBtn${sufijo}`), dias=$(`reglaSegDiasBtn${sufijo}`);
+    horas?.classList.toggle('biblioteca151-unit-active',unidad==='horas');
+    dias?.classList.toggle('biblioteca151-unit-active',unidad==='dias');
+    horas?.setAttribute('aria-pressed',String(unidad==='horas'));
+    dias?.setAttribute('aria-pressed',String(unidad==='dias'));
+    const tr=(es,en,pt)=>textoMemora151(es,en,pt);
+    const etiqueta=$(`reglaSegPlazoLabel${sufijo}`);
+    if(etiqueta) etiqueta.textContent=tr('Plazo sin actividad','Time without activity','Prazo sem atividade');
+    if(horas) horas.textContent=tr('Horas','Hours','Horas');
+    if(dias) dias.textContent=tr('Días','Days','Dias');
+    const group=$(`reglaSegUnidades${sufijo}`);
+    if(group) group.setAttribute('aria-label',tr('Unidad de seguimiento','Follow-up unit','Unidade de acompanhamento'));
+    const valor=$(`reglaSegValor${sufijo}`);
+    if(valor)valor.setAttribute('aria-label',tr('Plazo sin actividad','Time without activity','Prazo sem atividade'));
+    const result=$(`reglaSegResumen${sufijo}`);
+    if(result){
+        let phrase;
+        if(!Number.isInteger(n)||n<1||n>365){
+            phrase=tr('Elegí un valor entre 1 y 365.','Choose a value from 1 to 365.','Escolha um valor entre 1 e 365.');
+            result.classList.add('biblioteca151-follow-error');
+        } else {
+            const u=unidad==='horas'?tr(n===1?'hora':'horas',n===1?'hour':'hours',n===1?'hora':'horas'):
+                tr(n===1?'día':'días',n===1?'day':'days',n===1?'dia':'dias');
+            phrase=tr(`Este registro aparecerá en seguimiento después de ${n} ${u} sin actividad.`,
+                `This record will appear in Follow-up Required after ${n} ${u} without activity.`,
+                `Este registro aparecerá no acompanhamento após ${n} ${u} sem atividade.`);
+            result.classList.remove('biblioteca151-follow-error');
+        }
+        result.innerHTML='<span class="material-symbols-outlined" aria-hidden="true">info</span><span></span>';
+        result.lastElementChild.textContent=phrase;
+    }
+    const genHint=$(`reglaSegGeneralHint${sufijo}`);
+    if(genHint) genHint.textContent=tr('Se utilizará el plazo general configurado en Perfil.',
+        'The general follow-up time configured in Profile will be used.',
+        'Será utilizado o prazo geral configurado no Perfil.');
+}
+function elegirUnidadSeguimiento151(sufijo,unidad){
+    if(!['horas','dias'].includes(unidad))return;
+    const select=$(`reglaSegUnidad${sufijo}`);
+    if(select)select.value=unidad;
+    actualizarResumenSeguimiento151(sufijo);
+}
+function cambiarReglaSeguimientoMemora151(sufijo='') {
+    const propia=$(`reglaSeg${sufijo}`)?.value==='propia';
+    const campos=$(`reglaSegCampos${sufijo}`);
+    if(campos)campos.style.display=propia?'block':'none';
+    const gen=$(`reglaSegGeneralBtn${sufijo}`), custom=$(`reglaSegPropiaBtn${sufijo}`);
+    gen?.classList.toggle('biblioteca151-rule-active',!propia);
+    custom?.classList.toggle('biblioteca151-rule-active',propia);
+    gen?.setAttribute('aria-pressed',String(!propia));
+    custom?.setAttribute('aria-pressed',String(propia));
+    if($(`reglaSegGeneralHint${sufijo}`))$(`reglaSegGeneralHint${sufijo}`).style.display=propia?'none':'block';
+    actualizarResumenSeguimiento151(sufijo);
+}
+function elegirReglaVisual151(sufijo,regla){
+    const select=$(`reglaSeg${sufijo}`);
+    if(!select)return;
+    select.value=regla==='propia'?'propia':'general';
+    cambiarReglaSeguimientoMemora151(sufijo);
+    if(regla==='propia')$(`reglaSegValor${sufijo}`)?.focus();
+}
+function cargarExtrasRegistroMemora151(r,sufijo='') {
+    if ($(`prioridad${sufijo}`)) $(`prioridad${sufijo}`).value = ['Alta','Urgente'].includes(r.prioridad)?r.prioridad:'Normal';
+    const propia=r.seguimientoPropio && r.seguimientoPropio.valor>0;
+    if ($(`reglaSeg${sufijo}`)) $(`reglaSeg${sufijo}`).value = propia?'propia':'general';
+    if (propia) {
+        if ($(`reglaSegValor${sufijo}`)) $(`reglaSegValor${sufijo}`).value=r.seguimientoPropio.valor;
+        if ($(`reglaSegUnidad${sufijo}`)) $(`reglaSegUnidad${sufijo}`).value=r.seguimientoPropio.unidad;
+    }
+    cambiarReglaSeguimientoMemora151(sufijo);
+}
+function resetearExtrasRegistroMemora151(sufijo='') {
+    if ($(`prioridad${sufijo}`)) $(`prioridad${sufijo}`).value='Normal';
+    if ($(`reglaSeg${sufijo}`)) $(`reglaSeg${sufijo}`).value='general';
+    if ($(`reglaSegValor${sufijo}`)) $(`reglaSegValor${sufijo}`).value='2';
+    if ($(`reglaSegUnidad${sufijo}`)) $(`reglaSegUnidad${sufijo}`).value='dias';
+    cambiarReglaSeguimientoMemora151(sufijo);
+}
+function obtenerLimiteSeguimientoMemora151(r) {
+    const regla=r?.seguimientoPropio?.valor>0 ? r.seguimientoPropio : obtenerConfigSeguimiento();
+    return regla.unidad === 'horas' ? regla.valor : regla.valor * 24;
+}
+function chipPrioridadMemora151(r) {
+    const nivel=['Alta','Urgente'].includes(r?.prioridad)?r.prioridad:'Normal';
+    if (nivel==='Normal') return '';
+    const clase = nivel.toLowerCase();
+    const etiqueta=nivel==='Alta' ? textoMemora151('Alta','High','Alta') : textoMemora151('Urgente','Urgent','Urgente');
+    return `<span class="memora151-priority memora151-priority-${clase}">${etiqueta}</span>`;
+}
+
+/* Client lookup: names, every contact channel, and customer ID/RUT.
+   Existing records remain individual cases, related by stable contact or ID. */
+function normalizarBusquedaMemora151(valor) {
+    return String(valor||'').toLocaleLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'').trim();
+}
+function coincidenciasClienteMemora151(r, texto, campo) {
+    if(campo==='nombre') return normalizarBusquedaMemora151(r.nombre).includes(normalizarBusquedaMemora151(texto));
+    if(campo==='id') return normalizarBusquedaMemora151(r.identificador).includes(normalizarBusquedaMemora151(texto));
+    const q=normalizarBusquedaMemora151(texto), dig=q.replace(/\D/g,'');
+    return [[r.canal,r.contacto],[r.canal2,r.contacto2],[r.canal3,r.contacto3]].some(([c,v])=>{
+        if (!v) return false;
+        const cadena=normalizarBusquedaMemora151(v);
+        return cadena.includes(q) || (c==='WhatsApp' && dig.length>=4 && cadena.replace(/\D/g,'').includes(dig));
+    });
+}
+function esMismoClienteMemora151(base, candidato) {
+    if (!base || !candidato) return false;
+    if (String(base.id)===String(candidato.id)) return true;
+    if (base.clienteRef && candidato.clienteRef && base.clienteRef === candidato.clienteRef) return true;
+    const idA=claveIdMemora151(base);
+    if (idA && idA===claveIdMemora151(candidato)) return true;
+    const claves=new Set(contactosRegistroMemora150(base).map(c=>c.clave));
+    if (contactosRegistroMemora150(candidato).some(c=>claves.has(c.clave))) return true;
+    // Same-name matching alone is a suggestion, not enough to merge different people.
+    return false;
+}
+function obtenerGestionesClienteMemora151(base) {
+    if(!base) return [];
+    return registros.filter(r=>esMismoClienteMemora151(base,r)).sort((a,b)=>fechaOrdenMemora151(b)-fechaOrdenMemora151(a));
+}
+function buscarCoincidenciasPredictivas(valor, campo, dropId) {
+    const drop=$(dropId), q=normalizarBusquedaMemora151(valor);
+    if (!drop) return;
+    const largoMinimo=(campo==='contacto' && /^\d+$/.test(q))?4:2;
+    if (editando!==null || q.length<largoMinimo) {drop.innerHTML='';drop.style.display='none';return;}
+    const matches=registros.filter(r=>coincidenciasClienteMemora151(r,valor,campo));
+    const grupos=[];
+    for (const r of matches) {
+        if (!grupos.some(base=>esMismoClienteMemora151(base,r))) grupos.push(r);
+        if (grupos.length===7) break;
+    }
+    drop.innerHTML=grupos.map(r=>{
+        const gestiones=obtenerGestionesClienteMemora151(r);
+        const etiqueta=campo==='id'?(r.identificador||r.nombre):campo==='contacto'
+            ? `${r.canal}: ${r.contacto}`:r.nombre||r.contacto;
+        return `<div class="drop-item-card" role="button" tabindex="0" onclick="mostrarOpcionesClienteMemora151(${JSON.stringify(r.id)},'${dropId}')" onkeydown="if(event.key==='Enter')mostrarOpcionesClienteMemora151(${JSON.stringify(r.id)},'${dropId}')">
+            <div class="drop-item-header"><strong>${escaparHTMLMemora151(etiqueta)}</strong></div>
+            <div class="drop-item-sub">${textoMemora151('Cliente encontrado','Existing customer','Cliente encontrado')} · ${gestiones.length} ${textoMemora151('gestión(es)','case(s)','atendimento(s)')}</div>
+            <div class="drop-item-badge ${obtenerClaseEstado(r.estado)}">${escaparHTMLMemora151(r.asunto||textoMemora151('Sin asunto','No subject','Sem assunto'))}</div>
+        </div>`;
+    }).join('');
+    drop.style.display=grupos.length?'block':'none';
+}
+function seleccionarCoincidencia(id,dropId) { mostrarOpcionesClienteMemora151(id,dropId); }
+function cerrarModalClienteMemora151() {
+    if ($('modalClienteExistente151')) $('modalClienteExistente151').style.display='none';
+    memora151ModalContext=null;
+}
+function mostrarOpcionesClienteMemora151(id,dropId='',modo='predict',sufijo='') {
+    const base=registros.find(r=>String(r.id)===String(id));
+    if(!base) return;
+    if(dropId && $(dropId)) {$(dropId).style.display='none';$(dropId).innerHTML='';}
+    memora151ModalContext={sourceId:base.id,dropId,modo,sufijo};
+    const gestiones=obtenerGestionesClienteMemora151(base);
+    $('tituloClienteExistente151').textContent=textoMemora151('Cliente encontrado','Customer found','Cliente encontrado');
+    $('detalleClienteExistente151').textContent=`${base.nombre||base.contacto||textoMemora151('Sin nombre','Unnamed customer','Sem nome')} · ${gestiones.length} ${textoMemora151('gestión(es) existente(s)','existing case(s)','atendimento(s) existente(s)')}`;
+    $('gestionesClienteExistente151').innerHTML=gestiones.map(r=>{
+        const fecha=fechaOrdenMemora151(r)?new Date(fechaOrdenMemora151(r)).toLocaleDateString(textoMemora151('es-UY','en','pt-BR')):'—';
+        return `<div class="memora151-match-item"><div class="memora151-match-item-text"><b>${escaparHTMLMemora151(r.asunto||textoMemora151('Sin asunto','No subject','Sem assunto'))}</b><br>${escaparHTMLMemora151(traducirCadenaMemora(r.estado||''))} · ${escaparHTMLMemora151(fecha)}</div><button type="button" class="memora151-secondary-btn" onclick="abrirGestionClienteMemora151(${JSON.stringify(r.id)})">${textoMemora151('Ver / editar','View / edit','Ver / editar')}</button></div>`;
+    }).join('');
+    $('btnReusarClienteMemora151').textContent=modo==='confirmar'
+        ? textoMemora151('Guardar como nueva gestión','Save as a new case','Salvar como novo atendimento')
+        : textoMemora151('Crear nueva gestión con sus datos','New case with this customer','Novo atendimento com esses dados');
+    $('modalClienteExistente151').style.display='flex';
+}
+function abrirGestionClienteMemora151(id) {
+    cerrarModalClienteMemora151();
+    if(window.innerWidth>=800) {editar(id);navegarA('inicio');}
+    else abrirFicha(id);
+}
+function crearNuevaGestionConDatosMemora151(base,sufijo='') {
+    if(sufijo==='Inicio'){limpiarCamposFormularioInicio();navegarA('inicio');}
+    else{limpiar();navegarA('formulario');}
+    if ($(`nombre${sufijo}`)) $(`nombre${sufijo}`).value=base.nombre||'';
+    if ($(`canal${sufijo}`)) $(`canal${sufijo}`).value=base.canal||'WhatsApp';
+    actualizarOpcionesCanales(sufijo);
+    if(sufijo==='Inicio') mostrarCanalInicio(); else mostrarCanal();
+    cargarContactoEnFormulario(sufijo,base.canal||'WhatsApp',base.contacto||'');
+    const agregar=sufijo==='Inicio'?agregarCampoCanalExtraInicio:agregarCampoCanalExtraMovil;
+    if(base.canal2 && base.contacto2) agregar(base.canal2,base.contacto2);
+    if(base.canal3 && base.contacto3) agregar(base.canal3,base.contacto3);
+    if ($(`tipoId${sufijo}`)) $(`tipoId${sufijo}`).value=base.tipoIdentificador||'Ninguno';
+    if(sufijo==='Inicio') mostrarIdInicio(); else mostrarId();
+    if ($(`valorId${sufijo}`)) $(`valorId${sufijo}`).value=base.identificador||'';
+    // Subject, dates, state, comments, priority and own follow-up are deliberately NEW.
+    memora151ClienteReferenciaTemp=base.clienteRef||`memora-cliente-${String(base.id)}`;
+    memora151ClavesAutorizadas=new Set(contactosFormularioMemora150(sufijo).map(c=>c.clave));
+    const id=claveIdMemora151({tipoIdentificador:$(`tipoId${sufijo}`)?.value,identificador:$(`valorId${sufijo}`)?.value});
+    if(id) memora151ClavesAutorizadas.add(`id:${id}`);
+    // Inline guidance instead of another blocking modal after the user selects New Case.
+    document.getElementById('memora151HintReuse')?.remove();
+    const referencia=$(`asunto${sufijo}`);
+    if(referencia){
+        const aviso=document.createElement('p');
+        aviso.id='memora151HintReuse';
+        aviso.className='memora151-hint';
+        aviso.textContent=textoMemora151('Datos del cliente reutilizados. Agregá un asunto nuevo; las gestiones anteriores no se modifican.','Customer details reused. Enter a new subject; previous cases are unchanged.','Dados reutilizados. Insira um novo assunto; os atendimentos anteriores não foram alterados.');
+        referencia.insertAdjacentElement('afterend',aviso);
+    }
+}
+function elegirNuevaGestionMemora151(){
+    const contexto=memora151ModalContext;
+    if(!contexto)return;
+    const base=registros.find(r=>String(r.id)===String(contexto.sourceId));
+    cerrarModalClienteMemora151();
+    if(!base)return;
+    if(contexto.modo==='confirmar'){
+        // A submitted form has already been filled out by the user: preserve it.
+        memora151ClienteReferenciaTemp=base.clienteRef||`memora-cliente-${String(base.id)}`;
+        memora151ClavesAutorizadas=new Set(contactosFormularioMemora150(contexto.sufijo).map(c=>c.clave));
+        const id=claveIdMemora151({tipoIdentificador:$(`tipoId${contexto.sufijo}`)?.value,identificador:$(`valorId${contexto.sufijo}`)?.value});
+        if(id)memora151ClavesAutorizadas.add(`id:${id}`);
+        if(!$(`nombre${contexto.sufijo}`)?.value.trim() && base.nombre) $(`nombre${contexto.sufijo}`).value=base.nombre;
+        if(contexto.sufijo==='Inicio') guardarDesdeInicio(); else guardar();
+        return;
+    }
+    crearNuevaGestionConDatosMemora151(base,contexto.dropId?.endsWith('Inicio')?'Inicio':'');
+}
+/* The original 1.5.0 validator blocked any reused phone/email/identifier.
+   Retain duplicate warnings but offer an explicit, safe second case instead. */
+validarDuplicadosMemora150 = function(sufijo='') {
+    const actuales=contactosFormularioMemora150(sufijo);
+    const original=editando!==null?registros.find(r=>String(r.id)===String(editando)):null;
+    const origenClaves=new Set(original?contactosRegistroMemora150(original).map(x=>x.clave):[]);
+    const duplicados=[];
+    for(const item of actuales){
+        if(!item.clave || origenClaves.has(item.clave) || memora151ClavesAutorizadas.has(item.clave))continue;
+        const encontrado=registros.find(r=>String(r.id)!==String(editando) && contactosRegistroMemora150(r).some(c=>c.clave===item.clave));
+        if(encontrado)duplicados.push(encontrado);
+    }
+    const tipoId=$(`tipoId${sufijo}`)?.value||'Ninguno',valorId=$(`valorId${sufijo}`)?.value?.trim()||'';
+    const idClave=claveIdMemora151({tipoIdentificador:tipoId,identificador:valorId});
+    if(idClave && idClave!==claveIdMemora151(original) && !memora151ClavesAutorizadas.has(`id:${idClave}`)){
+        const encontrado=registros.find(r=>String(r.id)!==String(editando)&&claveIdMemora151(r)===idClave);
+        if(encontrado)duplicados.push(encontrado);
+    }
+    if(!duplicados.length)return true;
+    const primer=duplicados[0];
+    if(duplicados.some(r=>!esMismoClienteMemora151(primer,r))){
+        mostrarAvisoMemora(textoMemora151('Los datos coinciden con clientes distintos. Revisalos antes de guardar.','These details match different customers. Review them before saving.','Os dados correspondem a clientes diferentes. Revise antes de salvar.'),textoMemora151('Coincidencias diferentes','Conflicting matches','Coincidências diferentes'),'warning');
+        return false;
+    }
+    mostrarOpcionesClienteMemora151(primer.id,'','confirmar',sufijo);
+    return false;
+};
+// A user who edits an approved identity must confirm the different duplicate again.
+document.addEventListener('input',event=>{
+    if(['contacto','contactoInicio','valorId','valorIdInicio'].includes(event.target?.id))memora151ClavesAutorizadas.clear();
+});
+document.addEventListener('change',event=>{
+    if(['canal','canalInicio','tipoId','tipoIdInicio','prefijoWhatsapp','prefijoWhatsappInicio'].includes(event.target?.id))memora151ClavesAutorizadas.clear();
+});
+
+/* Deterministic, original-data-only summary. No AI or translation of user data. */
+function textoResumenMemora151(r){
+    const campos=[
+        ['Cliente','Customer','Cliente',r.nombre||r.contacto||'—'],
+        ['Asunto','Subject','Assunto',r.asunto||'—'],
+        ['Estado','Status','Status',traducirCadenaMemora(r.estado||'—')],
+        ['Prioridad','Priority','Prioridade',r.prioridad||'Normal'],
+        ['Canal','Channel','Canal',`${r.canal||'—'}: ${r.contacto||'—'}`],
+        ['Creado','Created','Criado',r.fecha||'—'],
+        ['Última revisión','Last review','Última revisão',obtenerUltimaRevisionEfectiva(r)||'—']
+    ];
+    const lines=[textoMemora151('MEMORA - Resumen de gestión','MEMORA - Case summary','MEMORA - Resumo do atendimento')];
+    campos.forEach(([es,en,pt,val])=>lines.push(`${textoMemora151(es,en,pt)}: ${val}`));
+    if(r.seguimientoPropio) lines.push(`${textoMemora151('Seguimiento propio','Custom follow-up','Acompanhamento personalizado')}: ${r.seguimientoPropio.valor} ${r.seguimientoPropio.unidad==='horas'?textoMemora151('horas','hours','horas'):textoMemora151('días','days','dias')}`);
+    const comentarios=(r.comentarios||[]).filter(c=>!c.eliminado&&String(c.texto||'').trim());
+    if(comentarios.length){lines.push('',textoMemora151('Comentarios registrados:','Recorded comments:','Comentários registrados:'));comentarios.forEach(c=>lines.push(`- ${c.fecha||'—'}: ${c.texto}`));}
+    return lines.join('\n');
+}
+async function copiarResumenRegistroMemora151(id,event=null){
+    event?.preventDefault();event?.stopPropagation();
+    const r=registros.find(x=>String(x.id)===String(id));
+    if(!r)return;
+    const texto=textoResumenMemora151(r);
+    try{
+        if(navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(texto);
+        else{const input=document.createElement('textarea');input.value=texto;input.style.position='fixed';input.style.opacity='0';document.body.appendChild(input);input.select();const ok=document.execCommand('copy');input.remove();if(!ok)throw Error('clipboard');}
+        mostrarAvisoMemora(textoMemora151('Resumen copiado. Podés pegarlo donde quieras.','Summary copied. You can paste it anywhere.','Resumo copiado. Você pode colar onde quiser.'),textoMemora151('Resumen','Summary','Resumo'),'content_copy');
+    }catch(error){mostrarPromptMemora(textoMemora151('Copiá este resumen manualmente:','Copy this summary manually:','Copie este resumo manualmente:'),texto,textoMemora151('Resumen','Summary','Resumo'),()=>{});}
+}
+function obtenerWhatsappRegistroMemora151(r){
+    const campos=[[r.canal,r.contacto],[r.canal2,r.contacto2],[r.canal3,r.contacto3]];
+    const match=campos.find(([c,v])=>c==='WhatsApp'&&v);
+    return match?match[1]:'';
+}
+function obtenerAccionesTarjetaMemora151(r) {
+    const iconResumen=textoMemora151('Copiar resumen','Copy summary','Copiar resumo');
+    const iconWA=textoMemora151('Plantilla WA','WA template','Modelo WA');
+    return `<button type="button" title="${iconResumen}" aria-label="${iconResumen}" class="memora151-action" onclick="copiarResumenRegistroMemora151(${JSON.stringify(r.id)},event)"><span class="material-symbols-outlined" style="font-size:1rem;vertical-align:middle;">content_copy</span></button>`+
+        (obtenerWhatsappRegistroMemora151(r)?`<button type="button" title="${iconWA}" aria-label="${iconWA}" class="memora151-action" onclick="abrirPlantillasWAMemora151(${JSON.stringify(r.id)},event)"><span class="material-symbols-outlined" style="font-size:1rem;vertical-align:middle;">chat</span></button>`:'');
+}
+function abrirPlantillasWAMemora151(id,event=null){
+    event?.preventDefault();event?.stopPropagation();
+    const r=registros.find(x=>String(x.id)===String(id));
+    if(!r || !obtenerWhatsappRegistroMemora151(r))return;
+    memora151WARegistroId=r.id;
+    $('tituloPlantillaWhatsApp151').textContent=textoMemora151('Mensaje para WhatsApp','WhatsApp message','Mensagem para WhatsApp');
+    $('tipoPlantillaWA151').value=r.estado==='Información enviada'?'info':r.estado==='Esperando cliente'?'respuesta':'seguimiento';
+    actualizarPlantillaWAMemora151();
+    $('modalPlantillaWhatsApp151').style.display='flex';
+}
+function cerrarPlantillasWAMemora151(){
+    if($('modalPlantillaWhatsApp151'))$('modalPlantillaWhatsApp151').style.display='none';
+    memora151WARegistroId=null;
+}
+function actualizarPlantillaWAMemora151(){
+    const r=registros.find(x=>String(x.id)===String(memora151WARegistroId));
+    if(!r)return;
+    const saludo=r.nombre?String(r.nombre).trim().split(/\s+/)[0]:'';
+    const asunto=r.asunto||textoMemora151('tu consulta','your inquiry','sua consulta');
+    const tipo=$('tipoPlantillaWA151')?.value;
+    const lang=idiomaMemora();
+    const m={
+        es:{inicio:`Hola ${saludo}, te escribo por ${asunto}. ¿Cómo estás?`,seguimiento:`Hola ${saludo}, retomo el contacto por ${asunto}. Quedo atento a tus comentarios.`,info:`Hola ${saludo}, ¿pudiste revisar la información que te envié sobre ${asunto}?`,respuesta:`Hola ${saludo}, ¿tenés alguna novedad sobre ${asunto}?`},
+        en:{inicio:`Hi ${saludo}, I'm reaching out about ${asunto}. How are you?`,seguimiento:`Hi ${saludo}, I'm following up about ${asunto}. Let me know your thoughts.`,info:`Hi ${saludo}, were you able to review the information I sent about ${asunto}?`,respuesta:`Hi ${saludo}, do you have any updates about ${asunto}?`},
+        pt:{inicio:`Olá ${saludo}, estou entrando em contato sobre ${asunto}. Tudo bem?`,seguimiento:`Olá ${saludo}, retomo nosso contato sobre ${asunto}. Fico aguardando seu retorno.`,info:`Olá ${saludo}, você conseguiu revisar as informações que enviei sobre ${asunto}?`,respuesta:`Olá ${saludo}, tem alguma novidade sobre ${asunto}?`}
+    };
+    $('textoPlantillaWA151').value=(m[lang]||m.es)[tipo]||'';
+}
+function abrirWADesdePlantillaMemora151(){
+    const r=registros.find(x=>String(x.id)===String(memora151WARegistroId));
+    if(!r)return;
+    const numero=obtenerWhatsappRegistroMemora151(r).replace(/\D/g,'');
+    const mensaje=$('textoPlantillaWA151')?.value.trim();
+    if(!numero || !mensaje){mostrarAvisoMemora(textoMemora151('Escribí un mensaje antes de continuar.','Write a message before continuing.','Escreva uma mensagem antes de continuar.'),'WhatsApp','warning');return;}
+    // Only open WhatsApp after explicit user click. No message is sent automatically.
+    window.open(`https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`,'_blank','noopener,noreferrer');
+    cerrarPlantillasWAMemora151();
+}
+
+function crearManifiestoRespaldoMemora151() {
+    const estados={};
+    registros.forEach(r=>{const x=r.estado||'Sin estado';estados[x]=(estados[x]||0)+1;});
+    return {
+        producto:'MEMORA',versionAplicacion:MEMORA_VERSION,esquema:'memora_registros_v1',
+        creadoEn:new Date().toISOString(),totalRegistros:registros.length,
+        biblioteca151:typeof contarDatosBiblioteca151==='function'?contarDatosBiblioteca151():null,
+        registrosPorEstado:estados,
+        datosIncluidos:'memora_backup.json contiene un arreglo de registros compatible con 1.5.0',
+        nota:'El manifiesto contiene solo metadatos. No incluye comentarios ni contactos.'
+    };
+}
+function exportarRespaldoConManifiestoMemora151(){
+    const fecha=ahoraMemora();
+    const archivos={
+        'memora_backup.json':JSON.stringify(registros,null,2),
+        'memora_backup_manifest.json':JSON.stringify(crearManifiestoRespaldoMemora151(),null,2)
+    };
+    if (typeof exportarDatosBiblioteca151 === 'function') archivos['memora_biblioteca_151.json'] = JSON.stringify(exportarDatosBiblioteca151(), null, 2);
+    const zip=crearZipXLSXMemora(archivos,fecha);
+    descargarBlob(new Blob([zip],{type:'application/zip'}),`MEMORA_Backup_${selloArchivoMemora(fecha)}.zip`);
+}
+async function guardarManifiestoADriveMemora151(){
+    if(!googleAccessToken)return false;
+    const contenido=JSON.stringify(crearManifiestoRespaldoMemora151(),null,2);
+    const buscar=await fetch("https://www.googleapis.com/drive/v3/files?q=name%3D%27memora_backup_manifest.json%27%20and%20trashed%3Dfalse",{headers:{Authorization:`Bearer ${googleAccessToken}`}});
+    if(!buscar.ok)throw Error(`Drive lookup: ${buscar.status}`);
+    const datos=await buscar.json();
+    const fileId=datos.files?.[0]?.id;
+    let respuesta;
+    if(fileId)respuesta=await fetch(`https://www.googleapis.com/upload/drive/v3/files/${encodeURIComponent(fileId)}?uploadType=media`,{method:'PATCH',headers:{Authorization:`Bearer ${googleAccessToken}`,'Content-Type':'application/json'},body:contenido});
+    else{
+        const form=new FormData();
+        form.append('metadata',new Blob([JSON.stringify({name:'memora_backup_manifest.json',mimeType:'application/json'})],{type:'application/json'}));
+        form.append('file',new Blob([contenido],{type:'application/json'}));
+        respuesta=await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',{method:'POST',headers:{Authorization:`Bearer ${googleAccessToken}`},body:form});
+    }
+    if(!respuesta.ok)throw Error(`Drive manifest: ${respuesta.status}`);
+    return true;
+}
+async function guardarManifiestoDriveSinInterrumpirMemora151(){
+    try {await guardarManifiestoADriveMemora151();}
+    catch(e){console.warn('MEMORA: backup saved but companion manifest could not be saved.',e);}
+}
+
+Object.assign(MEMORA_TRADUCCIONES.en, {
+    'Ordenar por':'Sort by','Más recientes primero':'Newest first','Más antiguos primero':'Oldest first',
+    'Nombre A–Z':'Name A–Z','Nombre Z–A':'Name Z–A',
+    'N.º de cliente: menor a mayor':'Customer No.: ascending','N.º de cliente: mayor a menor':'Customer No.: descending',
+    'Prioridad':'Priority','Normal':'Normal','Alta':'High','Urgente':'Urgent',
+    'Seguimiento de esta gestión':'Follow-up for this case','Usar configuración general':'Use general setting',
+    'Personalizar para esta gestión':'Customize for this case',
+    'Horas':'Hours','Días':'Days','Respaldo completo + manifiesto (.zip)':'Complete backup + manifest (.zip)',
+    'Plantilla':'Template','Primer contacto':'First contact','Retomar conversación':'Resume conversation',
+    'Información enviada':'Information sent','Esperando respuesta':'Awaiting reply',
+    'Mensaje editable':'Editable message','Abrir WhatsApp':'Open WhatsApp',
+    'Cliente encontrado':'Customer found','Mensaje de WhatsApp':'WhatsApp message',
+    'Crear nueva gestión con sus datos':'New case with this customer',
+    'Elegí una plantilla y editá el texto antes de abrir WhatsApp. Memora nunca envía mensajes automáticamente.':'Choose a template and edit the message before opening WhatsApp. Memora never sends messages automatically.'
+});
+Object.assign(MEMORA_TRADUCCIONES.pt, {
+    'Ordenar por':'Ordenar por','Más recientes primero':'Mais recentes primeiro','Más antiguos primero':'Mais antigos primeiro',
+    'Nombre A–Z':'Nome A–Z','Nombre Z–A':'Nome Z–A',
+    'N.º de cliente: menor a mayor':'Nº do cliente: crescente','N.º de cliente: mayor a menor':'Nº do cliente: decrescente',
+    'Prioridad':'Prioridade','Normal':'Normal','Alta':'Alta','Urgente':'Urgente',
+    'Seguimiento de esta gestión':'Acompanhamento deste atendimento','Usar configuración general':'Usar configuração geral',
+    'Personalizar para esta gestión':'Personalizar este atendimento',
+    'Horas':'Horas','Días':'Dias','Respaldo completo + manifiesto (.zip)':'Backup completo + manifesto (.zip)',
+    'Plantilla':'Modelo','Primer contacto':'Primeiro contato','Retomar conversación':'Retomar a conversa',
+    'Información enviada':'Informações enviadas','Esperando respuesta':'Aguardando resposta',
+    'Mensaje editable':'Mensagem editável','Abrir WhatsApp':'Abrir WhatsApp',
+    'Cliente encontrado':'Cliente encontrado','Mensaje de WhatsApp':'Mensagem de WhatsApp',
+    'Crear nueva gestión con sus datos':'Novo atendimento com esses dados',
+    'Elegí una plantilla y editá el texto antes de abrir WhatsApp. Memora nunca envía mensajes automáticamente.':'Escolha um modelo e edite o texto antes de abrir o WhatsApp. O Memora nunca envia mensagens automaticamente.'
+});
+// The 1.5.0 manual is intentionally kept unchanged while 1.5.1 is in preview.
+document.addEventListener('DOMContentLoaded',()=>{
+    if($('ordenRegistrosMemora151'))$('ordenRegistrosMemora151').value=obtenerOrdenMemora151();
+    resetearExtrasRegistroMemora151('');
+    resetearExtrasRegistroMemora151('Inicio');
+    if(typeof aplicarIdiomaMemora==='function')aplicarIdiomaMemora();
+});
+
+/* Real-time validation in the original app replaces nombre.oninput after HTML loads.
+   A delegated listener keeps predictive lookup active for both mobile and desktop
+   without removing either 1.5.0 validation path. */
+document.addEventListener('input', event => {
+    const id = event.target?.id;
+    if (id === 'nombre' || id === 'nombreInicio') {
+        buscarCoincidenciasPredictivas(event.target.value, 'nombre', id === 'nombre' ? 'dropNombreForm' : 'dropNombreInicio');
+    }
+});
+
+// Preview 4 follow-up button labels for all supported languages.
+Object.assign(MEMORA_TRADUCCIONES.en, {'Personalizar':'Customize'});
+Object.assign(MEMORA_TRADUCCIONES.pt, {'Personalizar':'Personalizar'});

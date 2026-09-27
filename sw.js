@@ -1,15 +1,17 @@
-const CACHE_NAME = 'memora-v1.5.0-stable-v3-final';
+const CACHE_NAME = 'memora-v1.5.1-manuales-final';
 const ASSETS = [
   './',
   './index.html',
   './styles.css',
+  './biblioteca151.css',
+  './biblioteca151.js',
   './app.js',
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png',
-  './docs/Manual_Memora_v1.5.0_ES.pdf',
-  './docs/Manual_Memora_v1.5.0_EN.pdf',
-  './docs/Manual_Memora_v1.5.0_PT.pdf'
+  './docs/Manual_Memora_v1.5.1_ES.pdf',
+  './docs/Manual_Memora_v1.5.1_EN.pdf',
+  './docs/Manual_Memora_v1.5.1_PT.pdf'
 ];
 
 self.addEventListener('install', (e) => {

@@ -432,3 +432,34 @@ html[data-theme="dark"] .theme-toggle-btn {
         font-size: 0.73rem;
     }
 }
+
+/* MEMORA 1.5.1 PREVIEW — mejoras discretas sin rediseño */
+.memora151-sort-row { display:flex; align-items:center; gap:10px; margin:0 0 12px; flex-wrap:wrap; }
+.memora151-sort-row label,.memora151-field-label { font-size:.79rem; font-weight:650; color:var(--text-secondary); display:block; }
+.memora151-sort-row select,.memora151-field-control { color:var(--text-primary); background:var(--card-white); border:1px solid var(--border-color,#D1D5DB); border-radius:8px; padding:9px 10px; font-size:.82rem; min-width:0; }
+.memora151-sort-row select { flex:1; max-width:360px; }
+.memora151-form-extras { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:4px 0; }
+.memora151-form-extras .memora151-field-control { width:100%; margin-top:5px; }
+.memora151-follow-fields { display:flex; gap:5px; }
+.memora151-follow-fields input { width:34%; }
+.memora151-follow-fields select { flex:1; }
+.memora151-priority { display:inline-flex; align-items:center; padding:2px 7px; border-radius:6px; font-size:.7rem; font-weight:750; margin-left:5px; vertical-align:middle; }
+.memora151-priority-alta { background:#FEF3C7; color:#92400E; }
+.memora151-priority-urgente { background:#FEE2E2; color:#991B1B; }
+.memora151-secondary-btn,.memora151-primary-btn { padding:10px 12px; border-radius:8px; border:1px solid #D1D5DB; cursor:pointer; font-size:.8rem; font-weight:700; }
+.memora151-secondary-btn { background:var(--card-white); color:var(--text-primary); }
+.memora151-primary-btn { background:var(--primary-blue); color:white; border-color:transparent; }
+.memora151-close { color:var(--text-secondary); background:transparent; padding:5px 8px; border:none; font-size:1.1rem; cursor:pointer; }
+.memora151-modal-heading { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.memora151-modal-heading h3 { margin:0 0 6px; }
+.memora151-client-note { color:var(--text-secondary); font-size:.8rem; line-height:1.45; margin:5px 0 10px; }
+.memora151-matches { display:flex; flex-direction:column; gap:8px; margin:10px 0; }
+.memora151-match-item { border:1px solid #D1D5DB; border-radius:8px; padding:9px; display:flex; gap:6px; align-items:center; justify-content:space-between; }
+.memora151-match-item-text { font-size:.79rem; min-width:0; overflow-wrap:anywhere; }
+.memora151-match-item button { flex-shrink:0; }
+.memora151-modal-actions { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:8px; margin-top:13px; }
+.memora151-action { background:#EFF6FF; color:var(--primary-blue); border:1px solid #BFDBFE; border-radius:6px; font-size:.70rem; font-weight:750; padding:4px 7px; cursor:pointer; margin:4px 3px 0 0; }
+.memora151-hint { color:var(--primary-blue); font-size:.76rem; font-weight:650; margin:5px 0; }
+html[data-theme="dark"] .memora151-sort-row select,html[data-theme="dark"] .memora151-field-control,html[data-theme="dark"] .memora151-secondary-btn { background:var(--card-white); border-color:#475569; }
+html[data-theme="dark"] .memora151-match-item { border-color:#475569; }
+@media(max-width:400px){.memora151-form-extras { grid-template-columns:1fr; } .memora151-modal-actions>* { flex:1; }}
