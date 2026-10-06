@@ -10,22 +10,27 @@
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
     <link rel="apple-touch-icon" sizes="192x192" href="./icons/icon-192.png">
     <meta name="theme-color" content="#004F87">
+    <script src="demo154.js?v=1.5.2"></script>
     <script>
-      try { document.documentElement.setAttribute('data-theme', localStorage.getItem('memora_tema') || 'light'); } catch (e) {}
+      try { document.documentElement.setAttribute('data-theme', memoraStorage154.getItem('memora_tema') || 'light'); } catch (e) {}
     </script>
     
     <!-- Estilos CSS (en la raíz) -->
-    <link rel="stylesheet" href="styles.css">
-    <link rel="stylesheet" href="biblioteca151.css">
+    <link rel="stylesheet" href="styles.css?v=1.5.2">
+    <link rel="stylesheet" href="biblioteca151.css?v=1.5.2">
     
-    <!-- Fuentes e Íconos -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
-    
+    <!-- Las mismas fuentes e íconos, disponibles también sin conexión. -->
+    <link rel="stylesheet" href="fonts.css?v=1.5.2">
+
     <!-- Librerías Externas -->
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script>
+      if (!Memora154.isDemo) {
+        const googleClientScript = document.createElement('script');
+        googleClientScript.src = 'https://accounts.google.com/gsi/client';
+        googleClientScript.async = true; googleClientScript.defer = true;
+        document.head.appendChild(googleClientScript);
+      }
+    </script>
 </head>
 <body>
     <header class="app-header">
@@ -34,7 +39,7 @@
                 <span class="material-symbols-outlined">arrow_back</span>
             </button>
             <div style="display:flex; flex-direction:column;">
-                <span class="brand-title">MEMORA</span>
+                <span class="brand-title">MEMORA <span id="badgeDemo154" class="memora154-header-badge" hidden>DEMO</span></span>
                 <span id="relojHeader" style="font-size: 0.65rem; opacity: 0.85; font-weight: 400;">--:--:--</span>
             </div>
         </div>
@@ -83,22 +88,11 @@
                 </div>
             </section>
 
-            <!-- BANNER DISTINTIVO DEMO CON REDIRECCIÓN A LANDING -->
-            <div id="bannerModoDemo" class="card" style="background: linear-gradient(135deg, #FEF3C7 0%, #FFFBEB 100%); border-left: 4px solid #F59E0B; margin-bottom: 16px; padding: 12px 16px;">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <div style="display:flex; gap:10px; align-items:center;">
-                        <span class="material-symbols-outlined" style="color:#D97706; font-size:1.4rem;">science</span>
-                        <div>
-                            <h4 style="font-size: 0.85rem; color: #92400E; font-weight:700; margin:0;">Estás probando la Versión Demo</h4>
-                            <p style="font-size: 0.75rem; color: #B45309; margin-top: 2px; margin-bottom:0;" id="textoCupoDemo">
-                                Límite de prueba: <strong id="contadorCupoDemo">0</strong> / 15 registros activos.
-                            </p>
-                        </div>
-                    </div>
-                    <a href="https://memoraapp.net" target="_blank" style="background:#F59E0B; color:white; border:none; padding:8px 12px; border-radius:8px; font-weight:700; font-size:0.75rem; cursor:pointer; text-decoration:none; white-space:nowrap; display:inline-block;">
-                        Obtener PRO ⚡
-                    </a>
-                </div>
+            <!-- Demo: datos ficticios y cupos visibles. -->
+            <div id="bannerModoDemo" class="card memora154-demo-banner" style="display:none;">
+                <div class="memora154-mode-heading"><span class="material-symbols-outlined" aria-hidden="true">science</span><strong id="tituloDemo154"></strong></div>
+                <p id="descripcionDemo154"></p>
+                <p id="textoCupoDemo"></p><p id="bibliotecasBannerDemo154"></p>
             </div>
 
             <!-- CARRUSEL DE KPIS -->
@@ -158,7 +152,7 @@
                     <span class="material-symbols-outlined" style="color:var(--primary-blue);">auto_awesome</span>
                     <div>
                         <h4 class="banner-info-card-title">Seguimiento Inteligente ⚡</h4>
-                        <p class="banner-info-card-text" id="textoBannerSeguimiento">
+                        <p class="banner-info-card-text" id="textoBannerSeguimiento" data-memora-localized>
                             Memora vuelve a mostrarte los registros que superan el tiempo sin actividad que configuraste, para que revises qué pasó y decidas cómo continuar.
                         </p>
                     </div>
@@ -168,18 +162,18 @@
             <div class="card" style="margin-bottom:20px;">
                 <h3 style="font-size:0.9rem; margin-bottom:10px; color:var(--text-primary);">Rendimiento General</h3>
                 <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px; text-align:center;">
-                    <div style="background:#F9FAFB; padding:8px; border-radius:10px;">
+                    <button type="button" class="memora152-metric" id="dash-activos-btn" onclick="abrirRendimiento152('activos')" style="background:#F9FAFB; padding:8px; border-radius:10px;">
                         <span style="font-size:0.7rem; color:var(--text-secondary);">Activos</span>
                         <h4 style="font-size:1.1rem; font-weight:700;" id="dash-activos">0</h4>
-                    </div>
-                    <div style="background:#F9FAFB; padding:8px; border-radius:10px;">
+                    </button>
+                    <button type="button" class="memora152-metric" id="dash-mes-btn" onclick="abrirRendimiento152('mes')" style="background:#F9FAFB; padding:8px; border-radius:10px;">
                         <span style="font-size:0.7rem; color:var(--text-secondary);">Este Mes</span>
                         <h4 style="font-size:1.1rem; font-weight:700;" id="dash-mes">0</h4>
-                    </div>
-                    <div style="background:#F9FAFB; padding:8px; border-radius:10px;">
+                    </button>
+                    <button type="button" class="memora152-metric" id="dash-canal-btn" onclick="abrirRendimiento152('canal')" style="background:#F9FAFB; padding:8px; border-radius:10px;">
                         <span style="font-size:0.7rem; color:var(--text-secondary);">Top Canal</span>
-                        <h4 style="font-size:0.85rem; font-weight:700; margin-top:2px;" id="dash-canal">-</h4>
-                    </div>
+                        <h4 style="font-size:0.85rem; font-weight:700; margin-top:2px;" id="dash-canal" data-memora-user-data>-</h4>
+                    </button>
                 </div>
             </div>
 
@@ -254,11 +248,11 @@
                     <div class="memora151-form-extras">
                         <div>
                             <label for="prioridadInicio" class="memora151-field-label">Prioridad</label>
-                            <select id="prioridadInicio" class="memora151-field-control">
+                            <select id="prioridadInicio" class="memora151-field-control" onchange="cambiarPrioridadSeguimiento152('Inicio')">
                                 <option value="Normal">Normal</option><option value="Alta">Alta</option><option value="Urgente">Urgente</option>
                             </select>
                         </div>
-                        <div class="biblioteca151-follow-panel">
+                        <div class="biblioteca151-follow-panel" data-memora-localized>
                             <h4 class="biblioteca151-follow-title" id="reglaSegTitleInicio">Seguimiento de esta gestión</h4>
                             <div class="biblioteca151-rule-switch" role="group" aria-labelledby="reglaSegTitleInicio">
                                 <button id="reglaSegGeneralBtnInicio" type="button" class="biblioteca151-rule-active" aria-pressed="true" onclick="elegirReglaVisual151('Inicio','general')">Usar configuración general</button>
@@ -271,9 +265,13 @@
                             </select>
                             <p id="reglaSegGeneralHintInicio" class="biblioteca151-general-hint">Se utilizará el plazo general configurado en Perfil.</p>
                             <div id="reglaSegCamposInicio" class="memora151-follow-fields biblioteca151-follow-config" style="display:none;">
+                                <label for="reglaSegModalidadInicio" id="reglaSegModalidadLabelInicio" class="biblioteca151-follow-label">Modalidad</label>
+                                <select id="reglaSegModalidadInicio" class="memora151-field-control memora152-mode" onchange="actualizarResumenSeguimiento151('Inicio')">
+                                    <option value="inactividad">Por inactividad</option><option value="periodica">Revisión periódica</option>
+                                </select>
                                 <label for="reglaSegValorInicio" id="reglaSegPlazoLabelInicio" class="biblioteca151-follow-label">Plazo sin actividad</label>
                                 <div class="biblioteca151-follow-controls">
-                                    <input type="number" min="1" max="365" step="1" inputmode="numeric" id="reglaSegValorInicio" value="2" aria-label="Plazo sin actividad" class="memora151-field-control" oninput="actualizarResumenSeguimiento151('Inicio')" onchange="actualizarResumenSeguimiento151('Inicio')">
+                                    <input type="number" min="1" max="365" step="1" inputmode="numeric" id="reglaSegValorInicio" value="" aria-label="Plazo sin actividad" class="memora151-field-control" oninput="actualizarResumenSeguimiento151('Inicio')" onchange="actualizarResumenSeguimiento151('Inicio')">
                                     <div class="biblioteca151-unit-switch" role="group" id="reglaSegUnidadesInicio" aria-label="Unidad de seguimiento">
                                         <button id="reglaSegHorasBtnInicio" type="button" onclick="elegirUnidadSeguimiento151('Inicio','horas')" aria-pressed="false">Horas</button>
                                         <button id="reglaSegDiasBtnInicio" type="button" onclick="elegirUnidadSeguimiento151('Inicio','dias')" aria-pressed="true" class="biblioteca151-unit-active">Días</button>
@@ -313,6 +311,10 @@
             <div class="welcome-section" style="flex-direction: column; align-items: flex-start; gap: 4px;">
                 <h2>Registros</h2>
                 <p>Consulta y busca todos tus clientes.</p>
+            </div>
+            <div id="filtroRendimiento152" class="memora152-filter" hidden data-memora-localized>
+                <strong id="filtroRendimientoTexto152"></strong>
+                <button type="button" id="limpiarRendimiento152" onclick="quitarRendimiento152()">Volver al listado normal</button>
             </div>
             <div class="search-bar">
                 <span class="material-symbols-outlined">search</span>
@@ -407,11 +409,11 @@
                     <div class="memora151-form-extras">
                         <div>
                             <label for="prioridad" class="memora151-field-label">Prioridad</label>
-                            <select id="prioridad" class="memora151-field-control">
+                            <select id="prioridad" class="memora151-field-control" onchange="cambiarPrioridadSeguimiento152('')">
                                 <option value="Normal">Normal</option><option value="Alta">Alta</option><option value="Urgente">Urgente</option>
                             </select>
                         </div>
-                        <div class="biblioteca151-follow-panel">
+                        <div class="biblioteca151-follow-panel" data-memora-localized>
                             <h4 class="biblioteca151-follow-title" id="reglaSegTitle">Seguimiento de esta gestión</h4>
                             <div class="biblioteca151-rule-switch" role="group" aria-labelledby="reglaSegTitle">
                                 <button id="reglaSegGeneralBtn" type="button" class="biblioteca151-rule-active" aria-pressed="true" onclick="elegirReglaVisual151('','general')">Usar configuración general</button>
@@ -424,9 +426,13 @@
                             </select>
                             <p id="reglaSegGeneralHint" class="biblioteca151-general-hint">Se utilizará el plazo general configurado en Perfil.</p>
                             <div id="reglaSegCampos" class="memora151-follow-fields biblioteca151-follow-config" style="display:none;">
+                                <label for="reglaSegModalidad" id="reglaSegModalidadLabel" class="biblioteca151-follow-label">Modalidad</label>
+                                <select id="reglaSegModalidad" class="memora151-field-control memora152-mode" onchange="actualizarResumenSeguimiento151('')">
+                                    <option value="inactividad">Por inactividad</option><option value="periodica">Revisión periódica</option>
+                                </select>
                                 <label for="reglaSegValor" id="reglaSegPlazoLabel" class="biblioteca151-follow-label">Plazo sin actividad</label>
                                 <div class="biblioteca151-follow-controls">
-                                    <input type="number" min="1" max="365" step="1" inputmode="numeric" id="reglaSegValor" value="2" aria-label="Plazo sin actividad" class="memora151-field-control" oninput="actualizarResumenSeguimiento151('')" onchange="actualizarResumenSeguimiento151('')">
+                                    <input type="number" min="1" max="365" step="1" inputmode="numeric" id="reglaSegValor" value="" aria-label="Plazo sin actividad" class="memora151-field-control" oninput="actualizarResumenSeguimiento151('')" onchange="actualizarResumenSeguimiento151('')">
                                     <div class="biblioteca151-unit-switch" role="group" id="reglaSegUnidades" aria-label="Unidad de seguimiento">
                                         <button id="reglaSegHorasBtn" type="button" onclick="elegirUnidadSeguimiento151('','horas')" aria-pressed="false">Horas</button>
                                         <button id="reglaSegDiasBtn" type="button" onclick="elegirUnidadSeguimiento151('','dias')" aria-pressed="true" class="biblioteca151-unit-active">Días</button>
@@ -473,7 +479,6 @@
             <label class="biblioteca151-search"><span class="material-symbols-outlined">search</span><input id="biblioteca151Search" type="search" autocomplete="off" oninput="renderBiblioteca151()" placeholder="Buscar mensajes..."></label>
             <div id="biblioteca151Filters" class="biblioteca151-chips" aria-label="Filtrar biblioteca"></div>
             <div id="biblioteca151Items" class="biblioteca151-items" aria-live="polite"></div>
-            <div id="biblioteca151SummaryRecent" class="biblioteca151-recent"></div>
             <div class="biblioteca151-portability">
                 <span id="biblioteca151BackupHint">Guardá una copia de tus mensajes y resúmenes.</span>
                 <div><button type="button" id="biblioteca151Export" onclick="exportarBiblioteca151()">Exportar biblioteca</button>
@@ -487,6 +492,19 @@
                 <h2>Perfil y Configuración</h2>
                 <p>Ajustes de usuario, empresa y seguimiento.</p>
             </div>
+            <div id="limitesDemoCard154" class="card memora154-mode-card" hidden>
+                <h3 id="tituloLimitesDemo154">Límites de la Demo</h3>
+                <ul class="memora152-demo-limits">
+                    <li id="limiteDemo154_0">Hasta 15 registros en total</li>
+                    <li id="limiteDemo154_1">Hasta 3 descargas PDF y 3 Excel</li>
+                    <li id="limiteDemo154_2">Hasta 5 plantillas de mensajes</li>
+                    <li id="limiteDemo154_3">Hasta 3 resúmenes</li>
+                    <li id="limiteDemo154_4">Google Drive deshabilitado</li>
+                </ul>
+                <p id="limitesDemo154"></p><p id="bibliotecasDemo154"></p><p id="explicaLimites154"></p>
+                <button type="button" id="botonRestablecerDemo154" class="memora151-secondary-btn" onclick="solicitarRestablecerDemo154()">Restablecer Demo</button>
+            </div>
+
             <div class="card" style="margin-bottom: 16px;">
                 <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
                     <div style="display:flex; align-items:center; gap:12px;">
@@ -538,7 +556,7 @@
             <div class="card" style="margin-bottom:16px; padding:16px;">
                 <p style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:10px;">Configura el tiempo máximo de inactividad antes de requerir seguimiento:</p>
                 <div style="display:flex; gap:8px; align-items:center;">
-                    <input type="number" id="cfgSegValor" min="1" max="365" value="3" style="width:80px; padding:8px; border-radius:8px; border:1px solid #ccc; font-weight:600; text-align:center;">
+                    <input type="number" id="cfgSegValor" min="1" max="365" step="1" value="3" style="width:80px; padding:8px; border-radius:8px; border:1px solid #ccc; font-weight:600; text-align:center;">
                     <select id="cfgSegUnidad" style="flex:1; padding:8px; border-radius:8px; border:1px solid #ccc; font-weight:500;">
                         <option value="dias">Día(s)</option>
                         <option value="horas">Hora(s)</option>
@@ -631,7 +649,7 @@
                 <div class="tech-info-grid">
                     <div class="tech-info-item">
                         <span class="tech-label">Versión de App</span>
-                        <span class="tech-value" id="sys-version">v1.5.1</span>
+                        <span class="tech-value" id="sys-version">v1.5.2</span>
                     </div>
                     <div class="tech-info-item">
                         <span class="tech-label">Dispositivo</span>
@@ -737,7 +755,7 @@
                 </h4>
 
                 <p style="font-size:0.8rem; color:var(--text-secondary); line-height:1.4;">
-                    Es la lista de clientes o gestiones que llevan más tiempo sin actividad del que configuraste. Podés definir ese plazo desde Perfil, en horas o días.
+                    Reúne gestiones que superan su plazo sin actividad o necesitan una revisión periódica. El plazo general se configura en Perfil. En cada registro podés elegir Seguimiento especial, modalidad, número y Horas o Días. Alta y Urgente abren esa configuración sin decidir el plazo por vos.
                 </p>
             </div>
 
@@ -748,7 +766,7 @@
                 </h4>
 
                 <p style="font-size:0.8rem; color:var(--text-secondary); line-height:1.4;">
-                    Usalo cuando verificaste un registro pero no hay nada nuevo para modificar. Memora guarda la nueva revisión y vuelve a calcular cuándo debería aparecer en seguimiento.
+                    Usalo cuando verificaste un registro. Memora guarda la revisión y reinicia el plazo. En revisión periódica, editar datos o comentarios no reinicia el período; marcar Revisado sí.
                 </p>
             </div>
 
@@ -784,8 +802,8 @@
 <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:16px;">
 
     <a id="linkManualCompletoMemora"
-       href="./docs/Manual_Memora_v1.5.1_ES.pdf"
-       download="Manual_Memora_v1.5.1_ES.pdf"
+       href="./docs/Manual_Memora_v1.5.2_ES.pdf"
+       download="Manual_Memora_v1.5.2_ES.pdf"
        style="width:100%; background:var(--primary-blue); color:white; border:none; padding:11px; border-radius:8px; font-weight:700; font-size:0.8rem; cursor:pointer; text-decoration:none; display:flex; align-items:center; justify-content:center; gap:6px;">
 
         <span class="material-symbols-outlined" style="font-size:1rem;">
@@ -869,6 +887,7 @@
         <div class="memora-modal-card">
             <h3>Completa tu Perfil</h3>
             <p>Ingresa tus datos por única vez para personalizar tu cuenta y el saludo del sistema.</p>
+            <p id="bienvenidaLimitesDemo154" class="memora152-demo-welcome" hidden></p>
             <div class="memora-input-group">
                 <label>Tu Nombre Completo (* Requerido)</label>
                 <input type="text" id="initNombre" placeholder="Ej: Juan">
@@ -951,12 +970,12 @@
         </div>
     </div>
 
-    <script src="app.js?v=1.5.1-manuales-final"></script>
-    <script src="biblioteca151.js?v=1.5.1-manuales-final"></script>
+    <script src="app.js?v=1.5.2"></script>
+    <script src="biblioteca151.js?v=1.5.2"></script>
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('./sw.js?v=1.5.1-manuales-final');
+          navigator.serviceWorker.register('./sw.js?v=1.5.2');
         });
       }
     </script>

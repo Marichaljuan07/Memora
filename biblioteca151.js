@@ -1,4 +1,4 @@
-/* MEMORA 1.5.1 Preview 4 — Biblioteca local de mensajes y resúmenes.
+/* MEMORA 1.5.2 — Biblioteca local de mensajes y resúmenes.
    Solo organiza, completa y copia texto a pedido del usuario; nunca envía mensajes. */
 const BIB151_KEY = 'memora151_biblioteca_v1';
 const BIB151_CHANNELS = ['Todos los canales', 'WhatsApp', 'Instagram', 'Email', 'LinkedIn', 'Facebook', 'Telegram', 'Otro'];
@@ -14,7 +14,7 @@ const BIB151_I18N = {
         findMessages:'Buscar mensajes...',findSummaries:'Buscar resúmenes...',all:'Todos',allChannels:'Todos los canales',other:'Otro',sales:'Ventas',inquiries:'Consultas',followup:'Seguimiento',
         recent:'Vista previa de resúmenes',viewAll:'Ver todos',use:'Usar',copy:'Copiar',edit:'Editar',duplicate:'Duplicar',delete:'Eliminar',
         emptyMessage:'No hay mensajes para esta búsqueda. Creá uno nuevo o cambiá los filtros.',emptySummary:'Todavía no hay resúmenes para mostrar. Creá uno o generá uno desde un registro.',
-        backupHint:'Tus mensajes y resúmenes se guardan en este navegador. Exportá una copia para protegerlos.',export:'Exportar biblioteca',import:'Importar biblioteca',
+        backupHint:'Respaldo de ambas bibliotecas. Tus mensajes y resúmenes se guardan en este navegador.',export:'Exportar mensajes y resúmenes',import:'Importar mensajes y resúmenes',
         labelName:'Nombre',labelBody:'Texto',labelChannel:'Canal',labelCategory:'Categoría',customChannel:'Nombre del canal',labelReference:'Canal de referencia (opcional)',labelRecord:'Generar a partir de un registro (opcional)',
         variables:'Podés usar {nombre}, {asunto}, {canal}, {empresa}, {telefono} o {numeroCliente}. Se completan cuando elegís un registro.',
         summaryHint:'El resumen puede ser completamente personalizado. Si elegís una gestión, Memora propone un borrador objetivo que podés modificar antes de guardarlo.',
@@ -40,7 +40,7 @@ const BIB151_I18N = {
         findMessages:'Search messages...',findSummaries:'Search summaries...',all:'All',allChannels:'All channels',other:'Other',sales:'Sales',inquiries:'Inquiries',followup:'Follow-up',
         recent:'Summary preview',viewAll:'View all',use:'Use',copy:'Copy',edit:'Edit',duplicate:'Duplicate',delete:'Delete',
         emptyMessage:'No messages match this search. Create one or change your filters.',emptySummary:'No summaries to show yet. Create one or generate one from a record.',
-        backupHint:'Messages and summaries are saved in this browser. Export a copy to keep them safe.',export:'Export library',import:'Import library',
+        backupHint:'Backup of both libraries. Messages and summaries are saved in this browser.',export:'Export messages and summaries',import:'Import messages and summaries',
         labelName:'Name',labelBody:'Text',labelChannel:'Channel',labelCategory:'Category',customChannel:'Channel name',labelReference:'Reference channel (optional)',labelRecord:'Generate from a record (optional)',
         variables:'Use {nombre}, {asunto}, {canal}, {empresa}, {telefono}, or {numeroCliente}. They are filled in when you choose a record.',
         summaryHint:'Summaries can be entirely custom. Choosing a record creates a factual draft you can edit before saving.',
@@ -66,7 +66,7 @@ const BIB151_I18N = {
         findMessages:'Buscar mensagens...',findSummaries:'Buscar resumos...',all:'Todos',allChannels:'Todos os canais',other:'Outro',sales:'Vendas',inquiries:'Consultas',followup:'Acompanhamento',
         recent:'Prévia dos resumos',viewAll:'Ver todos',use:'Usar',copy:'Copiar',edit:'Editar',duplicate:'Duplicar',delete:'Excluir',
         emptyMessage:'Nenhuma mensagem encontrada. Crie uma ou altere os filtros.',emptySummary:'Ainda não há resumos. Crie um ou gere a partir de um registro.',
-        backupHint:'Mensagens e resumos são salvos neste navegador. Exporte uma cópia para protegê-los.',export:'Exportar biblioteca',import:'Importar biblioteca',
+        backupHint:'Backup das duas bibliotecas. Mensagens e resumos são salvos neste navegador.',export:'Exportar mensagens e resumos',import:'Importar mensagens e resumos',
         labelName:'Nome',labelBody:'Texto',labelChannel:'Canal',labelCategory:'Categoria',customChannel:'Nome do canal',labelReference:'Canal de referência (opcional)',labelRecord:'Gerar a partir de um registro (opcional)',
         variables:'Use {nombre}, {asunto}, {canal}, {empresa}, {telefono} ou {numeroCliente}. Eles são preenchidos ao escolher um registro.',
         summaryHint:'Os resumos podem ser personalizados. Ao escolher um registro, o Memora sugere um rascunho factual que você pode editar antes de salvar.',
@@ -96,8 +96,8 @@ function bi151presets(){return [
 ].map(([nombre,texto])=>({id:bi151id(),nombre,texto,canal:'Todos los canales',fecha:new Date().toISOString(),actualizado:new Date().toISOString()}));}
 function bi151read(){
     try{
-        const raw=localStorage.getItem(BIB151_KEY);
-        if(raw===null){const inicial={version:1,mensajes:bi151presets(),resumenes:[]};localStorage.setItem(BIB151_KEY,JSON.stringify(inicial));return inicial;}
+        const raw=memoraStorage154.getItem(BIB151_KEY);
+        if(raw===null){const inicial={version:1,mensajes:bi151presets(),resumenes:[]};memoraStorage154.setItem(BIB151_KEY,JSON.stringify(inicial));return inicial;}
         const val=JSON.parse(raw);
         if(val && Array.isArray(val.mensajes) && Array.isArray(val.resumenes)) return val;
     }catch(e){console.warn('Memora library: invalid local data',e);}
@@ -106,19 +106,22 @@ function bi151read(){
 let biblioteca151 = bi151read();
 let biblioteca151Tab = 'mensajes';
 let biblioteca151Filter = 'Todos los canales';
+const biblioteca152Vistas = {mensajes:{busqueda:'',filtro:'Todos los canales'},resumenes:{busqueda:'',filtro:'Todos'}};
 let biblioteca151Editing = null;
 let biblioteca151Using = null;
 let biblioteca151BaseUseText = '';
 let biblioteca151RecordGenId = '';
 let biblioteca151LastFocus = null;
 function bi151Save(next){
-    try{localStorage.setItem(BIB151_KEY,JSON.stringify(next));biblioteca151=next;return true;}
+    if(!validarBibliotecaDemo154(next,biblioteca151))return false;
+    try{memoraStorage154.setItem(BIB151_KEY,JSON.stringify(next));biblioteca151=next;actualizarModoMemora154();return true;}
     catch(e){console.error('Memora library save:',e);mostrarAvisoMemora(bi151('saveError'),bi151('title'),'warning');return false;}
 }
 function exportarDatosBiblioteca151(){return JSON.parse(JSON.stringify(biblioteca151));}
 function contarDatosBiblioteca151(){return {mensajes:biblioteca151.mensajes.length,resumenes:biblioteca151.resumenes.length};}
 function bi151DataKey(){return biblioteca151Tab==='mensajes'?'mensajes':'resumenes';}
 function bi151MetaName(meta){
+    if(meta==='Todos')return bi151('all');
     if(meta==='Todos los canales')return bi151('allChannels');
     if(meta==='Otro')return bi151('other');
     if(meta==='Ventas')return bi151('sales');
@@ -126,25 +129,33 @@ function bi151MetaName(meta){
     if(meta==='Seguimiento')return bi151('followup');
     return meta||bi151('allChannels');
 }
-function abrirBiblioteca151(tab='mensajes'){
+function guardarVistaBiblioteca152(){
+    biblioteca152Vistas[biblioteca151Tab]={busqueda:$('biblioteca151Search')?.value||'',filtro:biblioteca151Filter};
+}
+function seleccionarVistaBiblioteca152(tab){
+    guardarVistaBiblioteca152();
     biblioteca151Tab=tab==='resumenes'?'resumenes':'mensajes';
-    biblioteca151Filter=biblioteca151Tab==='mensajes'?'Todos los canales':'Todos';
-    if($('biblioteca151Search')) $('biblioteca151Search').value='';
-    navegarA('biblioteca151',bi151('title'));
+    const vista=biblioteca152Vistas[biblioteca151Tab];
+    biblioteca151Filter=vista.filtro;
+    if($('biblioteca151Search'))$('biblioteca151Search').value=vista.busqueda;
+}
+function abrirBiblioteca151(tab='mensajes'){
+    seleccionarVistaBiblioteca152(tab);
+    navegarA('biblioteca151',bi151(biblioteca151Tab==='resumenes'?'summaries':'messages'));
     window.scrollTo(0,0);
     actualizarIdiomaBiblioteca151();
 }
 function cambiarBiblioteca151(tab){
-    biblioteca151Tab=tab==='resumenes'?'resumenes':'mensajes';
-    biblioteca151Filter=biblioteca151Tab==='mensajes'?'Todos los canales':'Todos';
-    if($('biblioteca151Search'))$('biblioteca151Search').value='';
+    // Do not transfer an open editor or usage action into the other tool.
+    if($('biblioteca151EditorBackdrop')?.style.display==='flex' || $('biblioteca151UseBackdrop')?.style.display==='flex')return;
+    seleccionarVistaBiblioteca152(tab);
     actualizarIdiomaBiblioteca151();
 }
 function bi151set(id,txt){const el=$(id);if(el)el.textContent=txt;}
 function actualizarIdiomaBiblioteca151(){
     const ids={
         biblioteca151HomeTitle:'homeTitle',biblioteca151HomeDesc:'homeDesc',biblioteca151HomeMessages:'homeMessages',biblioteca151HomeMessagesDesc:'homeMessagesDesc',
-        biblioteca151HomeSummary:'homeSummaries',biblioteca151HomeSummaryDesc:'homeSummariesDesc',biblioteca151PageTitle:'title',biblioteca151PageDesc:'subtitle',
+        biblioteca151HomeSummary:'homeSummaries',biblioteca151HomeSummaryDesc:'homeSummariesDesc',
         biblioteca151TabMensajesLabel:'messages',biblioteca151TabResumenesLabel:'summaries',biblioteca151BackupHint:'backupHint',
         biblioteca151Export:'export',biblioteca151ImportLabel:'import',biblioteca151CancelEditor:'cancel',biblioteca151SaveEditor:'save',
         biblioteca151CancelUse:'cancel',biblioteca151CopyUseLabel:'copyText',biblioteca151PickLabel:'pickRecord',biblioteca151UseHint:'useHint',biblioteca151UseBodyLabel:'textEditable',
@@ -152,7 +163,7 @@ function actualizarIdiomaBiblioteca151(){
     };
     Object.entries(ids).forEach(([id,key])=>bi151set(id,bi151(key)));
     if($('biblioteca151HomeOpenIcon')){ $('biblioteca151HomeOpenIcon').setAttribute('aria-label',bi151('openLibrary')); $('biblioteca151HomeOpenIcon').title=bi151('openLibrary'); }
-    if($('screenTitle') && $('sec-biblioteca151')?.style.display==='block')$('screenTitle').textContent=bi151('title');
+    if($('screenTitle') && $('sec-biblioteca151')?.style.display==='block')$('screenTitle').textContent=bi151(biblioteca151Tab==='resumenes'?'summaries':'messages');
     renderBiblioteca151();
 }
 function bi151FilterButton(meta,active){
@@ -176,6 +187,8 @@ function bi151ItemCard(item,tab){
 }
 function renderBiblioteca151(){
     const summary=biblioteca151Tab==='resumenes';
+    bi151set('biblioteca151PageTitle',bi151(summary?'summaries':'messages'));
+    bi151set('biblioteca151PageDesc',bi151(summary?'sumBannerDesc':'msgBannerDesc'));
     if($('biblioteca151TabMensajes'))$('biblioteca151TabMensajes').setAttribute('aria-selected',String(!summary));
     if($('biblioteca151TabResumenes'))$('biblioteca151TabResumenes').setAttribute('aria-selected',String(summary));
     bi151set('biblioteca151LibraryTitle',bi151(summary?'libSummaries':'libMessages'));
@@ -201,12 +214,7 @@ function renderBiblioteca151(){
     data.sort((a,b)=>String(b.actualizado||b.fecha).localeCompare(String(a.actualizado||a.fecha)));
     if($('biblioteca151Items'))$('biblioteca151Items').innerHTML=data.length?data.map(x=>bi151ItemCard(x,biblioteca151Tab)).join(''):
         `<p class="biblioteca151-empty">${bi151(summary?'emptySummary':'emptyMessage')}</p>`;
-    // Quick access to saved summaries while browsing messages; actions stay out of record cards.
-    const recent=$('biblioteca151SummaryRecent');
-    if(recent){
-        const last=summary?[]:[...biblioteca151.resumenes].sort((a,b)=>String(b.actualizado||b.fecha).localeCompare(String(a.actualizado||a.fecha))).slice(0,2);
-        recent.innerHTML=last.length?`<div class="biblioteca151-recent-heading"><h3>${bi151('recent')}</h3><button type="button" onclick="cambiarBiblioteca151('resumenes')">${bi151('viewAll')} <span class="material-symbols-outlined">arrow_forward</span></button></div>${last.map(it=>`<div class="biblioteca151-recent-item"><div><strong>${bi151esc(it.nombre)}</strong><p>${bi151esc(String(it.texto||'').slice(0,110))}</p></div><button class="biblioteca151-ghost" type="button" data-bib-action="use-summary" data-id="${bi151esc(it.id)}"><span class="material-symbols-outlined">content_copy</span>${bi151('copy')}</button></div>`).join('')}`:'';
-    }
+
 }
 function bi151recordLabel(r){
     const name=String(r.nombre||r.contacto||bi151('unknown')).trim();
@@ -336,7 +344,8 @@ function duplicarItemBiblioteca151(id,tab=biblioteca151Tab){
 function eliminarItemBiblioteca151(id,tab=biblioteca151Tab){
     const key=tab==='mensajes'?'mensajes':'resumenes';
     if(!biblioteca151[key].some(x=>x.id===id))return;
-    mostrarConfirmMemora(bi151('deleteAsk'),bi151('deleteTitle'),'delete','#DC2626',()=>{
+    mostrarConfirmMemora(bi151('deleteAsk'),bi151('deleteTitle'),'delete','#DC2626',confirmado=>{
+        if (!confirmado) return;
         const next={...biblioteca151,[key]:biblioteca151[key].filter(x=>x.id!==id)};
         if(bi151Save(next))renderBiblioteca151();
     });
@@ -345,7 +354,7 @@ function reemplazarVariablesBiblioteca151(texto,r){
     if(!r)return String(texto||'');
     const firstName=String(r.nombre||'').trim().split(/\s+/)[0]||'';
     const rawId=String(r.identificador||'').replace(/^(rut|nº de cliente|cliente|socio)\s*:?\s*/i,'');
-    const admin=(()=>{try{return JSON.parse(localStorage.getItem('memora_admin_user_data')||'{}');}catch(e){return {};}})();
+    const admin=(()=>{try{return JSON.parse(memoraStorage154.getItem('memora_admin_user_data')||'{}');}catch(e){return {};}})();
     const fields={nombre:firstName,asunto:r.asunto||'',canal:r.canal||'',empresa:r.empresa||admin.empresaAdmin||'',telefono:r.contacto||'',numerocliente:rawId};
     return String(texto||'').replace(/\{(nombre|asunto|canal|empresa|telefono|numeroCliente)\}/gi,(all,key)=>fields[key.toLowerCase()]??all);
 }

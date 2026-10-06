@@ -1,5 +1,5 @@
 /* ==========================================================================
-   MEMORA CRM - CORE LOGIC (v1.5.1 PREVIEW 3)
+   MEMORA CRM - CORE LOGIC (v1.5.2)
    ========================================================================== */
 
 const estados = [
@@ -13,7 +13,7 @@ const estados = [
 ];
 
 const CANALES_DISPONIBLES = ["WhatsApp", "Instagram", "Email", "LinkedIn", "Facebook", "Telegram"];
-const MEMORA_VERSION = "1.5.1";
+const MEMORA_VERSION = "1.5.2";
 const MEMORA_THEME_KEY = "memora_tema";
 const PREFIJOS_WHATSAPP = [
     { codigo: "+598", etiqueta: "UY +598" },
@@ -43,56 +43,34 @@ const PREFIJOS_WHATSAPP = [
     { codigo: "+351", etiqueta: "PT +351" }
 ];
 
-// ==========================================
-// DETECCIÓN AUTOMÁTICA DE ENTORNO (DEMO vs PRO)
-// ==========================================
-// Si la URL contiene 'demo', activa el modo Demo. 
-// Si es 'app.memoraapp.net' o localhost/producción, se comporta como PRO.
-const MODO_DEMO = window.location.hostname.includes('demo');
-const LIMITE_REGISTROS_DEMO = 15;
+// 1.5.2: se conserva la detección original por dominio, sin selector de prueba.
+const MODO_DEMO = Memora154.isDemo;
+const LIMITE_REGISTROS_DEMO = Memora154.limits.records;
 
-
-function validarCupoDemo() {
+function validarCupoDemo(intentoCrear = false) {
     const banner = document.getElementById('bannerModoDemo');
-    
-    // Si no es demo, ocultamos el banner completamente
-    if (!MODO_DEMO) {
-        if (banner) banner.style.display = 'none';
-        return true;
-    }
-
-    // Si es demo, mostramos el banner y aplicamos la lógica
-    if (banner) banner.style.display = 'block';
-
-    const activos = registros.filter(r => r.estado !== 'Archivado').length;
-    const elemContador = document.getElementById('contadorCupoDemo');
-    if (elemContador) elemContador.innerText = activos;
-
-    if (activos >= LIMITE_REGISTROS_DEMO) {
-        mostrarAvisoMemora(
-            `Has alcanzado el límite de ${LIMITE_REGISTROS_DEMO} registros activos de la versión Demo.\n\nTe redirigiremos a la web para adquirir MEMORA PRO sin límites.`,
-            "Límite Demo Alcanzado ⚡", 
-            "warning",
-            () => {
-                window.open('https://memoraapp.net', '_blank');
-            }
-        );
-        return false;
-    }
-    return true;
+    if (banner) banner.style.display = MODO_DEMO ? 'block' : 'none';
+    actualizarModoMemora154();
+    if (!MODO_DEMO || !intentoCrear || editando || registros.length < LIMITE_REGISTROS_DEMO) return true;
+    mostrarAvisoMemora(textoModo154(
+        'La Demo permite hasta 15 registros en total, incluidos los ejemplos y los archivados. Podés editar y revisar los existentes, eliminar uno para liberar espacio o usar la versión completa.',
+        'Demo allows up to 15 records in total, including examples and archived records. You can edit and review existing records, delete one to free up space or use the full version.',
+        'A Demo permite até 15 registros no total, incluindo exemplos e arquivados. Você pode editar e revisar os existentes, excluir um para liberar espaço ou usar a versão completa.'
+    ), textoModo154('Límite Demo', 'Demo limit', 'Limite Demo'), 'warning');
+    return false;
 }
-
 
 function solicitarLicenciaPro() {
     window.open('https://memoraapp.net', '_blank');
 }
 
-let registros = JSON.parse(localStorage.getItem('memora_registros') || '[]');
+let registros = JSON.parse(memoraStorage154.getItem('memora_registros') || '[]');
 let editando = null;
 let comentariosEdicionActual = [];
 let comentariosTemporalesInicio = [];
 let registrosUltimoFiltro = [];
 let mostrandoArchivados = false;
+let filtroRendimiento152 = null;
 let contactoOriginalBackup = "";
 let prefijoOriginalBackup = "+598";
 let currentStoryStep = 0;
@@ -131,7 +109,7 @@ function obtenerSaludoPorHora(d = ahoraMemora()) {
 }
 
 function actualizarSaludoDinamico(d = ahoraMemora()) {
-    const datosRaw = localStorage.getItem('memora_admin_user_data');
+    const datosRaw = memoraStorage154.getItem('memora_admin_user_data');
     const datos = datosRaw ? JSON.parse(datosRaw) : { nombreAdmin: '' };
     const primerNombre = datos.nombreAdmin ? datos.nombreAdmin.trim().split(/\s+/)[0] : 'Usuario';
     if ($('saludo')) $('saludo').innerText = `${obtenerSaludoPorHora(d)}, ${primerNombre}`;
@@ -140,7 +118,7 @@ function actualizarSaludoDinamico(d = ahoraMemora()) {
 function aplicarTemaMemora(tema, persistir = false) {
     const temaFinal = tema === 'dark' ? 'dark' : 'light';
     document.documentElement.setAttribute('data-theme', temaFinal);
-    if (persistir) localStorage.setItem(MEMORA_THEME_KEY, temaFinal);
+    if (persistir) memoraStorage154.setItem(MEMORA_THEME_KEY, temaFinal);
 
     const metaTheme = document.querySelector('meta[name="theme-color"]');
     if (metaTheme) metaTheme.setAttribute('content', temaFinal === 'dark' ? '#0B1220' : '#004F87');
@@ -148,7 +126,7 @@ function aplicarTemaMemora(tema, persistir = false) {
 }
 
 function inicializarTemaMemora() {
-    aplicarTemaMemora(localStorage.getItem(MEMORA_THEME_KEY) || 'light', false);
+    aplicarTemaMemora(memoraStorage154.getItem(MEMORA_THEME_KEY) || 'light', false);
 }
 
 function alternarModoOscuro() {
@@ -344,9 +322,10 @@ function responderPromptMemora(valor) {
 const GOOGLE_CLIENT_ID = '766888773519-676shp6ma451vga2oe5rq3hu1ck7bhpo.apps.googleusercontent.com';
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 let tokenClient = null;
-let googleAccessToken = localStorage.getItem('memora_gdrive_token') || null;
+let googleAccessToken = memoraStorage154.getItem('memora_gdrive_token') || null;
 
 function inicializarGoogleDriveAPI() {
+    if (MODO_DEMO) return;
     if (typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) {
         tokenClient = google.accounts.oauth2.initTokenClient({
             client_id: GOOGLE_CLIENT_ID,
@@ -357,8 +336,8 @@ function inicializarGoogleDriveAPI() {
                     return;
                 }
                 googleAccessToken = response.access_token;
-                localStorage.setItem('memora_gdrive_token', googleAccessToken);
-                localStorage.setItem('memora_nube_conectado', 'true');
+                memoraStorage154.setItem('memora_gdrive_token', googleAccessToken);
+                memoraStorage154.setItem('memora_nube_conectado', 'true');
                 
                 if ($('cloudStatusText')) $('cloudStatusText').innerText = traducirCadenaMemora('Conectado a Google Drive');
                 mostrarAvisoMemora("¡Google Drive vinculado con éxito!", "Google Drive", "cloud_done");
@@ -368,24 +347,14 @@ function inicializarGoogleDriveAPI() {
 }
 
 function conectarServicioNube() {
-    if (MODO_DEMO) {
-        mostrarAvisoMemora(
-            "El respaldo automático en la nube (Google Drive) es una función exclusiva de MEMORA PRO.\n\nObtén la versión completa para sincronizar tus datos.",
-            "Función PRO 🔒",
-            "warning",
-            () => {
-                window.open('https://memoraapp.net', '_blank');
-            }
-        );
-        return;
-    }
+    if (MODO_DEMO) { bloquearFuncionDemo154(); return; }
 
-    const estadoActual = localStorage.getItem('memora_nube_conectado') === 'true';
+    const estadoActual = memoraStorage154.getItem('memora_nube_conectado') === 'true';
     if (estadoActual) {
         mostrarConfirmMemora("¿Deseas desconectar la cuenta de Google Drive?", "Google Drive", "cloud_off", "#004F87", (confirmado) => {
             if (confirmado) {
-                localStorage.setItem('memora_nube_conectado', 'false');
-                localStorage.removeItem('memora_gdrive_token');
+                memoraStorage154.setItem('memora_nube_conectado', 'false');
+                memoraStorage154.removeItem('memora_gdrive_token');
                 googleAccessToken = null;
                 if ($('cloudStatusText')) $('cloudStatusText').innerText = traducirCadenaMemora('Sin vincular');
                 mostrarAvisoMemora("Cuenta de Google Drive desconectada.", "Google Drive", "info");
@@ -402,17 +371,9 @@ function conectarServicioNube() {
 }
 
 async function subirRespaldoADrive() {
-    if (MODO_DEMO) {
-        mostrarAvisoMemora(
-            "El respaldo en la nube es una función exclusiva de MEMORA PRO.",
-            "Función PRO 🔒",
-            "warning",
-            () => window.open('https://memoraapp.net', '_blank')
-        );
-        return;
-    }
+    if (MODO_DEMO) { bloquearFuncionDemo154(); return; }
 
-    if (localStorage.getItem('memora_nube_conectado') !== 'true' || !googleAccessToken) {
+    if (memoraStorage154.getItem('memora_nube_conectado') !== 'true' || !googleAccessToken) {
         mostrarAvisoMemora("Primero debes conectar tu cuenta de Google Drive.", "Google Drive", "warning");
         return;
     }
@@ -466,17 +427,9 @@ async function subirRespaldoADrive() {
 }
 
 async function restaurarDesdeDrive() {
-    if (MODO_DEMO) {
-        mostrarAvisoMemora(
-            "La restauración desde la nube es una función exclusiva de MEMORA PRO.",
-            "Función PRO 🔒",
-            "warning",
-            () => window.open('https://memoraapp.net', '_blank')
-        );
-        return;
-    }
+    if (MODO_DEMO) { bloquearFuncionDemo154(); return; }
 
-    if (localStorage.getItem('memora_nube_conectado') !== 'true' || !googleAccessToken) {
+    if (memoraStorage154.getItem('memora_nube_conectado') !== 'true' || !googleAccessToken) {
         mostrarAvisoMemora("Primero debes conectar tu cuenta de Google Drive.", "Google Drive", "warning");
         return;
     }
@@ -528,22 +481,13 @@ async function restaurarDesdeDrive() {
 }
 
 function toggleAutoNube() {
-    if (MODO_DEMO) {
-        mostrarAvisoMemora(
-            "El auto-guardado en la nube es una función exclusiva de MEMORA PRO.",
-            "Función PRO 🔒",
-            "warning",
-            () => window.open('https://memoraapp.net', '_blank')
-        );
-        if ($('chkAutoNube')) $('chkAutoNube').checked = false;
-        return;
-    }
+    if (MODO_DEMO) { bloquearFuncionDemo154(); return; }
     const val = $('chkAutoNube')?.checked ?? false;
-    localStorage.setItem('memora_auto_nube', val);
+    memoraStorage154.setItem('memora_auto_nube', val);
 }
 
 function sincronizarAutoNube(r) {
-    if (!MODO_DEMO && localStorage.getItem('memora_nube_conectado') === 'true' && localStorage.getItem('memora_auto_nube') === 'true') {
+    if (!MODO_DEMO && memoraStorage154.getItem('memora_nube_conectado') === 'true' && memoraStorage154.getItem('memora_auto_nube') === 'true') {
         subirRespaldoADrive();
     }
 }
@@ -552,47 +496,43 @@ function sincronizarAutoNube(r) {
    3. SEGUIMIENTO PERSONALIZADO Y REVISIÓN
    ========================================================================== */
 function obtenerConfigSeguimiento() {
-    const valor = parseInt(localStorage.getItem('memora_seg_valor') || '3');
-    const unidad = localStorage.getItem('memora_seg_unidad') || 'dias';
+    const guardado = Number(memoraStorage154.getItem('memora_seg_valor') ?? '3');
+    const valor = Number.isInteger(guardado) && guardado >= 1 && guardado <= 365 ? guardado : 3;
+    const unidad = memoraStorage154.getItem('memora_seg_unidad') === 'horas' ? 'horas' : 'dias';
     return { valor, unidad };
 }
 
 function guardarConfigSeguimiento() {
-    const valor = parseInt($('cfgSegValor')?.value || '3');
-    const unidad = $('cfgSegUnidad')?.value || 'dias';
-    localStorage.setItem('memora_seg_valor', valor);
-    localStorage.setItem('memora_seg_unidad', unidad);
+    const valor = Number($('cfgSegValor')?.value);
+    const unidad = $('cfgSegUnidad')?.value;
+    if (!Number.isInteger(valor) || valor < 1 || valor > 365 || !['horas', 'dias'].includes(unidad)) {
+        mostrarAvisoMemora(textoIdiomaMemora150(
+            'Escribí un número entero entre 1 y 365 y elegí Horas o Días.',
+            'Enter a whole number from 1 to 365 and choose Hours or Days.',
+            'Digite um número inteiro entre 1 e 365 e escolha Horas ou Dias.'
+        ), traducirCadenaMemora('Seguimiento'), 'warning', () => $('cfgSegValor')?.focus());
+        return false;
+    }
+    memoraStorage154.setItem('memora_seg_valor', valor);
+    memoraStorage154.setItem('memora_seg_unidad', unidad);
     mostrarAvisoMemora("Configuración de seguimiento actualizada correctamente.", "Seguimiento", "tune");
     render();
+    return true;
 }
 
 function formatearTiempoAtraso(horasTotales) {
-    const hs = Math.max(0, Math.floor(horasTotales));
+    const horas = Number.isFinite(horasTotales) ? Math.max(0, horasTotales) : 0;
+    const minutos = Math.floor(horas * 60 + 1e-7);
+    const hs = Math.floor(minutos / 60);
     const dias = Math.floor(hs / 24);
     const hsRestantes = hs % 24;
     const lang = typeof idiomaMemora === 'function' ? idiomaMemora() : 'es';
-
-    if (lang === 'en') {
-        const fmtHoras = n => `${n} ${n === 1 ? 'hr' : 'hrs'}`;
-        const fmtDias = n => `${n} ${n === 1 ? 'day' : 'days'}`;
-        if (hs < 24) return `⚠️ ${fmtHoras(hs)} overdue`;
-        if (hsRestantes === 0) return `⚠️ ${fmtDias(dias)} overdue`;
-        return `⚠️ ${fmtDias(dias)} and ${fmtHoras(hsRestantes)} overdue`;
-    }
-
-    if (lang === 'pt') {
-        const fmtHoras = n => `${n} h`;
-        const fmtDias = n => `${n} ${n === 1 ? 'dia' : 'dias'}`;
-        if (hs < 24) return `⚠️ ${fmtHoras(hs)} de atraso`;
-        if (hsRestantes === 0) return `⚠️ ${fmtDias(dias)} de atraso`;
-        return `⚠️ ${fmtDias(dias)} e ${fmtHoras(hsRestantes)} de atraso`;
-    }
-
-    const fmtHoras = n => `${n} ${n === 1 ? 'hora' : 'hs'}`;
-    const fmtDias = n => `${n} ${n === 1 ? 'día' : 'días'}`;
-    if (hs < 24) return `⚠️ ${fmtHoras(hs)} de atraso`;
-    if (hsRestantes === 0) return `⚠️ ${fmtDias(dias)} de atraso`;
-    return `⚠️ ${fmtDias(dias)} y ${fmtHoras(hsRestantes)} de atraso`;
+    if (minutos < 1) return '⚠️ ' + textoIdiomaMemora150('Revisión pendiente', 'Review pending', 'Revisão pendente');
+    const fmtHoras = n => `${n} ${lang === 'en' ? (n === 1 ? 'hour' : 'hours') : lang === 'pt' ? (n === 1 ? 'hora' : 'horas') : (n === 1 ? 'hora' : 'horas')}`;
+    const fmtDias = n => `${n} ${lang === 'en' ? (n === 1 ? 'day' : 'days') : lang === 'pt' ? (n === 1 ? 'dia' : 'dias') : (n === 1 ? 'día' : 'días')}`;
+    const plazo = hs < 1 ? `${minutos} min` : hs < 24 ? fmtHoras(hs) :
+        hsRestantes === 0 ? fmtDias(dias) : `${fmtDias(dias)} ${lang === 'en' ? 'and' : lang === 'pt' ? 'e' : 'y'} ${fmtHoras(hsRestantes)}`;
+    return '⚠️ ' + textoIdiomaMemora150(`Pendiente hace ${plazo}`, `Overdue by ${plazo}`, `Pendente há ${plazo}`);
 }
 
 function marcarComoRevisado(id, event = null) {
@@ -601,6 +541,7 @@ function marcarComoRevisado(id, event = null) {
     if (!r) return;
 
     r.ultimaRevision = ahoraMemora().toISOString();
+    if (esRevisionPeriodica152(r)) r.ultimaRevisionPeriodica = r.ultimaRevision;
     guardarLocal();
     sincronizarAutoNube(r);
     render();
@@ -621,7 +562,7 @@ function actualizarSeguimiento() {
     }
     
     let lista = registros.filter(r => {
-        let refFecha = new Date(obtenerUltimaRevisionEfectiva(r));
+        let refFecha = new Date(obtenerFechaSeguimiento152(r));
         let horasTranscurridas = (ahora - refFecha) / (1000 * 60 * 60);
         return horasTranscurridas >= obtenerLimiteSeguimientoMemora151(r) && r.estado !== "Cerrado" && r.estado !== "Perdido" && r.estado !== "Archivado";
     });
@@ -630,16 +571,16 @@ function actualizarSeguimiento() {
     if ($('contenedorSeguimiento')) {
         const esPC = window.innerWidth >= 800;
         $('contenedorSeguimiento').innerHTML = lista.map(r => {
-            let refFecha = new Date(obtenerUltimaRevisionEfectiva(r));
+            let refFecha = new Date(obtenerFechaSeguimiento152(r));
             let horasTranscurridas = (ahora - refFecha) / (1000 * 60 * 60);
-            let textoAtraso = formatearTiempoAtraso(horasTranscurridas);
+            let textoAtraso = formatearTiempoAtraso(horasTranscurridas - obtenerLimiteSeguimientoMemora151(r));
             
             let esUrgenciaCritica = horasTranscurridas >= (obtenerLimiteSeguimientoMemora151(r) * 2);
             let colorChipBg = esUrgenciaCritica ? '#FEE2E2' : '#FEF3C7';
             let colorChipText = esUrgenciaCritica ? '#991B1B' : '#92400E';
 
             let dCreacion = new Date(r.fecha);
-            let dRev = new Date(obtenerUltimaRevisionEfectiva(r));
+            let dRev = new Date(esRevisionPeriodica152(r) ? obtenerFechaSeguimiento152(r) : obtenerUltimaRevisionEfectiva(r));
             
             let fechaCreacionTexto = !isNaN(dCreacion.getTime()) 
                 ? `${String(dCreacion.getDate()).padStart(2, '0')}/${String(dCreacion.getMonth() + 1).padStart(2, '0')}/${dCreacion.getFullYear()} ${String(dCreacion.getHours()).padStart(2, '0')}:${String(dCreacion.getMinutes()).padStart(2, '0')}`
@@ -663,19 +604,21 @@ function actualizarSeguimiento() {
                     <div class="avatar avatar-blue">${avatarHTML}</div>
                     <div class="client-details">
                         <h4>${tituloHTML}</h4>
-                        <div class="client-sub">${r.canal} • ${r.contacto}</div>
+                        <div class="client-sub">${textoUsuarioHTML153(r.canal)} • ${textoUsuarioHTML153(r.contacto)}</div>
                     </div>
                 </div>
-                <div>${r.asunto ? `<span style="font-size:0.8rem; font-weight:600; color:var(--primary-blue);">${traducirCadenaMemora('Asunto:')} ${r.asunto}</span>` : '-'}</div>
+                <div>${r.asunto ? `<span style="font-size:0.8rem; font-weight:600; color:var(--primary-blue);">${traducirCadenaMemora('Asunto:')} ${textoUsuarioHTML153(r.asunto)}</span>` : '-'}</div>
                 ${ultimoComentarioSeguimiento ? `
                     <div style="margin-top:6px; background:#F8FAFC; border:1px solid #E5E7EB; border-radius:8px; padding:7px 8px;" onclick="event.stopPropagation()">
                         <div style="font-size:0.68rem; color:var(--text-secondary); font-weight:700; margin-bottom:2px;">${traducirCadenaMemora('Último comentario:')}</div>
-                        <div style="font-size:0.76rem; color:var(--text-primary); line-height:1.35; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden;">${ultimoComentarioSeguimiento}</div>
+                        <div style="font-size:0.76rem; color:var(--text-primary); line-height:1.35; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden;">${textoUsuarioHTML153(ultimoComentarioSeguimiento)}</div>
                         ${botonTraducirTextoMemora(ultimoComentarioSeguimiento)}
                     </div>` : ''}
-                <div class="tag-row" style="margin-top:4px; margin-bottom:4px;"><span class="tag ${obtenerClaseEstado(r.estado)}">${r.estado}</span>${chipPrioridadMemora151(r)}</div>
+                <div class="tag-row" style="margin-top:4px; margin-bottom:4px;"><span class="tag ${obtenerClaseEstado(r.estado)}">${escaparHTMLMemora151(r.estado)}</span>${chipPrioridadMemora151(r)}
+                    ${renderReglaSeguimiento153(r)}
+                </div>
                 <div style="margin-top: 4px; display:flex; justify-content:space-between; align-items:center;">
-                    <span style="display:inline-block; background:${colorChipBg}; color:${colorChipText}; font-size:0.72rem; font-weight:700; padding:2px 6px; border-radius:6px;">
+                    <span data-memora-localized style="display:inline-block; background:${colorChipBg}; color:${colorChipText}; font-size:0.72rem; font-weight:700; padding:2px 6px; border-radius:6px;">
                         ${textoAtraso}
                     </span>
                     <button class="btn-action-edit" style="background:#E0F2FE; color:#0284C7; font-size:0.72rem; padding:4px 8px;" onclick="marcarComoRevisado(${r.id}, event)">
@@ -688,8 +631,8 @@ function actualizarSeguimiento() {
                         <!-- Extra actions moved into Mis mensajes y resúmenes -->
                     </div>
                     <div class="time-ago" style="font-size:0.70rem; color:var(--text-secondary); text-align:right; line-height:1.2;">
-                        <span>Creado: <strong>${fechaCreacionTexto}</strong></span><br>
-                        <span>Última rev: <strong>${fechaRevisionTexto}</strong></span>
+                        <span>Creado: <strong>${escaparHTMLMemora151(fechaCreacionTexto)}</strong></span><br>
+                        <span>Última rev: <strong>${escaparHTMLMemora151(fechaRevisionTexto)}</strong></span>
                     </div>
                 </div>
             </div>`;
@@ -881,7 +824,7 @@ function navegarA(pantalla, customTitle = null) {
 }
 
 function comprobarEstadoAccesoEInicial() {
-    const perfilCompleto = localStorage.getItem('memora_profile_completed') === 'true';
+    const perfilCompleto = memoraStorage154.getItem('memora_profile_completed') === 'true';
     
     if (document.querySelector('.bottom-nav')) {
         document.querySelector('.bottom-nav').style.display = 'flex';
@@ -907,12 +850,12 @@ function procesarPerfilInicial() {
     }
 
     const datos = {
-        rolAdmin: 'Usuario Administrador', nombreAdmin: nombre,
+        rolAdmin: MODO_DEMO ? 'Usuario Demo' : 'Usuario Administrador', nombreAdmin: nombre,
         cedulaAdmin: cedula, empresaAdmin: empresa, whatsappAdmin: whatsapp
     };
 
-    localStorage.setItem('memora_admin_user_data', JSON.stringify(datos));
-    localStorage.setItem('memora_profile_completed', 'true');
+    memoraStorage154.setItem('memora_admin_user_data', JSON.stringify(datos));
+    memoraStorage154.setItem('memora_profile_completed', 'true');
     if ($('modalPerfilMemora')) $('modalPerfilMemora').style.display = 'none';
     iniciarStoriesBienvenida(nombre);
 }
@@ -957,6 +900,13 @@ function renderStoryStep(nombre) {
         }
     ];
 
+    if (MODO_DEMO) {
+        stories[5].text = textoModo154(
+            'La Demo permite hasta 15 registros, 3 descargas PDF y 3 Excel, 5 plantillas y 3 resúmenes. Incluye ejemplos ficticios y Google Drive está deshabilitado. Los límites y Restablecer Demo están en Perfil.',
+            'Demo allows up to 15 records, 3 PDF and 3 Excel downloads, 5 templates and 3 summaries. It includes fictional examples and Google Drive is disabled. Find the limits and Reset Demo in Profile.',
+            'A Demo permite até 15 registros, 3 downloads PDF e 3 Excel, 5 modelos e 3 resumos. Inclui exemplos fictícios e o Google Drive está desativado. Os limites e Restaurar Demo estão no Perfil.'
+        );
+    }
     const current = stories[currentStoryStep] || stories[0];
     if ($('storyContent')) {
         $('storyContent').innerHTML = `
@@ -977,7 +927,7 @@ function renderStoryStep(nombre) {
 }
 
 function siguienteStory() {
-    const datosRaw = localStorage.getItem('memora_admin_user_data');
+    const datosRaw = memoraStorage154.getItem('memora_admin_user_data');
     const datos = datosRaw ? JSON.parse(datosRaw) : { nombreAdmin: 'Usuario' };
 
     if (currentStoryStep < 5) {
@@ -1021,7 +971,7 @@ function obtenerAvatarEIdentidad(r) {
     let avatarInner = iconName ? `<span class="material-symbols-outlined">${iconName}</span>` : badgeText;
     let tituloTexto = (r.nombre && r.nombre.trim().length > 0) ? r.nombre : (r.contacto || r.identificador || 'Contacto Sin Nombre');
 
-    return { avatarHTML: avatarInner, tituloHTML: `<span style="color:var(--text-primary); font-weight:600;">${tituloTexto}</span>` };
+    return { avatarHTML: avatarInner, tituloHTML: `<span style="color:var(--text-primary); font-weight:600;">${textoUsuarioHTML153(tituloTexto)}</span>` };
 }
 
 function obtenerClaseEstado(estado) {
@@ -1049,12 +999,12 @@ function obtenerTextoIdentificador(r) {
 }
 
 function obtenerConfigVisibilidadCanales() {
-    return localStorage.getItem('memora_modo_canales') || 'todos';
+    return memoraStorage154.getItem('memora_modo_canales') || 'todos';
 }
 
 function guardarConfigVisibilidadCanales() {
     const val = $('cfgModoCanales')?.value || 'todos';
-    localStorage.setItem('memora_modo_canales', val);
+    memoraStorage154.setItem('memora_modo_canales', val);
     mostrarAvisoMemora("Preferencia de visibilidad de canales actualizada.", "Configuración", "tune");
     render();
 }
@@ -1075,7 +1025,7 @@ function construirBotonUnicoCanal(canal, contacto, nombreCliente = "", asuntoCon
             <svg style="width:14px; height:14px; fill:currentColor;" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg> IG</a>`;
     } else if (canal === 'LinkedIn') {
         let urlLK = contacto.startsWith('http') ? contacto : `https://www.linkedin.com/search/results/all/?keywords=${encodeURIComponent(contacto)}`;
-        return `<a href="${urlLK}" target="_blank" onclick="event.stopPropagation();" class="btn-action-channel" style="background-color:#0A66C2; color:white;">
+        return `<a href="${escaparHTMLMemora151(urlLK)}" target="_blank" onclick="event.stopPropagation();" class="btn-action-channel" style="background-color:#0A66C2; color:white;">
             <svg style="width:14px; height:14px; fill:currentColor;" viewBox="0 0 24 24"><path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.88 8.56a1.68 1.68 0 0 0 1.68-1.68c0-.93-.75-1.69-1.68-1.69a1.69 1.69 0 0 0-1.69 1.69c0 .93.76 1.68 1.69 1.68m1.39 9.94v-8.37H5.5v8.37h2.77z"/></svg> LK</a>`;
     } else if (canal === 'Facebook') {
         const userFB = contactoLimpio.replace('@', '');
@@ -1087,7 +1037,7 @@ function construirBotonUnicoCanal(canal, contacto, nombreCliente = "", asuntoCon
             <svg style="width:14px; height:14px; fill:currentColor;" viewBox="0 0 24 24"><path d="M12 0c-6.627 0-12 5.373-12 12s5.373 12 12 12 12-5.373 12-12-5.373-12-12-12zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.121l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.536-.197 1.006.129.832.941z"/></svg> TG</a>`;
     } else if (canal === 'Email') {
         const asuntoMail = encodeURIComponent(`Seguimiento: ${asuntoConsulta || 'Consulta MEMORA'}`);
-        return `<a href="mailto:${contacto}?subject=${asuntoMail}&body=${textoMensaje}" onclick="event.stopPropagation();" class="btn-action-channel btn-channel-mail">
+        return `<a href="${escaparHTMLMemora151(`mailto:${contacto}?subject=${asuntoMail}&body=${textoMensaje}`)}" onclick="event.stopPropagation();" class="btn-action-channel btn-channel-mail">
             <span class="material-symbols-outlined" style="font-size:0.9rem;">mail</span> Mail</a>`;
     }
     return '';
@@ -1152,16 +1102,16 @@ function tarjetaEstetica(r) {
             <div class="avatar avatar-blue">${avatarHTML}</div>
             <div class="client-details">
                 <h4>${tituloHTML}</h4>
-                <div class="client-sub">${r.canal} • ${r.contacto}<span class="memora151-identifier">${textoId}</span></div>
+                <div class="client-sub">${textoUsuarioHTML153(r.canal)} • ${textoUsuarioHTML153(r.contacto)}<span class="memora151-identifier">${textoUsuarioHTML153(textoId)}</span></div>
             </div>
         </div>
         
         <div>
-            ${r.asunto ? `<div style="font-size: 0.8rem; font-weight:600; color:var(--primary-blue);">${traducirCadenaMemora('Asunto:')} ${r.asunto}</div>` : ''}
-            ${ultimoComentario ? `<div style="font-size: 0.73rem; color:#4B5563; margin-top:3px; background:#F3F4F6; padding:4px 6px; border-radius:6px; display:-webkit-box; max-width:100%; white-space:normal; overflow:hidden; line-height:1.3; -webkit-box-orient:vertical; -webkit-line-clamp:2;">${textoIdiomaMemora150('Último comentario:','Latest comment:','Último comentário:')} ${ultimoComentario}</div>` : ''}
+            ${r.asunto ? `<div style="font-size: 0.8rem; font-weight:600; color:var(--primary-blue);">${traducirCadenaMemora('Asunto:')} ${textoUsuarioHTML153(r.asunto)}</div>` : ''}
+            ${ultimoComentario ? `<div style="font-size: 0.73rem; color:#4B5563; margin-top:3px; background:#F3F4F6; padding:4px 6px; border-radius:6px; display:-webkit-box; max-width:100%; white-space:normal; overflow:hidden; line-height:1.3; -webkit-box-orient:vertical; -webkit-line-clamp:2;">${textoIdiomaMemora150('Último comentario:','Latest comment:','Último comentário:')} ${textoUsuarioHTML153(ultimoComentario)}</div>` : ''}
         </div>
         
-        <div class="tag-row"><span class="tag ${obtenerClaseEstado(r.estado)}">${r.estado}</span>${chipPrioridadMemora151(r)}</div>
+        <div class="tag-row"><span class="tag ${obtenerClaseEstado(r.estado)}">${escaparHTMLMemora151(r.estado)}</span>${chipPrioridadMemora151(r)}</div>
         
         <div class="card-footer-row" style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:6px;">
             <div class="channel-action-area" style="display:flex; gap:6px; align-items:center;">
@@ -1169,8 +1119,8 @@ function tarjetaEstetica(r) {
                 <!-- Extra actions moved into Mis mensajes y resúmenes -->
             </div>
             <div class="time-ago" style="font-size:0.72rem; color:var(--text-secondary); text-align:right; line-height:1.2;">
-                <span>Creado: <strong>${fechaCreacionTexto}</strong></span><br>
-                <span>Última rev: <strong>${fechaRevisionTexto}</strong></span>
+                <span>Creado: <strong>${escaparHTMLMemora151(fechaCreacionTexto)}</strong></span><br>
+                <span>Última rev: <strong>${escaparHTMLMemora151(fechaRevisionTexto)}</strong></span>
             </div>
         </div>
     </div>`;
@@ -1194,7 +1144,10 @@ function render() {
 
     registrosUltimoFiltro = registros.filter(r => {
         let esArchiv = r.estado === 'Archivado';
-        if (mostrandoArchivados) { if (!esArchiv) return false; } else { if (esArchiv) return false; }
+        if (!coincideRendimiento152(r)) return false;
+        if (!filtroRendimiento152 || filtroRendimiento152.tipo === 'activos') {
+            if (mostrandoArchivados) { if (!esArchiv) return false; } else { if (esArchiv) return false; }
+        }
 
         let matchBusqueda = !busqueda || JSON.stringify(r).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(busqueda);
         let matchNombre = !nombre || (r.nombre || '').toLowerCase().includes(nombre);
@@ -1208,6 +1161,7 @@ function render() {
         return matchBusqueda && matchNombre && matchCanal && matchDato && matchAsunto && matchIdent && matchEstado && matchCom;
     });
     registrosUltimoFiltro = ordenarRegistrosMemora151(registrosUltimoFiltro);
+    actualizarFiltroRendimiento152();
 
     if ($('listaRegistros')) $('listaRegistros').innerHTML = registrosUltimoFiltro.map(tarjetaEstetica).join('') || '<p style="text-align:center; padding:20px; color:var(--text-secondary);">No se encontraron registros.</p>';
     if ($('totalRegistrosTexto')) $('totalRegistrosTexto').innerText = `${registrosUltimoFiltro.length} ${registrosUltimoFiltro.length===1?'registro':'registros'} ${mostrandoArchivados ? '(Archivados)' : ''}`;
@@ -1250,7 +1204,7 @@ function agregarCampoCanalExtraInicio(canalVal = '', contactoVal = '') {
                 <label style="font-size:0.75rem; font-weight:600; color:var(--text-secondary);">Contacto / Usuario</label>
                 <div class="whatsapp-phone-row whatsapp-phone-row-extra">
                     <select id="prefijoExtra_${idNum}" class="wa-prefix-select wa-prefix-extra" aria-label="Prefijo de WhatsApp"></select>
-                    <input type="text" id="contactoExtra_${idNum}" value="${contactoVal}" placeholder="Ej: @usuario / mail / url" style="width:100%; padding:8px; border-radius:6px; border:1px solid #ccc; font-size:0.85rem;">
+                    <input type="text" id="contactoExtra_${idNum}" value="${escaparHTMLMemora151(contactoVal)}" placeholder="Ej: @usuario / mail / url" style="width:100%; padding:8px; border-radius:6px; border:1px solid #ccc; font-size:0.85rem;">
                 </div>
             </div>
         </div>
@@ -1304,7 +1258,7 @@ function agregarCampoCanalExtraMovil(canalVal = '', contactoVal = '') {
                 <label style="font-size:0.75rem; font-weight:600; color:var(--text-secondary);">Contacto / Usuario</label>
                 <div class="whatsapp-phone-row whatsapp-phone-row-extra">
                     <select id="prefijoExtraMovil_${idNum}" class="wa-prefix-select wa-prefix-extra" aria-label="Prefijo de WhatsApp"></select>
-                    <input type="text" id="contactoExtraMovil_${idNum}" value="${contactoVal}" placeholder="Ej: @usuario / mail / url" style="width:100%; padding:8px; border-radius:6px; border:1px solid #ccc; font-size:0.85rem;">
+                    <input type="text" id="contactoExtraMovil_${idNum}" value="${escaparHTMLMemora151(contactoVal)}" placeholder="Ej: @usuario / mail / url" style="width:100%; padding:8px; border-radius:6px; border:1px solid #ccc; font-size:0.85rem;">
                 </div>
             </div>
         </div>
@@ -1567,7 +1521,7 @@ function renderComentariosTemporalesInicio() {
     cont.innerHTML = comentariosTemporalesInicio.map((c, i) => `
         <div class="card" style="padding:10px; margin-top:6px; font-size:0.8rem; background:#F9FAFB; border:1px solid #E5E7EB; border-radius:8px;">
             <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:0.7rem; color:var(--text-secondary);">
-                <span>${traducirCadenaMemora('Comentario del')} ${c.fecha} ${c.editado ? `<strong style="color:#D97706;">(${traducirCadenaMemora('Editado el')} ${c.editado})</strong>` : ''}</span>
+                <span>${traducirCadenaMemora('Comentario del')} ${escaparHTMLMemora151(c.fecha)} ${c.editado ? `<strong style="color:#D97706;">(${traducirCadenaMemora('Editado el')} ${escaparHTMLMemora151(c.editado)})</strong>` : ''}</span>
                 ${!c.eliminado ? `
                 <div>
                     <a href="#" onclick="editarComentarioTemporalInicio(${i}); return false;" style="color:var(--primary-blue); font-weight:600; margin-right:8px; text-decoration:none;">${traducirCadenaMemora('Editar')}</a>
@@ -1575,7 +1529,7 @@ function renderComentariosTemporalesInicio() {
                 </div>` : ''}
             </div>
             <div style="font-weight:500; ${c.eliminado ? 'color:var(--text-secondary); font-style:italic;' : ''}">
-                ${c.texto}
+                ${textoUsuarioHTML153(c.texto)}
             </div>
         </div>
     `).join('');
@@ -1707,21 +1661,21 @@ function evaluarCambiosEnRegistro(original, nuevo) {
         canal2: original.canal2 || '', contacto2: original.contacto2 || '', canal3: original.canal3 || '', contacto3: original.contacto3 || '',
         asunto: original.asunto || '', tipoIdentificador: original.tipoIdentificador || 'Ninguno', identificador: original.identificador || '',
         estado: original.estado || '', comentarios: original.comentarios || [],
-        prioridad: original.prioridad || 'Normal', seguimientoPropio: original.seguimientoPropio || null
+        prioridad: original.prioridad || 'Normal', seguimientoPropio: normalizarReglaComparacion152(original.seguimientoPropio)
     });
     const jsonNuevo = JSON.stringify({
         nombre: nuevo.nombre || '', canal: nuevo.canal || '', contacto: nuevo.contacto || '',
         canal2: nuevo.canal2 || '', contacto2: nuevo.contacto2 || '', canal3: nuevo.canal3 || '', contacto3: nuevo.contacto3 || '',
         asunto: nuevo.asunto || '', tipoIdentificador: nuevo.tipoIdentificador || 'Ninguno', identificador: nuevo.identificador || '',
         estado: nuevo.estado || '', comentarios: nuevo.comentarios || [],
-        prioridad: nuevo.prioridad || 'Normal', seguimientoPropio: nuevo.seguimientoPropio || null
+        prioridad: nuevo.prioridad || 'Normal', seguimientoPropio: normalizarReglaComparacion152(nuevo.seguimientoPropio)
     });
     return jsonOrig !== jsonNuevo;
 }
 
 function guardarDesdeInicio() {
     // 🛑 FRENO DE MANO PARA VERSIÓN DEMO
-    if (!validarCupoDemo()) return;
+    if (!validarCupoDemo(true)) return;
 
     if (!validarFormularioAntesDeGuardar('Inicio')) return;
 
@@ -1755,6 +1709,7 @@ function guardarDesdeInicio() {
     let valIdCapturado = $('valorIdInicio')?.value.trim() || '';
 
     let rProvisorio = {
+        ...(registroOriginal || {}),
         id: editando || Date.now(),
         nombre: $('nombreInicio')?.value.trim() || '',
         canal: $('canalInicio')?.value || 'WhatsApp',
@@ -1776,6 +1731,7 @@ function guardarDesdeInicio() {
         ultimaRevision: registroOriginal ? obtenerUltimaRevisionEfectiva(registroOriginal) : ahoraMemora().toISOString()
     };
 
+    prepararFechasSeguimiento152(registroOriginal, rProvisorio);
     if (editando && registroOriginal) {
         const hubocambios = evaluarCambiosEnRegistro(registroOriginal, rProvisorio);
         if (!hubocambios) {
@@ -1786,7 +1742,7 @@ function guardarDesdeInicio() {
         }
         const ahoraISO = ahoraMemora().toISOString();
         rProvisorio.ultimaModificacion = ahoraISO;
-        rProvisorio.ultimaRevision = ahoraISO;
+        if (!esRevisionPeriodica152(rProvisorio)) rProvisorio.ultimaRevision = ahoraISO;
         registros = registros.map(x => x.id === editando ? rProvisorio : x);
     } else {
         registros.unshift(rProvisorio);
@@ -1881,14 +1837,14 @@ function renderListaComentariosEdicion() {
     container.innerHTML = comentariosEdicionActual.map((c, i) => `
         <div class="card" style="padding:10px; margin-top:6px; font-size:0.8rem; background:#F9FAFB; border:1px solid #E5E7EB; border-radius:8px;">
             <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:0.7rem; color:var(--text-secondary);">
-                <span>${traducirCadenaMemora('Comentario del')} ${c.fecha} ${c.editado ? `<strong style="color:#D97706;">(${traducirCadenaMemora('Editado el')} ${c.editado})</strong>` : ''}</span>
+                <span>${traducirCadenaMemora('Comentario del')} ${escaparHTMLMemora151(c.fecha)} ${c.editado ? `<strong style="color:#D97706;">(${traducirCadenaMemora('Editado el')} ${escaparHTMLMemora151(c.editado)})</strong>` : ''}</span>
                 ${!c.eliminado ? `
                 <div>
                     <a href="#" onclick="editarComentarioTexto(${i}); return false;" style="color:var(--primary-blue); margin-right:8px; text-decoration:none;">${traducirCadenaMemora('Editar')}</a>
                     <a href="#" onclick="borrarComentarioTexto(${i}); return false;" style="color:#DC2626; text-decoration:none;">${traducirCadenaMemora('Eliminar')}</a>
                 </div>` : ''}
             </div>
-            <div style="font-weight:500; ${c.eliminado ? 'color:var(--text-secondary); font-style:italic;' : ''}">${c.texto}</div>
+            <div style="font-weight:500; ${c.eliminado ? 'color:var(--text-secondary); font-style:italic;' : ''}">${textoUsuarioHTML153(c.texto)}</div>
         </div>
     `).join('');
 }
@@ -1930,7 +1886,7 @@ function prepararNuevoRegistro() {
 
 function guardar() {
     // 🛑 FRENO DE MANO PARA VERSIÓN DEMO
-    if (!validarCupoDemo()) return;
+    if (!validarCupoDemo(true)) return;
 
     if (!validarFormularioAntesDeGuardar('')) return;
 
@@ -1964,6 +1920,7 @@ function guardar() {
     let valIdCapturado = $('valorId')?.value.trim() || '';
 
     let rProvisorio = {
+        ...(registroOriginal || {}),
         id: editando || Date.now(),
         nombre: $('nombre')?.value ? $('nombre').value.trim() : '',
         canal: $('canal')?.value || 'WhatsApp',
@@ -1985,6 +1942,7 @@ function guardar() {
         ultimaRevision: registroOriginal ? obtenerUltimaRevisionEfectiva(registroOriginal) : ahoraMemora().toISOString()
     };
 
+    prepararFechasSeguimiento152(registroOriginal, rProvisorio);
     if (editando && registroOriginal) {
         const hubocambios = evaluarCambiosEnRegistro(registroOriginal, rProvisorio);
         if (!hubocambios) {
@@ -1995,7 +1953,7 @@ function guardar() {
         }
         const ahoraISO = ahoraMemora().toISOString();
         rProvisorio.ultimaModificacion = ahoraISO;
-        rProvisorio.ultimaRevision = ahoraISO;
+        if (!esRevisionPeriodica152(rProvisorio)) rProvisorio.ultimaRevision = ahoraISO;
         registros = registros.map(x => x.id === editando ? rProvisorio : x);
     } else {
         registros.unshift(rProvisorio);
@@ -2124,15 +2082,15 @@ function abrirFicha(id) {
         <div class="card" style="padding: 20px 16px;">
             <div style="display: flex; align-items: center; gap: 16px;">
                 <div class="avatar avatar-blue" style="width: 56px; height: 56px; font-size: 1.1rem;">${avatarHTML}</div>
-                <div>
+                <div style="min-width:0;">
                     <h3 style="font-size: 1.1rem;">${tituloHTML}</h3>
-                    <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px;">${r.canal} • ${r.contacto}</p>
-                    ${r.canal2 && r.contacto2 ? `<p style="font-size: 0.75rem; color: var(--text-secondary);">${r.canal2} • ${r.contacto2}</p>` : ''}
-                    ${r.canal3 && r.contacto3 ? `<p style="font-size: 0.75rem; color: var(--text-secondary);">${r.canal3} • ${r.contacto3}</p>` : ''}
-                    ${r.asunto ? `<p style="font-size: 0.8rem; font-weight:600; color:var(--primary-blue); margin-top:2px;">${traducirCadenaMemora('Asunto:')} ${r.asunto}</p>` : ''}
-                    ${r.identificador ? `<p style="font-size: 0.75rem; color: var(--text-secondary);">${obtenerTextoIdentificador(r)}</p>` : ''}
-                    <div style="margin-top: 6px;"><span class="tag ${obtenerClaseEstado(r.estado)}">${r.estado}</span>${chipPrioridadMemora151(r)}</div>
-                    ${r.seguimientoPropio?.valor > 0 ? `<p class="memora151-hint">${textoMemora151('Seguimiento personalizado','Custom follow-up','Acompanhamento personalizado')}: ${r.seguimientoPropio.valor} ${r.seguimientoPropio.unidad==='horas' ? textoMemora151('hora(s)','hour(s)','hora(s)') : textoMemora151('día(s)','day(s)','dia(s)')}</p>` : ''}
+                    <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px;">${textoUsuarioHTML153(r.canal)} • ${textoUsuarioHTML153(r.contacto)}</p>
+                    ${r.canal2 && r.contacto2 ? `<p style="font-size: 0.75rem; color: var(--text-secondary);">${textoUsuarioHTML153(r.canal2)} • ${textoUsuarioHTML153(r.contacto2)}</p>` : ''}
+                    ${r.canal3 && r.contacto3 ? `<p style="font-size: 0.75rem; color: var(--text-secondary);">${textoUsuarioHTML153(r.canal3)} • ${textoUsuarioHTML153(r.contacto3)}</p>` : ''}
+                    ${r.asunto ? `<p style="font-size: 0.8rem; font-weight:600; color:var(--primary-blue); margin-top:2px;">${traducirCadenaMemora('Asunto:')} ${textoUsuarioHTML153(r.asunto)}</p>` : ''}
+                    ${r.identificador ? `<p style="font-size: 0.75rem; color: var(--text-secondary);">${textoUsuarioHTML153(obtenerTextoIdentificador(r))}</p>` : ''}
+                    <div style="margin-top: 6px;"><span class="tag ${obtenerClaseEstado(r.estado)}">${escaparHTMLMemora151(r.estado)}</span>${chipPrioridadMemora151(r)}</div>
+                    ${r.seguimientoPropio?.valor > 0 ? `<p class="memora151-hint" data-memora-localized>${escaparHTMLMemora151(describirSeguimiento152(r))}</p>` : ''}
                 </div>
             </div>
         </div>
@@ -2144,8 +2102,8 @@ function abrirFicha(id) {
         </div>
         
         <div class="section-header"><h3>${traducirCadenaMemora('Comentarios')}</h3></div>
-        ${ultimoComentario ? `<div class="card" style="padding: 14px; margin-bottom: 12px; border-left: 4px solid var(--primary-blue);"><p style="font-size:0.9rem;">${ultimoComentario.texto}</p>${botonTraducirTextoMemora(ultimoComentario.texto)}</div>` : `<p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom: 16px;">${traducirCadenaMemora('Sin comentarios.')}</p>`}
-        ${historialComentarios.length > 0 ? historialComentarios.map(c => `<div class="card" style="padding:10px; margin-bottom:8px; background:#FAFAFA;"><p style="font-size:0.85rem;">${c.texto}</p>${botonTraducirTextoMemora(c.texto)}</div>`).join('') : ''}
+        ${ultimoComentario ? `<div class="card" style="padding: 14px; margin-bottom: 12px; border-left: 4px solid var(--primary-blue);"><p style="font-size:0.9rem;">${textoUsuarioHTML153(ultimoComentario.texto)}</p>${botonTraducirTextoMemora(ultimoComentario.texto)}</div>` : `<p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom: 16px;">${traducirCadenaMemora('Sin comentarios.')}</p>`}
+        ${historialComentarios.length > 0 ? historialComentarios.map(c => `<div class="card" style="padding:10px; margin-bottom:8px; background:#FAFAFA;"><p style="font-size:0.85rem;">${textoUsuarioHTML153(c.texto)}</p>${botonTraducirTextoMemora(c.texto)}</div>`).join('') : ''}
     `;
 
     $('contenidoFicha').innerHTML = html;
@@ -2158,7 +2116,7 @@ function abrirFicha(id) {
 function botonTraducirTextoMemora(texto) {
     const valor = String(texto || '').trim();
     if (!valor) return '';
-    const codificado = encodeURIComponent(valor);
+    const codificado = encodeURIComponent(valor).replace(/'/g, '%27');
     return `<button type="button" onclick="abrirTraduccionTextoMemora('${codificado}', event)" style="margin-top:6px; background:transparent; border:none; color:var(--primary-blue); font-size:0.72rem; font-weight:700; padding:2px 0; cursor:pointer; display:inline-flex; align-items:center; gap:4px;"><span class="material-symbols-outlined" style="font-size:0.95rem;">translate</span>${traducirCadenaMemora('Traducir texto')}</button>`;
 }
 
@@ -2204,6 +2162,7 @@ function toggleAyudaMemora() {
    ========================================================================== */
 
 function obtenerEtiquetaFiltroExportacion() {
+    if (filtroRendimiento152) return [etiquetaRendimiento152(), $('filtroEstado')?.value].filter(Boolean).join(' · ');
     let estadoFiltro = $('filtroEstado')?.value || $('screenTitle')?.innerText || 'Todos';
     if (!estadoFiltro || estadoFiltro === 'Inicio' || estadoFiltro === 'Perfil') return 'Todos';
     return estadoFiltro;
@@ -2947,6 +2906,8 @@ function exportarJSON() {
 }
 
 function descargarBlob(blob, nombre) {
+    const tipoDemo = /\.xlsx$/i.test(nombre) ? 'xlsx' : /\.pdf$/i.test(nombre) ? 'pdf' : null;
+    if (tipoDemo && !validarExportacionDemo154(tipoDemo)) return;
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -2954,6 +2915,7 @@ function descargarBlob(blob, nombre) {
     a.style.display = 'none';
     document.body.appendChild(a);
     a.click();
+    if (tipoDemo) { Memora154.increment(tipoDemo); actualizarModoMemora154(); }
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 1500);
 }
@@ -2976,30 +2938,30 @@ async function cargarDiagnosticoSistema() {
     else if (ua.includes("Firefox")) nav = "Mozilla Firefox";
     else if (ua.includes("Safari") && !ua.includes("Chrome")) nav = "Apple Safari";
 
-    const storageBytes = new Blob([localStorage.getItem('memora_registros') || '']).size;
+    const storageBytes = new Blob([memoraStorage154.getItem('memora_registros') || '']).size;
 
     if ($('sys-version')) $('sys-version').innerText = `v${MEMORA_VERSION}`;
     if ($('sys-device')) $('sys-device').innerText = dev;
     if ($('sys-browser')) $('sys-browser').innerText = nav;
     if ($('sys-storage')) $('sys-storage').innerText = `${(storageBytes / 1024).toFixed(2)} KB`;
 
-    if ($('chkAutoArchivar')) $('chkAutoArchivar').checked = localStorage.getItem('memora_auto_archivar') === 'true';
-    if ($('chkAutoNube')) $('chkAutoNube').checked = localStorage.getItem('memora_auto_nube') === 'true';
-    if ($('cloudStatusText')) $('cloudStatusText').innerText = traducirCadenaMemora(localStorage.getItem('memora_nube_conectado') === 'true' ? 'Conectado a Google Drive' : 'Sin vincular');
+    if ($('chkAutoArchivar')) $('chkAutoArchivar').checked = memoraStorage154.getItem('memora_auto_archivar') === 'true';
+    if ($('chkAutoNube')) $('chkAutoNube').checked = memoraStorage154.getItem('memora_auto_nube') === 'true';
+    if ($('cloudStatusText')) $('cloudStatusText').innerText = traducirCadenaMemora(memoraStorage154.getItem('memora_nube_conectado') === 'true' ? 'Conectado a Google Drive' : 'Sin vincular');
 }
 
 function cargarDatosUsuarioPerfil() {
-    const datosRaw = localStorage.getItem('memora_admin_user_data');
+    const datosRaw = memoraStorage154.getItem('memora_admin_user_data');
     const datos = datosRaw ? JSON.parse(datosRaw) : { rolAdmin: 'Usuario Administrador', nombreAdmin: '', cedulaAdmin: '', empresaAdmin: '', whatsappAdmin: '' };
 
     actualizarSaludoDinamico();
     if ($('perfilRolAdmin')) $('perfilRolAdmin').innerText = datos.rolAdmin || 'Usuario Administrador';
 
     let htmlLista = '';
-    if (datos.nombreAdmin) htmlLista += `<div class="perfil-campo-linea"><span class="perfil-label">${traducirCadenaMemora('Nombre:')}</span> <span class="perfil-valor">${datos.nombreAdmin}</span></div>`;
-    if (datos.cedulaAdmin) htmlLista += `<div class="perfil-campo-linea"><span class="perfil-label">${traducirCadenaMemora('Documento / C.I.:')}</span> <span class="perfil-valor">${datos.cedulaAdmin}</span></div>`;
-    if (datos.empresaAdmin) htmlLista += `<div class="perfil-campo-linea"><span class="perfil-label">${traducirCadenaMemora('Empresa:')}</span> <span class="perfil-valor">${datos.empresaAdmin}</span></div>`;
-    if (datos.whatsappAdmin) htmlLista += `<div class="perfil-campo-linea"><span class="perfil-label">${traducirCadenaMemora('Contacto / WA:')}</span> <span class="perfil-valor">${datos.whatsappAdmin}</span></div>`;
+    if (datos.nombreAdmin) htmlLista += `<div class="perfil-campo-linea"><span class="perfil-label">${traducirCadenaMemora('Nombre:')}</span> <span class="perfil-valor">${textoUsuarioHTML153(datos.nombreAdmin)}</span></div>`;
+    if (datos.cedulaAdmin) htmlLista += `<div class="perfil-campo-linea"><span class="perfil-label">${traducirCadenaMemora('Documento / C.I.:')}</span> <span class="perfil-valor">${textoUsuarioHTML153(datos.cedulaAdmin)}</span></div>`;
+    if (datos.empresaAdmin) htmlLista += `<div class="perfil-campo-linea"><span class="perfil-label">${traducirCadenaMemora('Empresa:')}</span> <span class="perfil-valor">${textoUsuarioHTML153(datos.empresaAdmin)}</span></div>`;
+    if (datos.whatsappAdmin) htmlLista += `<div class="perfil-campo-linea"><span class="perfil-label">${traducirCadenaMemora('Contacto / WA:')}</span> <span class="perfil-valor">${textoUsuarioHTML153(datos.whatsappAdmin)}</span></div>`;
 
     if ($('perfilDatosLista')) $('perfilDatosLista').innerHTML = htmlLista || `<p style="font-size:0.8rem; color:var(--text-secondary);">${traducirCadenaMemora('Sin datos adicionales cargados.')}</p>`;
 
@@ -3015,6 +2977,7 @@ function cargarDatosUsuarioPerfil() {
 
     if ($('cfgModoCanales')) $('cfgModoCanales').value = obtenerConfigVisibilidadCanales();
     actualizarControlTemaMemora();
+    actualizarModoMemora154();
 }
 
 function toggleModalConfigUser() {
@@ -3024,7 +2987,7 @@ function toggleModalConfigUser() {
 
 function guardarDatosUsuarioAdmin() {
     const datos = {
-        rolAdmin: $('cfgAdminRol')?.value.trim() || 'Usuario Administrador',
+        rolAdmin: MODO_DEMO ? 'Usuario Demo' : ($('cfgAdminRol')?.value.trim() || 'Usuario Administrador'),
         nombreAdmin: $('cfgAdminNombre')?.value.trim() || '',
         cedulaAdmin: $('cfgAdminCedula')?.value.trim() || '',
         empresaAdmin: $('cfgAdminEmpresa')?.value.trim() || '',
@@ -3036,7 +2999,7 @@ function guardarDatosUsuarioAdmin() {
         return;
     }
 
-    localStorage.setItem('memora_admin_user_data', JSON.stringify(datos));
+    memoraStorage154.setItem('memora_admin_user_data', JSON.stringify(datos));
     toggleModalConfigUser();
     cargarDatosUsuarioPerfil();
     mostrarAvisoMemora("Datos de perfil guardados.", "Configuración", "check_circle");
@@ -3076,12 +3039,13 @@ function archivarCliente(id) {
 }
 
 function alternarVistaArchivados() {
+    filtroRendimiento152 = null;
     mostrandoArchivados = !mostrandoArchivados;
     if ($('filtroEstado')) $('filtroEstado').value = '';
     render();
 }
 
-function guardarLocal() { localStorage.setItem('memora_registros', JSON.stringify(registros)); }
+function guardarLocal() { memoraStorage154.setItem('memora_registros', JSON.stringify(registros)); }
 
 function limpiar() {
     // Un registro nuevo nunca debe heredar el estado protegido de una edición anterior.
@@ -3148,36 +3112,66 @@ function actualizarKPIs() {
     if ($('kpi-archivado')) $('kpi-archivado').innerText = registros.filter(r => r.estado === 'Archivado').length;
 }
 
+function esActivoRendimiento152(r) {
+    // Conserva exactamente la definición del indicador de la base 1.5.1.
+    return r.estado !== 'Archivado' && r.estado !== 'Perdido';
+}
+function esRegistroMesActual152(r, ahora = ahoraMemora()) {
+    const d = new Date(r.fecha);
+    return d.getMonth() === ahora.getMonth() && d.getFullYear() === ahora.getFullYear();
+}
+function obtenerRendimiento152() {
+    const conteo = new Map();
+    registros.forEach(r => [r.canal,r.canal2,r.canal3].filter(Boolean).forEach(c => conteo.set(c,(conteo.get(c)||0)+1)));
+    let topCanal = '', max = 0;
+    for (const [c,n] of conteo) if (n > max) { topCanal = c; max = n; }
+    return {activos:registros.filter(esActivoRendimiento152).length,mes:registros.filter(r=>esRegistroMesActual152(r)).length,topCanal};
+}
 function actualizarMetricsInicio() {
-    const activos = registros.filter(r => r.estado !== 'Archivado' && r.estado !== 'Perdido').length;
-    const ahora = ahoraMemora();
-    const creadosMes = registros.filter(r => {
-        const d = new Date(r.fecha);
-        return d.getMonth() === ahora.getMonth() && d.getFullYear() === ahora.getFullYear();
-    }).length;
-
-    let conteoCanales = {};
-    registros.forEach(r => {
-        if (r.canal) conteoCanales[r.canal] = (conteoCanales[r.canal] || 0) + 1;
-        if (r.canal2) conteoCanales[r.canal2] = (conteoCanales[r.canal2] || 0) + 1;
-        if (r.canal3) conteoCanales[r.canal3] = (conteoCanales[r.canal3] || 0) + 1;
-    });
-
-    let topCanal = '-';
-    let max = 0;
-    for (let c in conteoCanales) {
-        if (conteoCanales[c] > max) {
-            max = conteoCanales[c];
-            topCanal = c;
-        }
-    }
-
-    if ($('dash-activos')) $('dash-activos').innerText = activos;
-    if ($('dash-mes')) $('dash-mes').innerText = creadosMes;
-    if ($('dash-canal')) $('dash-canal').innerText = topCanal;
+    const datos = obtenerRendimiento152();
+    if ($('dash-activos')) $('dash-activos').innerText = datos.activos;
+    if ($('dash-mes')) $('dash-mes').innerText = datos.mes;
+    if ($('dash-canal')) $('dash-canal').innerText = datos.topCanal || '-';
+    if ($('dash-canal-btn')) $('dash-canal-btn').disabled = !datos.topCanal;
+}
+function limpiarFiltrosListado152() {
+    ['busquedaRapida','filtroNombre','filtroCanal','filtroDato','filtroAsunto','filtroId','filtroEstado','filtroComentario'].forEach(id => {if ($(id)) $(id).value = '';});
+}
+function abrirRendimiento152(tipo) {
+    if (!['activos','mes','canal'].includes(tipo)) return;
+    const canal = tipo === 'canal' ? obtenerRendimiento152().topCanal : '';
+    if (tipo === 'canal' && !canal) return;
+    limpiarFiltrosListado152();
+    mostrandoArchivados = false;
+    filtroRendimiento152 = {tipo,canal};
+    navegarA('registros');
+}
+function coincideRendimiento152(r) {
+    if (!filtroRendimiento152) return true;
+    if (filtroRendimiento152.tipo === 'activos') return esActivoRendimiento152(r);
+    if (filtroRendimiento152.tipo === 'mes') return esRegistroMesActual152(r);
+    return [r.canal,r.canal2,r.canal3].includes(filtroRendimiento152.canal);
+}
+function etiquetaRendimiento152() {
+    if (!filtroRendimiento152) return '';
+    if (filtroRendimiento152.tipo === 'activos') return textoMemora151('Activos','Active','Ativos');
+    if (filtroRendimiento152.tipo === 'mes') return textoMemora151('Este mes','This month','Este mês');
+    return `${textoMemora151('Canal','Channel','Canal')}: ${filtroRendimiento152.canal}`;
+}
+function actualizarFiltroRendimiento152() {
+    if ($('filtroRendimiento152')) $('filtroRendimiento152').hidden = !filtroRendimiento152;
+    if ($('filtroRendimientoTexto152')) $('filtroRendimientoTexto152').textContent = etiquetaRendimiento152();
+    if ($('limpiarRendimiento152')) $('limpiarRendimiento152').textContent = textoMemora151('Volver al listado normal','Back to the full list','Voltar à lista normal');
+}
+function quitarRendimiento152() {
+    filtroRendimiento152 = null;
+    mostrandoArchivados = false;
+    limpiarFiltrosListado152();
+    render();
 }
 
 function filtrarPorEstadoKPI(est) {
+    filtroRendimiento152 = null;
     mostrandoArchivados = (est === 'Archivado');
     if ($('filtroEstado')) $('filtroEstado').value = est === 'Archivado' ? '' : est;
     navegarA('registros', est);
@@ -3190,12 +3184,12 @@ function toggleFiltroAvanzado() {
 
 function guardarConfigAutoArchivar() {
     const valor = $('chkAutoArchivar')?.checked ?? false;
-    localStorage.setItem('memora_auto_archivar', valor);
+    memoraStorage154.setItem('memora_auto_archivar', valor);
     render();
 }
 
 function procesarAutoArchivado() {
-    const autoActivo = localStorage.getItem('memora_auto_archivar') === 'true';
+    const autoActivo = memoraStorage154.getItem('memora_auto_archivar') === 'true';
     if (!autoActivo) return;
 
     const ahora = ahoraMemora();
@@ -3217,24 +3211,12 @@ function procesarAutoArchivado() {
     if (modificado) guardarLocal();
 }
 
-function forzarLimpiezaCachePWA() {
+async function forzarLimpiezaCachePWA() {
     if ('serviceWorker' in navigator) {
-        // 1. Unregister todos los Service Workers activos
-        navigator.serviceWorker.getRegistrations().then(registrations => {
-            for (let registration of registrations) {
-                registration.unregister();
-            }
-        });
+        const registration = await navigator.serviceWorker.getRegistration();
+        if (registration) await registration.unregister();
     }
-
-    if ('caches' in window) {
-        // 2. Borrar todas las llaves de caché guardadas por la PWA
-        caches.keys().then(names => {
-            for (let name of names) {
-                caches.delete(name);
-            }
-        });
-    }
+    await limpiarCacheActualMemora154();
 
     // 3. Notificar y recargar la aplicación desde el servidor (no la caché)
     mostrarAvisoMemora(
@@ -3392,7 +3374,7 @@ function toggleGuiaUsoMemora() {
 }
 
 function reproducirTourBienvenida() {
-    const datosRaw = localStorage.getItem('memora_admin_user_data');
+    const datosRaw = memoraStorage154.getItem('memora_admin_user_data');
     const datos = datosRaw ? JSON.parse(datosRaw) : { nombreAdmin: 'Usuario' };
     iniciarStoriesBienvenida(datos.nombreAdmin);
 }
@@ -3424,7 +3406,7 @@ function detectarIdiomaSistemaMemora() {
 }
 
 let preferenciaIdiomaMemora = (() => {
-    const guardado = localStorage.getItem(MEMORA_IDIOMA_KEY);
+    const guardado = memoraStorage154.getItem(MEMORA_IDIOMA_KEY);
     return MEMORA_IDIOMAS_SELECCIONABLES.includes(guardado) ? guardado : 'auto';
 })();
 
@@ -3747,7 +3729,7 @@ function esTextoInterfazSeguroMemora(parent) {
 function procesarNodoTextoIdiomaMemora(nodo) {
     if (!nodo || nodo.nodeType !== Node.TEXT_NODE) return;
     const parent = nodo.parentElement;
-    if (!parent || ['SCRIPT', 'STYLE', 'NOSCRIPT'].includes(parent.tagName)) return;
+    if (!parent || ['SCRIPT', 'STYLE', 'NOSCRIPT'].includes(parent.tagName) || parent.closest('[data-memora-user-data], [data-memora-localized]')) return;
 
     // Las zonas con datos del usuario se protegen. Solo se permite traducir
     // controles o etiquetas marcadas explícitamente como interfaz.
@@ -3782,7 +3764,7 @@ function procesarNodoTextoIdiomaMemora(nodo) {
 }
 
 function procesarAtributosIdiomaMemora(el) {
-    if (!el || el.nodeType !== Node.ELEMENT_NODE) return;
+    if (!el || el.nodeType !== Node.ELEMENT_NODE || el.closest('[data-memora-user-data], [data-memora-localized]')) return;
 
     let estados = MEMORA_ATRIBUTOS_ORIGINALES.get(el);
     if (!estados) {
@@ -3904,7 +3886,7 @@ function actualizarManualIdiomaMemora() {
     if (!link) return;
 
     const lang = idiomaMemora().toUpperCase();
-    const archivo = `Manual_Memora_v1.5.1_${lang}.pdf`;
+    const archivo = `Manual_Memora_v1.5.2_${lang}.pdf`;
     link.href = `./docs/${archivo}`;
     link.setAttribute('download', archivo);
 }
@@ -3915,7 +3897,7 @@ function aplicarIdiomaMemora() {
     if ($('cfgIdiomaMemora')) $('cfgIdiomaMemora').value = preferenciaIdiomaMemora;
     if ($('labelComentariosMovil')) $('labelComentariosMovil').innerText = traducirCadenaMemora('Comentarios');
     if ($('formTitulo')) $('formTitulo').innerText = traducirCadenaMemora(editando ? 'Editar Registro' : 'Nuevo Registro');
-    if ($('cloudStatusText')) $('cloudStatusText').innerText = traducirCadenaMemora(localStorage.getItem('memora_nube_conectado') === 'true' ? 'Conectado a Google Drive' : 'Sin vincular');
+    if ($('cloudStatusText')) $('cloudStatusText').innerText = traducirCadenaMemora(memoraStorage154.getItem('memora_nube_conectado') === 'true' ? 'Conectado a Google Drive' : 'Sin vincular');
     procesarArbolIdiomaMemora(document.body);
     if (typeof actualizarIdiomaBiblioteca151 === 'function') actualizarIdiomaBiblioteca151();
     if (typeof actualizarResumenSeguimiento151 === 'function') {
@@ -3923,6 +3905,7 @@ function aplicarIdiomaMemora() {
         actualizarResumenSeguimiento151('Inicio');
     }
     actualizarManualIdiomaMemora();
+    actualizarModoMemora154();
     actualizarSaludoDinamico();
     if (typeof actualizarSeguimiento === 'function') actualizarSeguimiento();
 }
@@ -3930,7 +3913,7 @@ function aplicarIdiomaMemora() {
 function guardarIdiomaMemora() {
     const nuevo = $('cfgIdiomaMemora')?.value || 'auto';
     preferenciaIdiomaMemora = MEMORA_IDIOMAS_SELECCIONABLES.includes(nuevo) ? nuevo : 'auto';
-    localStorage.setItem(MEMORA_IDIOMA_KEY, preferenciaIdiomaMemora);
+    memoraStorage154.setItem(MEMORA_IDIOMA_KEY, preferenciaIdiomaMemora);
     idiomaMemoraActual = preferenciaIdiomaMemora === 'auto'
         ? detectarIdiomaSistemaMemora()
         : preferenciaIdiomaMemora;
@@ -3984,7 +3967,7 @@ function obtenerSaludoTraducidoMemora(d = ahoraMemora()) {
 const _actualizarSaludoDinamicoV143 = actualizarSaludoDinamico;
 actualizarSaludoDinamico = function(d = ahoraMemora()) {
     if (idiomaMemora() === 'es') return _actualizarSaludoDinamicoV143(d);
-    const datosRaw = localStorage.getItem('memora_admin_user_data');
+    const datosRaw = memoraStorage154.getItem('memora_admin_user_data');
     const datos = datosRaw ? JSON.parse(datosRaw) : { nombreAdmin: '' };
     const primerNombre = datos.nombreAdmin ? datos.nombreAdmin.trim().split(/\s+/)[0] : (idiomaMemora() === 'en' ? 'User' : 'Usuário');
     if ($('saludo')) $('saludo').innerText = `${obtenerSaludoTraducidoMemora(d)}, ${primerNombre}`;
@@ -3993,16 +3976,11 @@ actualizarSaludoDinamico = function(d = ahoraMemora()) {
 const _actualizarSeguimientoV143 = actualizarSeguimiento;
 actualizarSeguimiento = function() {
     _actualizarSeguimientoV143();
-    if (idiomaMemora() === 'es') return;
-    const cfg = obtenerConfigSeguimiento();
-    const unidad = cfg.unidad === 'horas'
-        ? (idiomaMemora() === 'en' ? `${cfg.valor} hour(s)` : `${cfg.valor} hora(s)`)
-        : (idiomaMemora() === 'en' ? `${cfg.valor} day(s)` : `${cfg.valor} dia(s)`);
-    if ($('textoBannerSeguimiento')) {
-        $('textoBannerSeguimiento').innerHTML = idiomaMemora() === 'en'
-            ? `Set how long a record can remain inactive. When an active record exceeds <strong>${unidad}</strong> without activity, Memora brings it back to your attention in <strong>Follow-up Required</strong> so you can review what happened and decide how to continue.`
-            : `Defina quanto tempo um registro pode ficar sem atividade. Quando um registro ativo ultrapassa <strong>${unidad}</strong> sem atividade, o Memora volta a colocá-lo em destaque em <strong>Acompanhamento Necessário</strong> para você revisar o que aconteceu e decidir como continuar.`;
-    }
+    if ($('textoBannerSeguimiento')) $('textoBannerSeguimiento').textContent = textoMemora151(
+        'Memora muestra las gestiones que superan el plazo sin actividad o necesitan una revisión periódica. Revisá qué pasó y decidí cómo continuar.',
+        'Memora shows cases that exceed their inactivity limit or need a periodic review. Review what happened and decide what to do next.',
+        'O Memora mostra os atendimentos que ultrapassam o prazo sem atividade ou precisam de revisão periódica. Revise o que aconteceu e decida como continuar.'
+    );
     procesarArbolIdiomaMemora($('contenedorSeguimiento'));
 };
 
@@ -4289,6 +4267,13 @@ function validarFormularioAvanzadoMemora150(sufijo = '') {
 
 const _validarFormularioAntesDeGuardarV143 = validarFormularioAntesDeGuardar;
 validarFormularioAntesDeGuardar = function(sufijo = '') {
+    const regla = leerReglaSeguimientoMemora151(sufijo);
+    if (regla && regla.valor === 0) {
+        actualizarResumenSeguimiento151(sufijo);
+        $(`reglaSegValor${sufijo}`)?.focus();
+        $(`reglaSegValor${sufijo}`)?.scrollIntoView({behavior:'smooth',block:'center'});
+        return false;
+    }
     if (!_validarFormularioAntesDeGuardarV143(sufijo)) return false;
     return validarFormularioAvanzadoMemora150(sufijo);
 };
@@ -4378,23 +4363,21 @@ function solicitarHardResetMemora() {
 }
 
 async function ejecutarHardResetMemora() {
+    if (MODO_DEMO) { solicitarRestablecerDemo154(); return; }
     // Incluye la biblioteca de la 1.5.1, cuyo prefijo historico no lleva guion bajo.
     // No borrar claves ajenas a Memora que compartan el origen.
-    Object.keys(localStorage).forEach(k => {
-        if (k.startsWith('memora_') || k.startsWith('memora151_')) localStorage.removeItem(k);
+    Object.keys(memoraStorage154).forEach(k => {
+        if (k.startsWith('memora_') || k.startsWith('memora151_')) memoraStorage154.removeItem(k);
     });
     try {
-        if ('caches' in window) {
-            const keys = await caches.keys();
-            await Promise.all(keys.filter(k => k.startsWith('memora-')).map(k => caches.delete(k)));
-        }
+        await limpiarCacheActualMemora154();
     } catch (e) {
         console.warn('MEMORA: no se pudo limpiar Cache Storage durante Hard Reset.', e);
     }
     try {
         if ('serviceWorker' in navigator) {
-            const regs = await navigator.serviceWorker.getRegistrations();
-            await Promise.all(regs.map(r => r.unregister()));
+            const registration = await navigator.serviceWorker.getRegistration();
+            if (registration) await registration.unregister();
         }
     } catch (e) {
         console.warn('MEMORA: no se pudo desregistrar el Service Worker durante Hard Reset.', e);
@@ -4910,7 +4893,7 @@ construirPDFMemora = function(datosAExportar, filtro, fechaExportacion = ahoraMe
     datosAExportar.forEach((r,index)=>{const resumen=resumirRegistroPDFMemora(r,index), bloque=calcularAlturaBloque(resumen); if(y-bloque.alto<margenInferior)nuevaPagina(); renderizarBloque(resumen,bloque);});
     if(comandos)paginas.push(comandos);
     const totalPaginas=paginas.length;
-    paginas.forEach((contenido,idx)=>{let footer=''; footer+=comandoLineaPDFMemora(margenX,54,ancho-margenX,54,'0.86 0.89 0.93',0.8); footer+=comandoTextoPDFMemora(margenX,39,`${textoIdiomaMemora150('Generado con Memora PRO el','Generated with Memora PRO on','Gerado com Memora PRO em')} ${fechaHoraTextoFormateada(fechaExportacion)}${idiomaMemora()==='es'?' hs.':'.'}`,7.6,false,'0.43 0.47 0.53'); footer+=comandoTextoPDFMemora(480,39,`${textoIdiomaMemora150('Página','Page','Página')} ${idx+1} ${textoIdiomaMemora150('de','of','de')} ${totalPaginas}`,7.6,false,'0.43 0.47 0.53'); paginas[idx]=contenido+footer;});
+    paginas.forEach((contenido,idx)=>{let footer=''; footer+=comandoLineaPDFMemora(margenX,54,ancho-margenX,54,'0.86 0.89 0.93',0.8); footer+=comandoTextoPDFMemora(margenX,39,`${textoIdiomaMemora150(MODO_DEMO ? 'Generado con Memora DEMO el' : 'Generado con Memora PRO el',MODO_DEMO ? 'Generated with Memora DEMO on' : 'Generated with Memora PRO on',MODO_DEMO ? 'Gerado com Memora DEMO em' : 'Gerado com Memora PRO em')} ${fechaHoraTextoFormateada(fechaExportacion)}${idiomaMemora()==='es'?' hs.':'.'}`,7.6,false,'0.43 0.47 0.53'); footer+=comandoTextoPDFMemora(480,39,`${textoIdiomaMemora150('Página','Page','Página')} ${idx+1} ${textoIdiomaMemora150('de','of','de')} ${totalPaginas}`,7.6,false,'0.43 0.47 0.53'); paginas[idx]=contenido+footer;});
     const objetos=[],pageObjNums=[],contentObjNums=[],firstPageObj=5; paginas.forEach((_,i)=>{pageObjNums.push(firstPageObj+i*2);contentObjNums.push(firstPageObj+i*2+1);});
     objetos[1]='<< /Type /Catalog /Pages 2 0 R >>'; objetos[2]=`<< /Type /Pages /Count ${paginas.length} /Kids [${pageObjNums.map(n=>`${n} 0 R`).join(' ')}] >>`; objetos[3]='<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>'; objetos[4]='<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>';
     paginas.forEach((stream,i)=>{const pageNum=pageObjNums[i],contentNum=contentObjNums[i]; objetos[pageNum]=`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${ancho} ${alto}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${contentNum} 0 R >>`; objetos[contentNum]=`<< /Length ${stream.length} >>\nstream\n${stream}endstream`;});
@@ -4926,6 +4909,7 @@ exportarPDFFiltrado = function(){
 
 /* ---------- Hard Reset: frase de confirmacion localizada ---------- */
 solicitarHardResetMemora = function(){
+    if (MODO_DEMO) { solicitarRestablecerDemo154(); return; }
     const lang=idiomaMemora();
     const titulo=textoIdiomaMemora150('Restablecer Memora','Reset Memora','Redefinir Memora');
     const frase=lang==='en'?'DELETE MEMORA':lang==='pt'?'APAGAR MEMORA':'BORRAR MEMORA';
@@ -4938,7 +4922,7 @@ const _guardarIdiomaMemoraPreview1 = guardarIdiomaMemora;
 guardarIdiomaMemora = function(){
     _guardarIdiomaMemoraPreview1();
     if ($('modalStoriesMemora') && $('modalStoriesMemora').style.display !== 'none') {
-        const datosRaw=localStorage.getItem('memora_admin_user_data');
+        const datosRaw=memoraStorage154.getItem('memora_admin_user_data');
         const datos=datosRaw?JSON.parse(datosRaw):{nombreAdmin:textoIdiomaMemora150('Usuario','User','Usuário')};
         renderStoryStep(datos.nombreAdmin);
         procesarArbolIdiomaMemora($('modalStoriesMemora'));
@@ -5097,6 +5081,9 @@ function textoMemora151(es, en, pt) {
 function escaparHTMLMemora151(valor) {
     return String(valor ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
+function textoUsuarioHTML153(valor) {
+    return `<span data-memora-user-data>${escaparHTMLMemora151(valor)}</span>`;
+}
 function claveIdMemora151(r) {
     const id = String(r?.identificador || '').replace(/[\s.-]/g,'').toLocaleUpperCase();
     const tipo = String(r?.tipoIdentificador || 'Ninguno');
@@ -5121,7 +5108,7 @@ function fechaOrdenMemora151(r) {
         idNumerico <= Date.now() + 86400000 ? idNumerico : null;
 }
 function obtenerOrdenMemora151() {
-    const x = localStorage.getItem(MEMORA151_ORDEN_KEY);
+    const x = memoraStorage154.getItem(MEMORA151_ORDEN_KEY);
     return MEMORA151_ORDENES.includes(x) ? x : 'reciente';
 }
 function ordenarRegistrosMemora151(datos) {
@@ -5155,99 +5142,156 @@ function ordenarRegistrosMemora151(datos) {
 }
 function guardarOrdenRegistrosMemora151(valor) {
     if (!MEMORA151_ORDENES.includes(valor)) return;
-    localStorage.setItem(MEMORA151_ORDEN_KEY,valor);
+    memoraStorage154.setItem(MEMORA151_ORDEN_KEY,valor);
     render();
 }
 
+function esRevisionPeriodica152(r) {
+    return r?.seguimientoPropio?.valor > 0 && r.seguimientoPropio.modalidad === 'periodica';
+}
+function normalizarReglaComparacion152(regla) {
+    if (!regla) return null;
+    return {valor:regla.valor,unidad:regla.unidad,modalidad:regla.modalidad === 'periodica'?'periodica':'inactividad'};
+}
+function obtenerFechaSeguimiento152(r) {
+    // Activity edits never participate in the periodic clock.
+    return esRevisionPeriodica152(r)
+        ? r.ultimaRevisionPeriodica || r.inicioRevisionPeriodica || r.ultimaRevision || r.fecha
+        : obtenerUltimaRevisionEfectiva(r);
+}
+function prepararFechasSeguimiento152(original, nuevo) {
+    if (!esRevisionPeriodica152(nuevo)) return;
+    if (esRevisionPeriodica152(original)) {
+        nuevo.inicioRevisionPeriodica = original.inicioRevisionPeriodica || obtenerFechaSeguimiento152(original);
+        if (original.ultimaRevisionPeriodica) nuevo.ultimaRevisionPeriodica = original.ultimaRevisionPeriodica;
+    } else {
+        nuevo.inicioRevisionPeriodica = ahoraMemora().toISOString();
+        delete nuevo.ultimaRevisionPeriodica;
+    }
+}
+function textoPlazoSeguimiento152(valor,unidad) {
+    const u=unidad==='horas'?textoMemora151(valor===1?'hora':'horas',valor===1?'hour':'hours',valor===1?'hora':'horas'):
+        textoMemora151(valor===1?'día':'días',valor===1?'day':'days',valor===1?'dia':'dias');
+    return `${valor} ${u}`;
+}
+function describirSeguimiento152(r) {
+    const regla = r.seguimientoPropio?.valor > 0 ? r.seguimientoPropio : obtenerConfigSeguimiento();
+    const plazo = textoPlazoSeguimiento152(regla.valor,regla.unidad);
+    return esRevisionPeriodica152(r)
+        ? textoMemora151(`Revisión periódica · Cada ${plazo}`,`Periodic review · Every ${plazo}`,`Revisão periódica · A cada ${plazo}`)
+        : textoMemora151(`Revisión por inactividad · Plazo: ${plazo}`,`Inactivity review · Interval: ${plazo}`,`Revisão por inatividade · Prazo: ${plazo}`);
+}
+function renderReglaSeguimiento153(r) {
+    const regla = r.seguimientoPropio?.valor > 0 ? r.seguimientoPropio : obtenerConfigSeguimiento();
+    const periodica = esRevisionPeriodica152(r), plazo = textoPlazoSeguimiento152(regla.valor, regla.unidad);
+    const titulo = periodica ? textoMemora151('Revisión periódica', 'Periodic review', 'Revisão periódica') :
+        textoMemora151('Revisión por inactividad', 'Inactivity review', 'Revisão por inatividade');
+    const detalle = periodica ? textoMemora151(`Cada ${plazo}`, `Every ${plazo}`, `A cada ${plazo}`) :
+        textoMemora151(`Plazo: ${plazo}`, `Interval: ${plazo}`, `Prazo: ${plazo}`);
+    return `<p class="memora152-follow-note memora153-follow-rule" data-memora-localized><span class="material-symbols-outlined" aria-hidden="true">schedule</span><span><strong>${escaparHTMLMemora151(titulo)}</strong><span class="memora153-follow-interval">${escaparHTMLMemora151(detalle)}</span></span></p>`;
+}
 function leerReglaSeguimientoMemora151(sufijo='') {
     if ($(`reglaSeg${sufijo}`)?.value !== 'propia') return null;
     const valor=Number($(`reglaSegValor${sufijo}`)?.value);
     const unidad=$(`reglaSegUnidad${sufijo}`)?.value;
-    return Number.isInteger(valor) && valor>=1 && valor<=365 && ['horas','dias'].includes(unidad)
-        ? {valor,unidad} : {valor:0,unidad:'invalida'};
+    const modalidad=$(`reglaSegModalidad${sufijo}`)?.value;
+    if (!Number.isInteger(valor) || valor<1 || valor>365 || !['horas','dias'].includes(unidad) || !['inactividad','periodica'].includes(modalidad)) return {valor:0,unidad:'invalida'};
+    return {valor,unidad,...(modalidad==='periodica'?{modalidad:'periodica'}:{})};
 }
-// Preview 4: los controles visuales mantienen los selects de datos anteriores para
-// no cambiar el esquema de registro ni las reglas ya configuradas.
 function actualizarResumenSeguimiento151(sufijo='') {
-    const propia=$(`reglaSeg${sufijo}`)?.value==='propia';
     const n=Number($(`reglaSegValor${sufijo}`)?.value);
     const unidad=$(`reglaSegUnidad${sufijo}`)?.value === 'horas' ? 'horas' : 'dias';
+    const periodica=$(`reglaSegModalidad${sufijo}`)?.value==='periodica';
     const horas=$(`reglaSegHorasBtn${sufijo}`), dias=$(`reglaSegDiasBtn${sufijo}`);
     horas?.classList.toggle('biblioteca151-unit-active',unidad==='horas');
     dias?.classList.toggle('biblioteca151-unit-active',unidad==='dias');
     horas?.setAttribute('aria-pressed',String(unidad==='horas'));
     dias?.setAttribute('aria-pressed',String(unidad==='dias'));
-    const tr=(es,en,pt)=>textoMemora151(es,en,pt);
-    const etiqueta=$(`reglaSegPlazoLabel${sufijo}`);
-    if(etiqueta) etiqueta.textContent=tr('Plazo sin actividad','Time without activity','Prazo sem atividade');
-    if(horas) horas.textContent=tr('Horas','Hours','Horas');
-    if(dias) dias.textContent=tr('Días','Days','Dias');
-    const group=$(`reglaSegUnidades${sufijo}`);
-    if(group) group.setAttribute('aria-label',tr('Unidad de seguimiento','Follow-up unit','Unidade de acompanhamento'));
+    const tr=textoMemora151;
+    const set=(base,text)=>{if ($(`${base}${sufijo}`)) $(`${base}${sufijo}`).textContent=text;};
+    set('reglaSegTitle',tr('Seguimiento de esta gestión','Follow-up for this case','Acompanhamento deste atendimento'));
+    set('reglaSegGeneralBtn',tr('Usar configuración general','Use general setting','Usar configuração geral'));
+    set('reglaSegPropiaBtn',tr('Seguimiento especial','Special follow-up','Acompanhamento especial'));
+    set('reglaSegModalidadLabel',tr('Modalidad','Mode','Modalidade'));
+    const modalidad=$(`reglaSegModalidad${sufijo}`);
+    if (modalidad) {
+        modalidad.options[0].textContent=tr('Por inactividad','By inactivity','Por inatividade');
+        modalidad.options[1].textContent=tr('Revisión periódica','Periodic review','Revisão periódica');
+    }
+    const plazoLabel=periodica?tr('Revisar cada','Review every','Revisar a cada'):tr('Plazo sin actividad','Time without activity','Prazo sem atividade');
+    set('reglaSegPlazoLabel',plazoLabel);
+    if(horas)horas.textContent=tr('Horas','Hours','Horas');
+    if(dias)dias.textContent=tr('Días','Days','Dias');
+    $(`reglaSegUnidades${sufijo}`)?.setAttribute('aria-label',tr('Unidad de seguimiento','Follow-up unit','Unidade de acompanhamento'));
     const valor=$(`reglaSegValor${sufijo}`);
-    if(valor)valor.setAttribute('aria-label',tr('Plazo sin actividad','Time without activity','Prazo sem atividade'));
+    if(valor){valor.setAttribute('aria-label',plazoLabel);valor.placeholder=tr('Número','Number','Número');}
     const result=$(`reglaSegResumen${sufijo}`);
+    const valido=Number.isInteger(n)&&n>=1&&n<=365;
     if(result){
         let phrase;
-        if(!Number.isInteger(n)||n<1||n>365){
-            phrase=tr('Elegí un valor entre 1 y 365.','Choose a value from 1 to 365.','Escolha um valor entre 1 e 365.');
-            result.classList.add('biblioteca151-follow-error');
-        } else {
-            const u=unidad==='horas'?tr(n===1?'hora':'horas',n===1?'hour':'hours',n===1?'hora':'horas'):
-                tr(n===1?'día':'días',n===1?'day':'days',n===1?'dia':'dias');
-            phrase=tr(`Este registro aparecerá en seguimiento después de ${n} ${u} sin actividad.`,
-                `This record will appear in Follow-up Required after ${n} ${u} without activity.`,
-                `Este registro aparecerá no acompanhamento após ${n} ${u} sem atividade.`);
-            result.classList.remove('biblioteca151-follow-error');
+        if(!valido) phrase=tr('Escribí un número entero entre 1 y 365. Vos elegís el plazo.','Enter a whole number from 1 to 365. You choose the interval.','Digite um número inteiro entre 1 e 365. Você escolhe o prazo.');
+        else {
+            const plazo=textoPlazoSeguimiento152(n,unidad);
+            phrase=periodica ? tr(`Este registro volverá a pedir revisión cada ${plazo}. El período se reinicia al marcar Revisado; editar datos o comentarios no lo reinicia.`,
+                `This record will request a review every ${plazo}. Marking Reviewed restarts the interval; editing details or comments does not.`,
+                `Este registro voltará a pedir revisão a cada ${plazo}. Marcar Revisado reinicia o período; editar dados ou comentários não o reinicia.`)
+                : tr(`Este registro aparecerá en seguimiento después de ${plazo} sin actividad.`,
+                `This record will appear in Follow-up Required after ${plazo} without activity.`,
+                `Este registro aparecerá no acompanhamento após ${plazo} sem atividade.`);
         }
+        result.classList.toggle('biblioteca151-follow-error',!valido);
         result.innerHTML='<span class="material-symbols-outlined" aria-hidden="true">info</span><span></span>';
         result.lastElementChild.textContent=phrase;
     }
-    const genHint=$(`reglaSegGeneralHint${sufijo}`);
-    if(genHint) genHint.textContent=tr('Se utilizará el plazo general configurado en Perfil.',
-        'The general follow-up time configured in Profile will be used.',
-        'Será utilizado o prazo geral configurado no Perfil.');
+    set('reglaSegGeneralHint',tr('Se utilizará el plazo general configurado en Perfil.','The general follow-up time configured in Profile will be used.','Será utilizado o prazo geral configurado no Perfil.'));
 }
 function elegirUnidadSeguimiento151(sufijo,unidad){
     if(!['horas','dias'].includes(unidad))return;
-    const select=$(`reglaSegUnidad${sufijo}`);
-    if(select)select.value=unidad;
+    const select=$(`reglaSegUnidad${sufijo}`);if(select)select.value=unidad;
     actualizarResumenSeguimiento151(sufijo);
 }
 function cambiarReglaSeguimientoMemora151(sufijo='') {
     const propia=$(`reglaSeg${sufijo}`)?.value==='propia';
-    const campos=$(`reglaSegCampos${sufijo}`);
-    if(campos)campos.style.display=propia?'block':'none';
+    const campos=$(`reglaSegCampos${sufijo}`);if(campos)campos.style.display=propia?'block':'none';
     const gen=$(`reglaSegGeneralBtn${sufijo}`), custom=$(`reglaSegPropiaBtn${sufijo}`);
-    gen?.classList.toggle('biblioteca151-rule-active',!propia);
-    custom?.classList.toggle('biblioteca151-rule-active',propia);
-    gen?.setAttribute('aria-pressed',String(!propia));
-    custom?.setAttribute('aria-pressed',String(propia));
+    gen?.classList.toggle('biblioteca151-rule-active',!propia);custom?.classList.toggle('biblioteca151-rule-active',propia);
+    gen?.setAttribute('aria-pressed',String(!propia));custom?.setAttribute('aria-pressed',String(propia));
     if($(`reglaSegGeneralHint${sufijo}`))$(`reglaSegGeneralHint${sufijo}`).style.display=propia?'none':'block';
     actualizarResumenSeguimiento151(sufijo);
 }
-function elegirReglaVisual151(sufijo,regla){
-    const select=$(`reglaSeg${sufijo}`);
-    if(!select)return;
+function elegirReglaVisual151(sufijo,regla,origen='manual'){
+    const select=$(`reglaSeg${sufijo}`);if(!select)return;
+    if (regla !== 'propia') select.dataset.origenSeguimiento='general';
+    else if (select.value !== 'propia' || origen === 'manual') select.dataset.origenSeguimiento=origen;
     select.value=regla==='propia'?'propia':'general';
     cambiarReglaSeguimientoMemora151(sufijo);
     if(regla==='propia')$(`reglaSegValor${sufijo}`)?.focus();
 }
+function cambiarPrioridadSeguimiento152(sufijo='') {
+    const select=$(`reglaSeg${sufijo}`);
+    if (['Alta','Urgente'].includes($(`prioridad${sufijo}`)?.value)) elegirReglaVisual151(sufijo,'propia','automatica');
+    else if (select?.dataset.origenSeguimiento === 'automatica') elegirReglaVisual151(sufijo,'general');
+    // Normal uses the general rule unless a special rule was explicitly selected.
+    // Switching priority never clears the user's typed interval.
+}
 function cargarExtrasRegistroMemora151(r,sufijo='') {
+    resetearExtrasRegistroMemora151(sufijo);
     if ($(`prioridad${sufijo}`)) $(`prioridad${sufijo}`).value = ['Alta','Urgente'].includes(r.prioridad)?r.prioridad:'Normal';
     const propia=r.seguimientoPropio && r.seguimientoPropio.valor>0;
-    if ($(`reglaSeg${sufijo}`)) $(`reglaSeg${sufijo}`).value = propia?'propia':'general';
+    if ($(`reglaSeg${sufijo}`)) { $(`reglaSeg${sufijo}`).value = propia?'propia':'general'; $(`reglaSeg${sufijo}`).dataset.origenSeguimiento=propia?'manual':'general'; }
     if (propia) {
         if ($(`reglaSegValor${sufijo}`)) $(`reglaSegValor${sufijo}`).value=r.seguimientoPropio.valor;
         if ($(`reglaSegUnidad${sufijo}`)) $(`reglaSegUnidad${sufijo}`).value=r.seguimientoPropio.unidad;
+        if ($(`reglaSegModalidad${sufijo}`)) $(`reglaSegModalidad${sufijo}`).value=esRevisionPeriodica152(r)?'periodica':'inactividad';
     }
     cambiarReglaSeguimientoMemora151(sufijo);
 }
 function resetearExtrasRegistroMemora151(sufijo='') {
     if ($(`prioridad${sufijo}`)) $(`prioridad${sufijo}`).value='Normal';
-    if ($(`reglaSeg${sufijo}`)) $(`reglaSeg${sufijo}`).value='general';
-    if ($(`reglaSegValor${sufijo}`)) $(`reglaSegValor${sufijo}`).value='2';
+    if ($(`reglaSeg${sufijo}`)) { $(`reglaSeg${sufijo}`).value='general'; $(`reglaSeg${sufijo}`).dataset.origenSeguimiento='general'; }
+    if ($(`reglaSegValor${sufijo}`)) $(`reglaSegValor${sufijo}`).value='';
     if ($(`reglaSegUnidad${sufijo}`)) $(`reglaSegUnidad${sufijo}`).value='dias';
+    if ($(`reglaSegModalidad${sufijo}`)) $(`reglaSegModalidad${sufijo}`).value='inactividad';
     cambiarReglaSeguimientoMemora151(sufijo);
 }
 function obtenerLimiteSeguimientoMemora151(r) {
@@ -5438,7 +5482,7 @@ function textoResumenMemora151(r){
     ];
     const lines=[textoMemora151('MEMORA - Resumen de gestión','MEMORA - Case summary','MEMORA - Resumo do atendimento')];
     campos.forEach(([es,en,pt,val])=>lines.push(`${textoMemora151(es,en,pt)}: ${val}`));
-    if(r.seguimientoPropio) lines.push(`${textoMemora151('Seguimiento propio','Custom follow-up','Acompanhamento personalizado')}: ${r.seguimientoPropio.valor} ${r.seguimientoPropio.unidad==='horas'?textoMemora151('horas','hours','horas'):textoMemora151('días','days','dias')}`);
+    if(r.seguimientoPropio?.valor>0) lines.push(`${textoMemora151('Seguimiento propio','Custom follow-up','Acompanhamento personalizado')}: ${describirSeguimiento152(r)}`);
     const comentarios=(r.comentarios||[]).filter(c=>!c.eliminado&&String(c.texto||'').trim());
     if(comentarios.length){lines.push('',textoMemora151('Comentarios registrados:','Recorded comments:','Comentários registrados:'));comentarios.forEach(c=>lines.push(`- ${c.fecha||'—'}: ${c.texto}`));}
     return lines.join('\n');
@@ -5508,7 +5552,7 @@ function crearManifiestoRespaldoMemora151() {
     const estados={};
     registros.forEach(r=>{const x=r.estado||'Sin estado';estados[x]=(estados[x]||0)+1;});
     return {
-        producto:'MEMORA',versionAplicacion:MEMORA_VERSION,esquema:'memora_registros_v1',
+        producto:'MEMORA',versionAplicacion:MEMORA_VERSION,modo:Memora154.mode,esquema:'memora_registros_v1',
         creadoEn:new Date().toISOString(),totalRegistros:registros.length,
         biblioteca151:typeof contarDatosBiblioteca151==='function'?contarDatosBiblioteca151():null,
         registrosPorEstado:estados,
@@ -5527,6 +5571,7 @@ function exportarRespaldoConManifiestoMemora151(){
     descargarBlob(new Blob([zip],{type:'application/zip'}),`MEMORA_Backup_${selloArchivoMemora(fecha)}.zip`);
 }
 async function guardarManifiestoADriveMemora151(){
+    if (MODO_DEMO) return false;
     if(!googleAccessToken)return false;
     const contenido=JSON.stringify(crearManifiestoRespaldoMemora151(),null,2);
     const buscar=await fetch("https://www.googleapis.com/drive/v3/files?q=name%3D%27memora_backup_manifest.json%27%20and%20trashed%3Dfalse",{headers:{Authorization:`Bearer ${googleAccessToken}`}});
@@ -5600,3 +5645,13 @@ document.addEventListener('input', event => {
 // Preview 4 follow-up button labels for all supported languages.
 Object.assign(MEMORA_TRADUCCIONES.en, {'Personalizar':'Customize'});
 Object.assign(MEMORA_TRADUCCIONES.pt, {'Personalizar':'Personalizar'});
+
+// Refresh due reviews while open and after returning from the background.
+document.addEventListener('DOMContentLoaded',()=>{
+    setInterval(()=>{actualizarSeguimiento();actualizarMetricsInicio();},60000);
+});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)render();});
+
+Object.assign(MEMORA_TRADUCCIONES.en,{"Reúne gestiones que superan su plazo sin actividad o necesitan una revisión periódica. El plazo general se configura en Perfil. En cada registro podés elegir Seguimiento especial, modalidad, número y Horas o Días. Alta y Urgente abren esa configuración sin decidir el plazo por vos.": "It lists cases that exceed their inactivity limit or need a periodic review. Set the general interval in Profile. In each record you can choose Special follow-up, mode, number and Hours or Days. High and Urgent open those settings without choosing an interval for you.", "Usalo cuando verificaste un registro. Memora guarda la revisión y reinicia el plazo. En revisión periódica, editar datos o comentarios no reinicia el período; marcar Revisado sí.": "Use it when you have reviewed a record. Memora saves the review and restarts the interval. With periodic review, editing details or comments does not restart the interval; marking Reviewed does."});
+
+Object.assign(MEMORA_TRADUCCIONES.pt,{"Reúne gestiones que superan su plazo sin actividad o necesitan una revisión periódica. El plazo general se configura en Perfil. En cada registro podés elegir Seguimiento especial, modalidad, número y Horas o Días. Alta y Urgente abren esa configuración sin decidir el plazo por vos.": "Reúne atendimentos que ultrapassam o prazo sem atividade ou precisam de revisão periódica. Configure o prazo geral no Perfil. Em cada registro você pode escolher Acompanhamento especial, modalidade, número e Horas ou Dias. Alta e Urgente abrem essa configuração sem escolher o prazo por você.", "Usalo cuando verificaste un registro. Memora guarda la revisión y reinicia el plazo. En revisión periódica, editar datos o comentarios no reinicia el período; marcar Revisado sí.": "Use quando tiver revisado um registro. O Memora salva a revisão e reinicia o prazo. Na revisão periódica, editar dados ou comentários não reinicia o período; marcar Revisado sim."});
